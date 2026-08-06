@@ -28,19 +28,30 @@ export const filterRecords = (records: DealRecord[], filters: GlobalFilterState)
   const endIso = normalizeIsoString(filters.endDate);
 
   return records.filter(rec => {
-    const isInProgress = rec.type === 'in_progress';
+    const isProgressDeal = rec.type === 'in_progress';
 
-    // 1. Date Filters ONLY apply to won & lost deals (SKIP for in_progress deals)
-    if (!isInProgress) {
+    // 1. Date Range Filters (Do NOT apply date filters to in_progress deals)
+    if (!isProgressDeal) {
       if (startIso && rec.date < startIso) return false;
       if (endIso && rec.date > endIso) return false;
 
+      // 2. Month Filter (e.g., "Jul 2026", "July 2026", "Jul")
       if (filters.selectedMonth && filters.selectedMonth !== 'All') {
-        const targetM = filters.selectedMonth.toLowerCase();
-        const recM = (rec.monthYear || '').toLowerCase();
-        const monthPrefix = targetM.split(' ')[0].substring(0, 3);
-        if (!recM.includes(monthPrefix)) return false;
+        const targetM = filters.selectedMonth.toLowerCase().trim();
+        const recM = (rec.monthYear || '').toLowerCase().trim();
+
+        if (targetM.includes(' ')) {
+          const parts = targetM.split(/\s+/);
+          const monthPrefix = parts[0].substring(0, 3);
+          const targetYear = parts[1];
+          if (!recM.startsWith(monthPrefix) || !recM.endsWith(targetYear)) return false;
+        } else {
+          const monthPrefix = targetM.substring(0, 3);
+          if (!recM.startsWith(monthPrefix)) return false;
+        }
       }
+
+      // 3. Quarter & Year Filters
       if (filters.selectedQuarter && filters.selectedQuarter !== 'All' && rec.quarter !== filters.selectedQuarter) return false;
       if (filters.selectedYear && filters.selectedYear !== 'All' && String(rec.year) !== filters.selectedYear) return false;
     }
@@ -74,7 +85,12 @@ export const filterRecords = (records: DealRecord[], filters: GlobalFilterState)
   });
 };
 
-export const calculateKPIs = (records: DealRecord[], filters?: GlobalFilterState, targetOverride?: number): KPIMetrics => {
+export const calculateKPIs = (
+  records: DealRecord[], 
+  filters?: GlobalFilterState, 
+  targetOverride?: number,
+  allUnfilteredRecords?: DealRecord[]
+): KPIMetrics => {
   const wonDeals = records.filter(r => r.type === 'won');
   const lostDeals = records.filter(r => r.type === 'lost');
   const progressDeals = records.filter(r => r.type === 'in_progress');
@@ -123,8 +139,8 @@ export const calculateKPIs = (records: DealRecord[], filters?: GlobalFilterState
   }
 
   const monthlyTarget = targetOverride || (baseTargetPerMonth * monthMultiplier);
-  const targetAchievementPct = monthlyTarget > 0 ? Math.round((totalGrossRevenue / monthlyTarget) * 1000) / 10 : 0;
-  const revenueRemaining = Math.max(0, monthlyTarget - totalGrossRevenue);
+  const targetAchievementPct = monthlyTarget > 0 ? Math.round((totalNetRevenue / monthlyTarget) * 1000) / 10 : 0;
+  const revenueRemaining = Math.max(0, monthlyTarget - totalNetRevenue);
 
   // Weighted Forecast Revenue
   const weightedPipelineForecast = progressDeals.reduce((acc, r) => {
@@ -168,13 +184,33 @@ export const calculateKPIs = (records: DealRecord[], filters?: GlobalFilterState
 
   if (totalWonCount > 0) {
     if (cycleDiff > 0) {
-      salesCycleTrend = `-${cycleDiff} Days faster`;
+      salesCycleTrend = `${cycleDiff} Days faster`;
       salesCycleTrendPositive = true;
     } else if (cycleDiff < 0) {
-      salesCycleTrend = `+${Math.abs(cycleDiff)} Days slower`;
+      salesCycleTrend = `${Math.abs(cycleDiff)} Days slower`;
       salesCycleTrendPositive = false;
     }
   }
+
+  // Helper to parse Month-Year strings into timestamp for chronological sorting
+  const monthMap: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  const getMonthYearTime = (str: string): number => {
+    if (!str) return 0;
+    const parts = str.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const mStr = parts[0].toLowerCase().substring(0, 3);
+      const yNum = parseInt(parts[1], 10);
+      const mNum = monthMap[mStr] !== undefined ? monthMap[mStr] : 0;
+      if (!isNaN(yNum)) {
+        return new Date(yNum, mNum, 1).getTime();
+      }
+    }
+    return 0;
+  };
 
   // Dynamic MoM Revenue Growth
   const monthRevMap: Record<string, number> = {};
@@ -182,7 +218,7 @@ export const calculateKPIs = (records: DealRecord[], filters?: GlobalFilterState
     monthRevMap[r.monthYear] = (monthRevMap[r.monthYear] || 0) + r.netRevenue;
   });
 
-  const monthKeysSorted = Object.keys(monthRevMap).sort();
+  const monthKeysSorted = Object.keys(monthRevMap).sort((a, b) => getMonthYearTime(a) - getMonthYearTime(b));
   let revenueGrowthPct = 0;
 
   if (monthKeysSorted.length >= 2) {
@@ -193,13 +229,25 @@ export const calculateKPIs = (records: DealRecord[], filters?: GlobalFilterState
     } else if (currentM > 0) {
       revenueGrowthPct = 100.0;
     }
-  } else if (wonDeals.length > 0) {
-    // Single month rep specific variation
-    const repName = wonDeals[0].salesRep;
-    if (repName.includes('Jitesh')) revenueGrowthPct = 24.5;
-    else if (repName.includes('Taniya')) revenueGrowthPct = 32.1;
-    else if (repName.includes('Rohit')) revenueGrowthPct = 14.2;
-    else if (repName.includes('Sandeep')) revenueGrowthPct = 9.8;
+  } else if (wonDeals.length > 0 && allUnfilteredRecords && allUnfilteredRecords.length > 0) {
+    const currentMonthStr = wonDeals[0].monthYear;
+    const allWonDeals = allUnfilteredRecords.filter(r => r.type === 'won');
+    const allMonthRevMap: Record<string, number> = {};
+    allWonDeals.forEach(r => {
+      allMonthRevMap[r.monthYear] = (allMonthRevMap[r.monthYear] || 0) + r.netRevenue;
+    });
+    const allMonths = Object.keys(allMonthRevMap).sort((a, b) => getMonthYearTime(a) - getMonthYearTime(b));
+    const currIdx = allMonths.indexOf(currentMonthStr);
+    if (currIdx > 0) {
+      const prevMonthStr = allMonths[currIdx - 1];
+      const prevRev = allMonthRevMap[prevMonthStr] || 0;
+      const currRev = totalNetRevenue;
+      if (prevRev > 0) {
+        revenueGrowthPct = Math.round(((currRev - prevRev) / prevRev) * 1000) / 10;
+      } else if (currRev > 0) {
+        revenueGrowthPct = 100.0;
+      }
+    }
   }
 
   // Forecast Achievement

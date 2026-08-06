@@ -372,6 +372,15 @@ export const filterProjectRecords = (
       return false;
     }
 
+    // 7. Date Filter
+    if (filters.dateFilter && filters.dateFilter !== 'All Dates') {
+      const df = filters.dateFilter.toLowerCase();
+      const matchStart = (r.startDate || '').toLowerCase().includes(df);
+      const matchEnd = (r.plannedEndDate || '').toLowerCase().includes(df);
+      const matchActual = (r.actualEndDate || '').toLowerCase().includes(df);
+      if (!matchStart && !matchEnd && !matchActual) return false;
+    }
+
     return true;
   });
 };
@@ -384,23 +393,52 @@ export const filterProjectRecords = (
  * - Under Budget Projects
  * - Over Budget Projects
  */
-export const calculateProjectKPIs = (records: ProjectRecord[]): ProjectKPIMetrics => {
+export const calculateProjectKPIs = (records: ProjectRecord[], isAllStatusFilter = true): ProjectKPIMetrics => {
   const totalProjects = records.length;
 
-  let projectsRunning = 0;
+  const runningRecords = records.filter(r => r.status === 'Running' || r.status.toLowerCase() === 'in progress');
+  const projectsRunning = runningRecords.length;
+
+  // Breakdown records for Top Running Cards: If no status filter is explicitly selected, evaluate breakdown ONLY for running projects.
+  const runningBreakdownRecords = (isAllStatusFilter && runningRecords.length > 0) ? runningRecords : records;
+
   let onTimeProjects = 0;
   let delayedProjects = 0;
   let underBudgetProjects = 0;
   let overBudgetProjects = 0;
   let onBudgetProjects = 0;
+
+  let portfolioOnTimeProjects = 0;
+  let portfolioDelayedProjects = 0;
+  let portfolioUnderBudgetProjects = 0;
+  let portfolioOverBudgetProjects = 0;
+  let portfolioOnBudgetProjects = 0;
+
   let totalPlannedBudget = 0;
   let totalActualCost = 0;
 
+  // 1. Portfolio-Wide Breakdown (ALL filtered records, e.g. 3 Projects)
   records.forEach(r => {
-    if (r.status === 'Running' || r.status.toLowerCase() === 'in progress') {
-      projectsRunning++;
+    totalPlannedBudget += r.plannedBudget || 0;
+    totalActualCost += r.actualCost || 0;
+
+    if (r.timelineStatus === 'On Time') {
+      portfolioOnTimeProjects++;
+    } else {
+      portfolioDelayedProjects++;
     }
 
+    if (r.budgetStatus === 'Under Budget') {
+      portfolioUnderBudgetProjects++;
+    } else if (r.budgetStatus === 'Over Budget') {
+      portfolioOverBudgetProjects++;
+    } else {
+      portfolioOnBudgetProjects++;
+    }
+  });
+
+  // 2. Running-Only Breakdown (for top Running & Budget status cards)
+  runningBreakdownRecords.forEach(r => {
     if (r.timelineStatus === 'On Time') {
       onTimeProjects++;
     } else {
@@ -414,14 +452,12 @@ export const calculateProjectKPIs = (records: ProjectRecord[]): ProjectKPIMetric
     } else {
       onBudgetProjects++;
     }
-
-    totalPlannedBudget += r.plannedBudget || 0;
-    totalActualCost += r.actualCost || 0;
   });
 
+  const baseCount = runningBreakdownRecords.length;
   const netBudgetVariance = totalActualCost - totalPlannedBudget;
-  const onTimeRatePct = totalProjects > 0 ? Math.round((onTimeProjects / totalProjects) * 1000) / 10 : 0;
-  const underBudgetRatePct = totalProjects > 0 ? Math.round((underBudgetProjects / totalProjects) * 1000) / 10 : 0;
+  const onTimeRatePct = baseCount > 0 ? Math.round((onTimeProjects / baseCount) * 1000) / 10 : 0;
+  const underBudgetRatePct = baseCount > 0 ? Math.round((underBudgetProjects / baseCount) * 1000) / 10 : 0;
   const avgCostPerProject = totalProjects > 0 ? Math.round(totalActualCost / totalProjects) : 0;
 
   return {
@@ -432,6 +468,11 @@ export const calculateProjectKPIs = (records: ProjectRecord[]): ProjectKPIMetric
     underBudgetProjects,
     overBudgetProjects,
     onBudgetProjects,
+    portfolioOnTimeProjects,
+    portfolioDelayedProjects,
+    portfolioUnderBudgetProjects,
+    portfolioOverBudgetProjects,
+    portfolioOnBudgetProjects,
     totalPlannedBudget,
     totalActualCost,
     netBudgetVariance,

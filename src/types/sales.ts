@@ -22,24 +22,13 @@ export interface DealRecord {
   salesCycleDays?: number;
   contractTermMonths?: number;
   marginPct?: number;
+  comments?: string;
+  remarks?: string;
+  fileAttachments?: { id?: string; showUrl?: string; downloadUrl?: string }[];
   rawRecord?: Record<string, any>;
 }
 
-export interface UploadValidationReport {
-  timestamp: string;
-  wonCount: number;
-  lostCount: number;
-  progressCount: number;
-  detectedColumnsWon: string[];
-  detectedColumnsLost: string[];
-  detectedColumnsProgress: string[];
-  missingValuesCleaned: number;
-  duplicatesRemoved: number;
-  gstCorrectionsApplied: number;
-  formattedDatesNormalized: number;
-  status: 'success' | 'warning' | 'error';
-  messages: string[];
-}
+
 
 export interface GlobalFilterState {
   startDate: string;

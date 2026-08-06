@@ -31,16 +31,24 @@ export interface ProjectFilterState {
   budgetStatus: string; // 'All' | 'Under Budget' | 'On Budget' | 'Over Budget'
   projectType: string; // 'All' | 'CCTV' | 'Networking' | ...
   customer: string; // 'All' | specific customer
+  dateFilter: string; // 'All Dates' | 'July 2026' | 'August 2026' | etc.
 }
 
 export interface ProjectKPIMetrics {
   totalProjects: number;
   projectsRunning: number;
+  // Running-only breakdown (for top cards)
   onTimeProjects: number;
   delayedProjects: number;
   underBudgetProjects: number;
   overBudgetProjects: number;
   onBudgetProjects: number;
+  // Complete portfolio-wide breakdown (for donut charts)
+  portfolioOnTimeProjects: number;
+  portfolioDelayedProjects: number;
+  portfolioUnderBudgetProjects: number;
+  portfolioOverBudgetProjects: number;
+  portfolioOnBudgetProjects: number;
   totalPlannedBudget: number;
   totalActualCost: number;
   netBudgetVariance: number; // totalActualCost - totalPlannedBudget

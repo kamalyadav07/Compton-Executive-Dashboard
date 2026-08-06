@@ -1,5 +1,3 @@
-import type { DealRecord, UploadValidationReport } from '../types/sales';
-import { parseRawContent, validateAndSanitizeData } from './dataParser';
 import { convertToCsvExportUrl, type GoogleSheetsConfig } from '../config/sheetsConfig';
 
 export interface SheetFetchStatus {
@@ -9,23 +7,27 @@ export interface SheetFetchStatus {
   message?: string;
 }
 
-export interface GoogleSheetsSyncResult {
-  won: DealRecord[];
-  lost: DealRecord[];
-  progress: DealRecord[];
-  report: UploadValidationReport | null;
-  statuses: {
-    won: SheetFetchStatus;
-    lost: SheetFetchStatus;
-    progress: SheetFetchStatus;
-  };
+export interface ProjectsSheetSyncResult {
+  projects: any[];
+  status: SheetFetchStatus;
   lastSyncedAt: Date;
 }
 
-const fetchSingleSheet = async (
-  rawUrl: string,
-  dealType: 'won' | 'lost' | 'in_progress'
-): Promise<{ records: DealRecord[]; columns: string[]; status: SheetFetchStatus }> => {
+export const fetchProjectsSheet = async (
+  rawUrl: string
+): Promise<{ projects: any[]; status: SheetFetchStatus }> => {
+  if (!rawUrl) {
+    return {
+      projects: [],
+      status: {
+        url: '',
+        status: 'error',
+        recordCount: 0,
+        message: 'No Project Sheet URL configured.'
+      }
+    };
+  }
+
   const csvUrl = convertToCsvExportUrl(rawUrl);
 
   try {
@@ -39,8 +41,7 @@ const fetchSingleSheet = async (
     if (!response.ok) {
       if (response.status === 401 || response.status === 403) {
         return {
-          records: [],
-          columns: [],
+          projects: [],
           status: {
             url: rawUrl,
             status: 'permission_error',
@@ -54,11 +55,9 @@ const fetchSingleSheet = async (
 
     const text = await response.text();
 
-    // Check if Google returned HTML login page instead of CSV
     if (text.includes('<!DOCTYPE html>') || text.includes('<html') || text.includes('accounts.google.com')) {
       return {
-        records: [],
-        columns: [],
+        projects: [],
         status: {
           url: rawUrl,
           status: 'permission_error',
@@ -68,61 +67,51 @@ const fetchSingleSheet = async (
       };
     }
 
-    const { records, detectedColumns } = parseRawContent(text, dealType);
+    // Parse CSV lines into project objects
+    const lines = text.split(/\r?\n/).filter(l => l.trim().length > 0);
+    const projects: any[] = [];
+    if (lines.length > 1) {
+      const headers = lines[0].split(',').map(h => h.replace(/^"|"$/g, '').trim());
+      for (let i = 1; i < lines.length; i++) {
+        const rowVals = lines[i].split(',').map(v => v.replace(/^"|"$/g, '').trim());
+        const projectObj: Record<string, any> = {};
+        headers.forEach((h, idx) => {
+          projectObj[h || `Col_${idx}`] = rowVals[idx] || '';
+        });
+        projects.push(projectObj);
+      }
+    }
 
     return {
-      records,
-      columns: detectedColumns,
+      projects,
       status: {
         url: rawUrl,
         status: 'success',
-        recordCount: records.length,
-        message: `Successfully loaded ${records.length} records.`
+        recordCount: projects.length,
+        message: `Successfully loaded ${projects.length} project records.`
       }
     };
   } catch (err: any) {
-    console.error(`Error fetching Google Sheet (${dealType}):`, err);
+    console.error("Error fetching Projects Google Sheet:", err);
     return {
-      records: [],
-      columns: [],
+      projects: [],
       status: {
         url: rawUrl,
         status: 'error',
         recordCount: 0,
-        message: err.message || 'Failed to fetch Google Sheet data.'
+        message: err.message || 'Failed to fetch Projects Google Sheet data.'
       }
     };
   }
 };
 
-export const syncAllGoogleSheets = async (
+export const syncProjectsGoogleSheet = async (
   config: GoogleSheetsConfig
-): Promise<GoogleSheetsSyncResult> => {
-  const [wonResult, lostResult, progressResult] = await Promise.all([
-    fetchSingleSheet(config.wonDealsUrl, 'won'),
-    fetchSingleSheet(config.lostDealsUrl, 'lost'),
-    fetchSingleSheet(config.inProgressDealsUrl, 'in_progress')
-  ]);
-
-  const { won, lost, progress, report } = validateAndSanitizeData(
-    wonResult.records,
-    lostResult.records,
-    progressResult.records,
-    wonResult.columns,
-    lostResult.columns,
-    progressResult.columns
-  );
-
+): Promise<ProjectsSheetSyncResult> => {
+  const result = await fetchProjectsSheet(config.projectsSheetUrl);
   return {
-    won,
-    lost,
-    progress,
-    report,
-    statuses: {
-      won: wonResult.status,
-      lost: lostResult.status,
-      progress: progressResult.status
-    },
+    projects: result.projects,
+    status: result.status,
     lastSyncedAt: new Date()
   };
 };

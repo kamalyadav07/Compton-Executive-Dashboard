@@ -3,8 +3,8 @@ import type { DashboardConfig } from './types';
 export const DASHBOARDS: DashboardConfig[] = [
   {
     id: 'deal',
-    name: 'Deal Dashboard',
-    shortName: 'Deals',
+    name: 'Deals Dashboard',
+    shortName: 'Deals Dashboard',
     iconName: 'Briefcase',
     description: 'Real-time sales deal flow, revenue pipelines & conversion intelligence',
     status: 'active',
@@ -13,12 +13,12 @@ export const DASHBOARDS: DashboardConfig[] = [
   },
   {
     id: 'sales',
-    name: 'Sales Dashboard',
-    shortName: 'Sales',
+    name: 'Operational Dashboard',
+    shortName: 'Operational Dashboard',
     iconName: 'TrendingUp',
-    description: 'Comprehensive sales performance, team targets & quotas',
-    status: 'coming_soon',
-    badge: 'SOON',
+    description: 'Operational team metrics, daily execution & workflow performance',
+    status: 'active',
+    badge: 'LIVE',
     category: 'core'
   },
   {

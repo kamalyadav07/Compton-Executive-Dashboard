@@ -1,11 +1,12 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import ReactECharts from 'echarts-for-react';
-import { 
-  BarChart3, 
-  PieChart as PieChartIcon, 
-  TrendingUp, 
-  Layers, 
-  Filter, 
+import {
+  BarChart3,
+  PieChart as PieChartIcon,
+  TrendingUp,
+  Layers,
+  Filter,
   AlertTriangle,
   Award,
   User,
@@ -22,6 +23,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { DealRecord, KPIMetrics } from '../../types/sales';
+import { normalizeBitrixSource, normalizeBitrixIndustry, normalizeBitrixSolutionType } from '../../engine/bitrixService';
 
 interface ChartsDashboardProps {
   records: DealRecord[];
@@ -41,6 +43,39 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   const [modalSearch, setModalSearch] = useState<string>('');
   const [modalStageTab, setModalStageTab] = useState<'all' | 'won' | 'lost' | 'in_progress'>('all');
 
+  const isAnyModalOpen = Boolean(selectedDealBracket || selectedFunnelStage || selectedLeadSource || selectedRep);
+
+  useEffect(() => {
+    if (isAnyModalOpen) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [isAnyModalOpen]);
+
+  // Helper to parse Month-Year strings into timestamp for chronological sorting
+  const monthOrderMap: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  const getMonthYearTime = (str: string): number => {
+    if (!str) return 0;
+    const parts = str.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const mStr = parts[0].toLowerCase().substring(0, 3);
+      const yNum = parseInt(parts[1], 10);
+      const mNum = monthOrderMap[mStr] !== undefined ? monthOrderMap[mStr] : 0;
+      if (!isNaN(yNum)) {
+        return new Date(yNum, mNum, 1).getTime();
+      }
+    }
+    return 0;
+  };
+
   // -------------------------------------------------------------
   // 1. Monthly Revenue Trend Chart
   // -------------------------------------------------------------
@@ -49,21 +84,27 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
     monthMap[r.monthYear] = (monthMap[r.monthYear] || 0) + r.netRevenue;
   });
 
-  const monthKeys = Object.keys(monthMap);
+  const monthKeys = Object.keys(monthMap).sort((a, b) => getMonthYearTime(a) - getMonthYearTime(b));
   const revenueValues = monthKeys.map(k => Math.round((monthMap[k] / 100000) * 100) / 100);
 
-  const movingAvgValues = revenueValues.map((val, idx, arr) => {
-    if (idx < 2) return val;
-    const avg = (arr[idx - 2] + arr[idx - 1] + val) / 3;
+  const numSelectedMonths = Math.max(1, monthKeys.length);
+  const avgSeriesName = numSelectedMonths === 1 ? 'Period Average' : `${numSelectedMonths}-Month Moving Avg`;
+
+  const movingAvgValues = revenueValues.map((_, idx, arr) => {
+    const windowSize = Math.min(idx + 1, numSelectedMonths);
+    const startIdx = idx - windowSize + 1;
+    const subArr = arr.slice(startIdx, idx + 1);
+    const sum = subArr.reduce((acc, v) => acc + v, 0);
+    const avg = sum / subArr.length;
     return Math.round(avg * 100) / 100;
   });
 
   const revenueTrendOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'axis', 
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
+    tooltip: {
+      trigger: 'axis',
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
       textStyle: { color: '#f8fafc', fontSize: 12 },
       formatter: (params: any) => {
         let res = `<div class="font-bold border-b border-slate-700 pb-1 mb-1">${params[0].axisValue}</div>`;
@@ -76,17 +117,17 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
         return res;
       }
     },
-    legend: { 
-      top: '2%', 
-      right: '2%', 
-      textStyle: { color: '#94a3b8', fontSize: 11 } 
+    legend: {
+      top: '2%',
+      right: '2%',
+      textStyle: { color: '#94a3b8', fontSize: 11 }
     },
-    grid: { 
-      top: '18%', 
-      left: '3%', 
-      right: '4%', 
-      bottom: '10%', 
-      containLabel: true 
+    grid: {
+      top: '18%',
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
@@ -116,7 +157,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
         }
       },
       {
-        name: '3-Month Moving Avg',
+        name: avgSeriesName,
         type: 'line',
         smooth: true,
         data: movingAvgValues.length > 0 ? movingAvgValues : [0],
@@ -138,11 +179,11 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
   const repPerformanceOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'axis', 
+    tooltip: {
+      trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
       textStyle: { color: '#f8fafc', fontSize: 12 },
       formatter: (params: any) => {
         const repName = params[0].name;
@@ -153,22 +194,22 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
           <div class="text-[10px] text-blue-400 font-bold mt-1">👉 Click bar to view & download Excel worksheet</div>`;
       }
     },
-    grid: { 
-      top: '8%', 
-      left: '3%', 
-      right: '8%', 
-      bottom: '5%', 
-      containLabel: true 
+    grid: {
+      top: '8%',
+      left: '3%',
+      right: '8%',
+      bottom: '5%',
+      containLabel: true
     },
-    xAxis: { 
-      type: 'value', 
+    xAxis: {
+      type: 'value',
       name: '₹ Lakhs',
-      axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } 
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
     },
-    yAxis: { 
-      type: 'category', 
-      data: sortedReps.map(r => r[0]), 
+    yAxis: {
+      type: 'category',
+      data: sortedReps.map(r => r[0]),
       axisLabel: { color: '#94a3b8', fontSize: 11 },
       axisLine: { lineStyle: { color: '#334155' } }
     },
@@ -206,52 +247,57 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   // -------------------------------------------------------------
   // 3. Revenue by Lead Source Channel (CLICKABLE)
   // -------------------------------------------------------------
+  const BITRIX_SOURCES = ['India Mart', 'LinkedIn', 'Google Ads', 'Existing Client', 'Reference', 'Self Generated', 'E-Mail'];
   const leadSourceMap: Record<string, number> = {};
+  BITRIX_SOURCES.forEach(s => { leadSourceMap[s] = 0; });
+
   records.forEach(r => {
+    const normSource = normalizeBitrixSource(r.leadSource);
     if (r.type === 'won') {
-      leadSourceMap[r.leadSource] = (leadSourceMap[r.leadSource] || 0) + r.netRevenue;
-    } else if (!leadSourceMap[r.leadSource]) {
-      leadSourceMap[r.leadSource] = 0;
+      leadSourceMap[normSource] = (leadSourceMap[normSource] || 0) + r.netRevenue;
+    } else if (leadSourceMap[normSource] === undefined) {
+      leadSourceMap[normSource] = 0;
     }
   });
 
-  const sortedLeadSources = Object.entries(leadSourceMap).sort((a, b) => b[1] - a[1]);
+  const filteredLeadSources = Object.entries(leadSourceMap).filter(([_, revenue]) => revenue > 0);
+  const sortedLeadSources = (filteredLeadSources.length > 0 ? filteredLeadSources : Object.entries(leadSourceMap)).sort((a, b) => b[1] - a[1]);
 
   const leadSourceOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'axis', 
+    tooltip: {
+      trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
       textStyle: { color: '#f8fafc', fontSize: 12 },
       formatter: (params: any) => {
         const sourceName = params[0].name;
-        const sourceDeals = records.filter(r => r.leadSource === sourceName);
+        const sourceDeals = records.filter(r => normalizeBitrixSource(r.leadSource) === sourceName);
         return `<div class="font-bold border-b border-slate-700 pb-1 mb-1">${sourceName}</div>
           <div class="text-xs text-slate-300">Won Revenue: <strong class="text-emerald-400">₹${Number(params[0].value).toFixed(2)} L</strong></div>
           <div class="text-xs text-slate-400">Total Deals: <strong>${sourceDeals.length} deals</strong></div>
           <div class="text-[10px] text-blue-400 font-bold mt-1">👉 Click bar to view & download Excel worksheet</div>`;
       }
     },
-    grid: { 
-      top: '12%', 
-      left: '3%', 
-      right: '4%', 
-      bottom: '10%', 
-      containLabel: true 
+    grid: {
+      top: '12%',
+      left: '3%',
+      right: '4%',
+      bottom: '16%',
+      containLabel: true
     },
-    xAxis: { 
-      type: 'category', 
+    xAxis: {
+      type: 'category',
       data: sortedLeadSources.map(s => s[0]),
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      axisLabel: { color: '#94a3b8', fontSize: 10, interval: 0, rotate: 15 },
       axisLine: { lineStyle: { color: '#334155' } }
     },
-    yAxis: { 
-      type: 'value', 
+    yAxis: {
+      type: 'value',
       name: '₹ Lakhs',
-      axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } 
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
     },
     series: [
       {
@@ -294,37 +340,37 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
   const targetVsRevOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'axis', 
+    tooltip: {
+      trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
       textStyle: { color: '#f8fafc', fontSize: 12 }
     },
-    legend: { 
-      top: '2%', 
-      right: '2%', 
-      textStyle: { color: '#94a3b8', fontSize: 11 } 
+    legend: {
+      top: '2%',
+      right: '2%',
+      textStyle: { color: '#94a3b8', fontSize: 11 }
     },
-    grid: { 
-      top: '18%', 
-      left: '3%', 
-      right: '4%', 
-      bottom: '10%', 
-      containLabel: true 
+    grid: {
+      top: '18%',
+      left: '3%',
+      right: '4%',
+      bottom: '10%',
+      containLabel: true
     },
-    xAxis: { 
-      type: 'category', 
+    xAxis: {
+      type: 'category',
       data: ['Actual Revenue', 'Monthly Target', 'Target Gap'],
       axisLabel: { color: '#94a3b8', fontSize: 11 },
       axisLine: { lineStyle: { color: '#334155' } }
     },
-    yAxis: { 
-      type: 'value', 
+    yAxis: {
+      type: 'value',
       name: '₹ Lakhs',
       nameTextStyle: { color: '#94a3b8', fontSize: 11 },
-      axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } 
+      axisLabel: { color: '#94a3b8', fontSize: 11 },
+      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
     },
     series: [
       {
@@ -363,14 +409,27 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   // Map every in_progress deal into exactly ONE stage index (0 to 5)
   const getStageIndex = (r: DealRecord): number => {
     const s = (r.stage || '').toLowerCase().trim();
-    const rawS = String(r.rawRecord?.['Stage'] || r.rawRecord?.['Deal Stage'] || '').toLowerCase().trim();
+    const rawS = String(r.rawRecord?.['Stage'] || r.rawRecord?.['Deal Stage'] || r.rawRecord?.['STAGE_ID'] || '').toLowerCase().trim();
     const combined = `${s} ${rawS}`;
 
-    if (combined.includes('quote') && (combined.includes('appr') || combined.includes('app'))) return 4;
-    if (combined.includes('solution') && (combined.includes('appr') || combined.includes('app'))) return 2;
+    // Index 5: Negotiation
+    if (combined.includes('negotiat') || combined.includes('oqlf1d') || combined.includes('contract') || combined.includes('closing')) return 5;
+
+    // Index 4: Quote Approval / Quotation Approval
+    if ((combined.includes('quote') || combined.includes('quotation')) && (combined.includes('appr') || combined.includes('app'))) return 4;
+    if (combined.includes('executing') || combined.includes('exec')) return 4;
+
+    // Index 3: Quote Creation
+    if (combined.includes('quote creation') || (combined.includes('quote') && combined.includes('creat')) || combined.includes('prepayment') || combined.includes('invoice')) return 3;
     if (combined.includes('quote') || combined.includes('quotation') || combined.includes('proposal')) return 3;
-    if (combined.includes('design') || combined.includes('architect')) return 1;
-    if (combined.includes('negotiat') || combined.includes('contract') || combined.includes('closing')) return 5;
+
+    // Index 2: Solution Approval
+    if (combined.includes('solution approval') || (combined.includes('solution') && (combined.includes('appr') || combined.includes('app'))) || combined.includes('preparation')) return 2;
+
+    // Index 1: Solution Design
+    if (combined.includes('solution design') || combined.includes('design') || combined.includes('u1dim3') || combined.includes('architect')) return 1;
+
+    // Index 0: Need Analysis
     return 0;
   };
 
@@ -412,7 +471,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
       actualCount: stg.count,
       actualRevenue: stg.revenue,
       name: stg.name,
-      itemStyle: { 
+      itemStyle: {
         color: {
           type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
           colorStops: [
@@ -433,9 +492,9 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
   const funnelOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'item', 
-      backgroundColor: '#0f172a', 
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#0f172a',
       borderColor: '#3b82f6',
       borderWidth: 1.5,
       textStyle: { color: '#f8fafc', fontSize: 12 },
@@ -460,10 +519,10 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
         sort: 'none',
         gap: 4,
         funnelAlign: 'center',
-        label: { 
-          show: true, 
-          position: 'right', 
-          color: '#f1f5f9', 
+        label: {
+          show: true,
+          position: 'right',
+          color: '#f1f5f9',
           fontSize: 11,
           fontWeight: 'bold',
           formatter: (params: any) => {
@@ -485,11 +544,11 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
             }
           }
         },
-        labelLine: { 
-          show: true, 
-          length: 8, 
-          length2: 6, 
-          lineStyle: { color: '#64748b', width: 1.5, type: 'solid' } 
+        labelLine: {
+          show: true,
+          length: 8,
+          length2: 6,
+          lineStyle: { color: '#64748b', width: 1.5, type: 'solid' }
         },
         emphasis: {
           scale: true,
@@ -513,11 +572,13 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
     }
   };
   const totalAllCount = records.length;
+  const wonPct = totalAllCount > 0 ? Math.round((kpis.totalWonCount / totalAllCount) * 1000) / 10 : 0;
+  const lostPct = totalAllCount > 0 ? Math.round((kpis.totalLostCount / totalAllCount) * 1000) / 10 : 0;
   const pipelinePct = totalAllCount > 0 ? Math.round((progressDeals.length / totalAllCount) * 1000) / 10 : 0;
 
-  const wonValue = wonDeals.reduce((acc, r) => acc + r.grossRevenue, 0);
-  const lostValue = lostDeals.reduce((acc, r) => acc + r.grossRevenue, 0);
-  const pipelineValue = progressDeals.reduce((acc, r) => acc + r.grossRevenue, 0);
+  const wonValue = wonDeals.reduce((acc, r) => acc + r.netRevenue, 0);
+  const lostValue = lostDeals.reduce((acc, r) => acc + r.netRevenue, 0);
+  const pipelineValue = progressDeals.reduce((acc, r) => acc + r.netRevenue, 0);
 
   const formatCurrencyVal = (val: number): string => {
     if (val >= 10000000) return `₹${(val / 10000000).toFixed(2)} Cr`;
@@ -527,10 +588,10 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
   const winLostOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
+    tooltip: {
       trigger: 'item',
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
       textStyle: { color: '#f8fafc', fontSize: 12 },
       formatter: (params: any) => {
         const monetaryVal = params.data?.monetaryValue ?? 0;
@@ -555,7 +616,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
           borderColor: '#0f172a',
           borderWidth: 4
         },
-        label: { 
+        label: {
           show: true,
           position: 'center',
           formatter: `{val|${totalAllCount}}\n{sub|TOTAL DEALS}`,
@@ -606,38 +667,38 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
           }
         },
         data: [
-          { 
-            value: kpis.totalWonCount, 
+          {
+            value: kpis.totalWonCount,
             name: 'Won Deals',
             monetaryValue: wonValue,
-            itemStyle: { 
+            itemStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 1, y2: 1,
                 colorStops: [{ offset: 0, color: '#10b981' }, { offset: 1, color: '#059669' }]
               }
-            } 
+            }
           },
-          { 
-            value: kpis.totalLostCount, 
-            name: 'Lost Deals', 
+          {
+            value: kpis.totalLostCount,
+            name: 'Lost Deals',
             monetaryValue: lostValue,
-            itemStyle: { 
+            itemStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 1, y2: 1,
                 colorStops: [{ offset: 0, color: '#f43f5e' }, { offset: 1, color: '#e11d48' }]
               }
-            } 
+            }
           },
-          { 
-            value: progressDeals.length, 
-            name: 'In Pipeline', 
+          {
+            value: progressDeals.length,
+            name: 'In Pipeline',
             monetaryValue: pipelineValue,
-            itemStyle: { 
+            itemStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 1, y2: 1,
                 colorStops: [{ offset: 0, color: '#3b82f6' }, { offset: 1, color: '#2563eb' }]
               }
-            } 
+            }
           }
         ]
       }
@@ -645,45 +706,72 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   };
 
   // -------------------------------------------------------------
-  // 7. Industry Breakdown
+  // 7. Industry Breakdown (Real Bitrix Industry Field)
   // -------------------------------------------------------------
-  const indMap: Record<string, number> = {};
-  wonDeals.forEach(r => { indMap[r.industry] = (indMap[r.industry] || 0) + r.netRevenue; });
-  const sortedInd = Object.entries(indMap).sort((a, b) => a[1] - b[1]);
+  const indMap: Record<string, { revenue: number; count: number }> = {};
+  wonDeals.forEach(r => {
+    const rawUf = r.rawRecord?.UF_CRM_67E4FF8E84730 || r.industry;
+    const ind = normalizeBitrixIndustry(rawUf, r.rawRecord);
+    if (!indMap[ind]) indMap[ind] = { revenue: 0, count: 0 };
+    indMap[ind].revenue += r.netRevenue;
+    indMap[ind].count += 1;
+  });
+
+  // Sort descending by revenue, take top 10, then reverse for horizontal bar chart (highest at top)
+  const sortedIndList = Object.entries(indMap)
+    .sort((a, b) => b[1].revenue - a[1].revenue)
+    .slice(0, 10)
+    .reverse();
+
+  const industryNames = sortedIndList.map(([name]) => name.length > 22 ? name.slice(0, 20) + '...' : name);
+  const industryRevenues = sortedIndList.map(([, d]) => Math.round((d.revenue / 100000) * 100) / 100);
+  const industryCounts = sortedIndList.map(([, d]) => d.count);
 
   const industryOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      trigger: 'axis', 
+    tooltip: {
+      trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
-      textStyle: { color: '#f8fafc', fontSize: 12 }
+      backgroundColor: '#0f172a',
+      borderColor: '#8b5cf6',
+      borderWidth: 1.5,
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+      formatter: (params: any[]) => {
+        const item = params[0];
+        if (!item) return '';
+        const idx = item.dataIndex;
+        const revLakhs = item.value;
+        const dealsCount = industryCounts[idx] || 0;
+        return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-purple-400">${item.name}</div>
+          <div class="text-xs text-slate-200">Won Revenue: <strong class="font-mono text-emerald-300 font-bold">₹${Number(revLakhs).toFixed(2)} Lakhs</strong></div>
+          <div class="text-xs text-slate-400">Won Deals: <strong class="font-mono text-white">${dealsCount} deals</strong></div>`;
+      }
     },
-    grid: { 
-      top: '8%', 
-      left: '3%', 
-      right: '8%', 
-      bottom: '5%', 
-      containLabel: true 
+    grid: {
+      top: '8%',
+      left: '3%',
+      right: '12%',
+      bottom: '5%',
+      containLabel: true
     },
-    xAxis: { 
-      type: 'value', 
+    xAxis: {
+      type: 'value',
       name: '₹ Lakhs',
-      axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } 
+      axisLabel: { color: '#94a3b8', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
     },
-    yAxis: { 
-      type: 'category', 
-      data: sortedInd.map(i => i[0].length > 18 ? i[0].slice(0, 16) + '...' : i[0]), 
-      axisLabel: { color: '#94a3b8', fontSize: 11 },
+    yAxis: {
+      type: 'category',
+      data: industryNames.length > 0 ? industryNames : ['General Industry'],
+      axisLabel: { color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' },
       axisLine: { lineStyle: { color: '#334155' } }
     },
     series: [
       {
         name: 'Revenue (₹ Lakhs)',
         type: 'bar',
-        data: sortedInd.map(i => Math.round((i[1] / 100000) * 100) / 100),
+        barWidth: '55%',
+        data: industryRevenues,
         itemStyle: {
           color: {
             type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
@@ -694,8 +782,9 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
         label: {
           show: true,
           position: 'right',
-          color: '#cbd5e1',
+          color: '#e2e8f0',
           fontSize: 10,
+          fontWeight: 'bold',
           formatter: (params: any) => `₹${Number(params.value).toFixed(2)} L`
         }
       }
@@ -703,96 +792,275 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   };
 
   // -------------------------------------------------------------
-  // 8. Reasons Deals Were Lost
+  // 8. Reasons Deals Were Lost (Clean Horizontal Bar Chart)
   // -------------------------------------------------------------
-  const lostReasonMap: Record<string, number> = {};
-  lostDeals.forEach(r => {
-    let reason = r.lostReason || 'Price Challenge';
-    if (reason.toLowerCase().includes('price') || reason.toLowerCase().includes('high')) reason = 'Price Challenge';
-    else if (reason.toLowerCase().includes('somewhere else') || reason.toLowerCase().includes('vendor')) reason = 'Competitor Selected';
-    else if (reason.toLowerCase().includes('time') || reason.toLowerCase().includes('long') || reason.toLowerCase().includes('late')) reason = 'Delay in Quote';
-    else if (reason.toLowerCase().includes('not require') || reason.toLowerCase().includes('dropped')) reason = 'Requirement Dropped';
-    else if (reason.toLowerCase().includes('agree') || reason.toLowerCase().includes('management')) reason = 'Management Disagree';
-    else if (reason.length > 20) reason = reason.slice(0, 18) + '...';
+  const lostReasonCounts: Record<string, { count: number; value: number }> = {};
 
-    lostReasonMap[reason] = (lostReasonMap[reason] || 0) + 1;
+  lostDeals.forEach(r => {
+    const raw = (r.lostReason || r.rawRecord?.COMMENTS || '').toLowerCase().trim();
+    let cat = 'Other Reasons';
+
+    if (raw.includes('price') || raw.includes('budget') || raw.includes('high') || raw.includes('cost') || raw.includes('expensive')) {
+      cat = 'Price & Commercial Challenge';
+    } else if (raw.includes('no response') || raw.includes('cold response') || raw.includes('not received') || raw.includes('unresponsive') || raw.includes('follow-up')) {
+      cat = 'No Customer Response';
+    } else if (raw.includes('drop') || raw.includes('not require') || raw.includes('no requirement') || raw.includes('postponed') || raw.includes('cancelled')) {
+      cat = 'Requirement Dropped';
+    } else if (raw.includes('hold') || raw.includes('case hold') || raw.includes('clarity')) {
+      cat = 'Project Put On Hold';
+    } else if (raw.includes('management') || raw.includes('agree') || raw.includes('disagree') || raw.includes('internal')) {
+      cat = 'Management Disagreement';
+    } else if (raw.includes('delay') || raw.includes('late') || raw.includes('slow') || raw.includes('time')) {
+      cat = 'Delay in Process / Quote';
+    } else if (raw.includes('somewhere else') || raw.includes('another brand') || raw.includes('competitor') || raw.includes('vendor')) {
+      cat = 'Competitor Selected';
+    }
+
+    if (!lostReasonCounts[cat]) {
+      lostReasonCounts[cat] = { count: 0, value: 0 };
+    }
+    lostReasonCounts[cat].count += 1;
+    lostReasonCounts[cat].value += r.netRevenue;
   });
 
-  const sortedReasons = Object.entries(lostReasonMap).sort((a, b) => b[1] - a[1]);
-  const reasonKeys = sortedReasons.map(r => r[0]);
-  const reasonCounts = sortedReasons.map(r => r[1]);
+  const sortedLossReasons = Object.entries(lostReasonCounts)
+    .sort((a, b) => b[1].count - a[1].count);
+
+  // Reverse for horizontal bar chart so highest count is at top
+  const sortedLossReasonsRev = [...sortedLossReasons].reverse();
+  const reasonYCategories = sortedLossReasonsRev.map(([name]) => name);
+  const reasonBarValues = sortedLossReasonsRev.map(([, data]) => data.count);
+  const reasonMonetaryValues = sortedLossReasonsRev.map(([, data]) => data.value);
+  const totalLostDealsCount = lostDeals.length || 1;
 
   const paretoOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
+    tooltip: {
       trigger: 'axis',
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
-      textStyle: { color: '#f8fafc', fontSize: 12 }
+      axisPointer: { type: 'shadow' },
+      backgroundColor: '#0f172a',
+      borderColor: '#f43f5e',
+      borderWidth: 1.5,
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+      formatter: (params: any[]) => {
+        const item = params[0];
+        if (!item) return '';
+        const idx = item.dataIndex;
+        const val = item.value;
+        const rev = reasonMonetaryValues[idx] || 0;
+        const pct = ((val / totalLostDealsCount) * 100).toFixed(1);
+        const formattedAmount = formatCurrencyVal(rev);
+        return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-rose-400">${item.name}</div>
+          <div class="text-xs text-slate-200">Lost Deals: <strong class="font-mono text-white">${val} deals (${pct}%)</strong></div>
+          <div class="text-xs text-emerald-400">Total Lost Value: <strong class="font-mono text-emerald-300 font-bold">${formattedAmount}</strong></div>`;
+      }
     },
-    grid: { 
-      top: '18%', 
-      left: '3%', 
-      right: '6%', 
-      bottom: '18%', 
-      containLabel: true 
+    grid: {
+      top: '8%',
+      left: '3%',
+      right: '14%',
+      bottom: '5%',
+      containLabel: true
     },
     xAxis: {
-      type: 'category',
-      data: reasonKeys.length > 0 ? reasonKeys : ['Price Challenge'],
-      axisLabel: { color: '#94a3b8', fontSize: 10, rotate: 20, interval: 0 },
-      axisLine: { lineStyle: { color: '#334155' } }
+      type: 'value',
+      axisLabel: { color: '#94a3b8', fontSize: 10 },
+      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
     },
-    yAxis: { 
-      type: 'value', 
-      name: 'Lost Deals', 
-      axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-      splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } 
+    yAxis: {
+      type: 'category',
+      data: reasonYCategories.length > 0 ? reasonYCategories : ['No Data'],
+      axisLabel: { color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' },
+      axisLine: { lineStyle: { color: '#334155' } }
     },
     series: [
       {
-        name: 'Loss Count',
+        name: 'Lost Deals',
         type: 'bar',
-        barWidth: '35%',
-        data: reasonCounts.length > 0 ? reasonCounts : [0],
-        itemStyle: { color: '#f43f5e', borderRadius: [6, 6, 0, 0] },
-        label: { show: true, position: 'top', color: '#cbd5e1', fontSize: 10 }
+        barWidth: '55%',
+        data: reasonBarValues,
+        itemStyle: {
+          color: {
+            type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+            colorStops: [
+              { offset: 0, color: '#f43f5e' },
+              { offset: 1, color: '#e11d48' }
+            ]
+          },
+          borderRadius: [0, 6, 6, 0]
+        },
+        label: {
+          show: true,
+          position: 'right',
+          color: '#f43f5e',
+          fontSize: 11,
+          fontWeight: 'bold',
+          formatter: (params: any) => `${params.value} deals`
+        }
       }
     ]
   };
 
   // -------------------------------------------------------------
-  // 9. Solution Package Treemap
+  // 9. Revenue by Solution Type (Ultra-Clean Executive Treemap)
   // -------------------------------------------------------------
-  const solutionMap: Record<string, number> = {};
-  wonDeals.forEach(r => { solutionMap[r.solution] = (solutionMap[r.solution] || 0) + r.netRevenue; });
-  const treeMapData = Object.entries(solutionMap).map(([name, val]) => ({
-    name: name.length > 20 ? name.slice(0, 18) + '...' : name,
-    value: Math.round((val / 100000) * 10) / 10
-  }));
+  const solutionMap: Record<string, { revenue: number; count: number }> = {};
+  wonDeals.forEach(r => {
+    const normSol = normalizeBitrixSolutionType(r.solution, r.rawRecord);
+    if (!solutionMap[normSol]) solutionMap[normSol] = { revenue: 0, count: 0 };
+    solutionMap[normSol].revenue += r.netRevenue;
+    solutionMap[normSol].count += 1;
+  });
+
+  const treemapColors = [
+    '#3b82f6', '#10b981', '#f59e0b', '#8b5cf6', '#06b6d4',
+    '#ec4899', '#f43f5e', '#64748b', '#059669', '#d97706'
+  ];
+
+  const sortedSolutionEntries = Object.entries(solutionMap)
+    .sort((a, b) => b[1].revenue - a[1].revenue);
+
+  const totalSolutionRev = sortedSolutionEntries.reduce((sum, [, d]) => sum + d.revenue, 0);
+
+  const treeMapData = sortedSolutionEntries.map(([name, data], idx) => {
+    const revLakhs = Math.round((data.revenue / 100000) * 100) / 100;
+    const pct = totalSolutionRev > 0 ? (data.revenue / totalSolutionRev) : 0;
+    const formattedVal = revLakhs >= 1 ? `₹${revLakhs.toFixed(2)} L` : `₹${Math.round(data.revenue / 1000)} K`;
+
+    // Sleek Proportional Font Sizes (Executive & Tasteful)
+    let titleFontSize = 12;
+    let valFontSize = 10;
+    let titleLineHeight = 16;
+    let valLineHeight = 14;
+
+    if (pct >= 0.40) {
+      // Large Block
+      titleFontSize = 16;
+      valFontSize = 13;
+      titleLineHeight = 22;
+      valLineHeight = 18;
+    } else if (pct >= 0.15) {
+      // Medium-Large Block
+      titleFontSize = 14;
+      valFontSize = 12;
+      titleLineHeight = 19;
+      valLineHeight = 16;
+    } else if (pct >= 0.05) {
+      // Medium Block
+      titleFontSize = 12;
+      valFontSize = 10;
+      titleLineHeight = 16;
+      valLineHeight = 14;
+    } else {
+      // Small Block
+      titleFontSize = 11;
+      valFontSize = 9;
+      titleLineHeight = 14;
+      valLineHeight = 12;
+    }
+
+    return {
+      name: name,
+      value: revLakhs,
+      dealsCount: data.count,
+      itemStyle: {
+        color: treemapColors[idx % treemapColors.length]
+      },
+      label: {
+        show: true,
+        align: 'center',
+        verticalAlign: 'middle',
+        formatter: `{title|${name}}\n{val|${formattedVal}}`,
+        rich: {
+          title: {
+            fontSize: titleFontSize,
+            fontWeight: '600',
+            fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+            color: '#ffffff',
+            lineHeight: titleLineHeight,
+            align: 'center'
+          },
+          val: {
+            fontSize: valFontSize,
+            fontWeight: '500',
+            fontFamily: 'Inter, system-ui, -apple-system, sans-serif',
+            color: '#e0f2fe',
+            lineHeight: valLineHeight,
+            align: 'center'
+          }
+        }
+      }
+    };
+  });
 
   const treemapOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
-      formatter: (params: any) => `${params.name}: <span class="font-bold font-mono">₹${Number(params.value).toFixed(2)} Lakhs</span>`,
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
-      textStyle: { color: '#f8fafc', fontSize: 12 }
+    tooltip: {
+      trigger: 'item',
+      backgroundColor: '#0f172a',
+      borderColor: '#38bdf8',
+      borderWidth: 1.5,
+      textStyle: { color: '#f8fafc', fontSize: 12 },
+      formatter: (params: any) => {
+        const d = params.data;
+        if (!d) return '';
+        return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-cyan-400">${d.name}</div>
+          <div class="text-xs text-slate-200">Won Revenue: <strong class="font-mono text-emerald-300 font-bold">₹${Number(d.value).toFixed(2)} Lakhs</strong></div>
+          <div class="text-xs text-slate-400">Won Deals: <strong class="font-mono text-white">${d.dealsCount || 0} deals</strong></div>`;
+      }
     },
     series: [
       {
+        name: 'Solution Type',
         type: 'treemap',
         breadcrumb: { show: false },
         roam: false,
-        top: '5%',
-        bottom: '5%',
-        left: '5%',
-        right: '5%',
-        data: treeMapData.length > 0 ? treeMapData : [
-          { name: 'No Won Deals', value: 0 }
-        ],
-        label: { show: true, formatter: (params: any) => `${params.name}\n₹${Number(params.value).toFixed(2)} L`, fontSize: 11, color: '#ffffff', fontWeight: 'bold' },
-        itemStyle: { borderColor: '#0f172a', borderWidth: 2, gapWidth: 2 }
+        top: '4%',
+        bottom: '4%',
+        left: '4%',
+        right: '4%',
+        visibleMin: 0.1,
+        nodeClick: false,
+        upperLabel: { show: false },
+        labelLayout: (params: any) => {
+          if (params && params.rect && params.rect.width > 0 && params.rect.height > 0) {
+            return {
+              x: params.rect.x + params.rect.width / 2,
+              y: params.rect.y + params.rect.height / 2,
+              verticalAlign: 'middle',
+              align: 'center'
+            };
+          }
+          return { verticalAlign: 'middle', align: 'center' };
+        },
+        data: treeMapData.length > 0 ? treeMapData : [{ name: 'No Won Deals', value: 0 }],
+        label: {
+          show: true,
+          align: 'center',
+          verticalAlign: 'middle',
+          color: '#ffffff'
+        },
+        itemStyle: {
+          borderColor: '#090e1a',
+          borderWidth: 3,
+          gapWidth: 3,
+          borderRadius: 6
+        },
+        levels: [
+          {
+            itemStyle: {
+              borderColor: '#090e1a',
+              borderWidth: 3,
+              gapWidth: 3
+            },
+            upperLabel: { show: false },
+            label: {
+              show: true,
+              align: 'center',
+              verticalAlign: 'middle'
+            }
+          }
+        ]
       }
     ]
   };
@@ -801,10 +1069,10 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   // 10. Deal Size Bracket Distribution (NEW HIGH-IMPACT CHART replacing forecast)
   // -------------------------------------------------------------
   const dealBrackets = [
-    { label: 'Micro (< ₹25k)', min: 0, max: 25000 },
-    { label: 'Mid-Tier (₹25k - ₹1 Lakh)', min: 25000, max: 100000 },
-    { label: 'High-Value (₹1 L - ₹5 Lakhs)', min: 100000, max: 500000 },
-    { label: 'Enterprise Major (> ₹5 Lakhs)', min: 500000, max: Infinity }
+    { label: 'Micro (<25k)', min: 0, max: 25000 },
+    { label: 'Mid-Tier (25k - 1L)', min: 25000, max: 100000 },
+    { label: 'High-Value (1L - 5L)', min: 100000, max: 500000 },
+    { label: 'Enterprise (>5L)', min: 500000, max: Infinity }
   ];
 
   const bracketCounts = dealBrackets.map(b => {
@@ -820,52 +1088,54 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
   const dealSizeBracketOption = {
     backgroundColor: 'transparent',
-    tooltip: { 
+    tooltip: {
       trigger: 'axis',
       axisPointer: { type: 'shadow' },
-      backgroundColor: '#0f172a', 
-      borderColor: '#334155', 
+      backgroundColor: '#0f172a',
+      borderColor: '#334155',
       textStyle: { color: '#f8fafc', fontSize: 12 },
       formatter: (params: any) => {
         const bLabel = params[0].name;
         const count = params[0].value;
         const rev = params[1] ? params[1].value : 0;
-        return `<div class="font-bold border-b border-slate-700 pb-1 mb-1">${bLabel}</div>
-          <div class="text-xs text-slate-300">Won Count: <strong class="text-blue-400">${count} Deals</strong></div>
-          <div class="text-xs text-slate-300">Won Revenue: <strong class="text-emerald-400">₹${Number(rev).toFixed(2)} L</strong></div>
-          <div class="text-[10px] text-blue-400 font-bold mt-1">👉 Click bar to view & download Excel worksheet</div>`;
+        return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-cyan-400">${bLabel}</div>
+          <div class="text-xs text-slate-200">Won Count: <strong class="text-blue-400 font-bold">${count} Deals</strong></div>
+          <div class="text-xs text-slate-200">Won Revenue: <strong class="text-emerald-400 font-bold">₹${Number(rev).toFixed(2)} Lakhs</strong></div>
+          <div class="text-[10px] text-cyan-400 font-bold mt-1.5">👉 Click bar to view & download Excel worksheet</div>`;
       }
     },
-    legend: { 
-      top: '2%', 
-      right: '2%', 
-      textStyle: { color: '#94a3b8', fontSize: 11 } 
+    legend: {
+      top: '2%',
+      right: '4%',
+      textStyle: { color: '#cbd5e1', fontSize: 11, fontWeight: '500' },
+      itemGap: 16
     },
-    grid: { 
-      top: '18%', 
-      left: '3%', 
-      right: '4%', 
-      bottom: '12%', 
-      containLabel: true 
+    grid: {
+      top: '16%',
+      left: '3%',
+      right: '4%',
+      bottom: '14%',
+      containLabel: true
     },
     xAxis: {
       type: 'category',
       data: dealBrackets.map(b => b.label),
-      axisLabel: { color: '#94a3b8', fontSize: 10, rotate: 10 },
-      axisLine: { lineStyle: { color: '#334155' } }
+      axisLabel: { color: '#cbd5e1', fontSize: 11, fontWeight: '500' },
+      axisLine: { lineStyle: { color: '#334155' } },
+      axisTick: { show: false }
     },
     yAxis: [
-      { 
-        type: 'value', 
-        name: 'Deal Count', 
-        axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } } 
+      {
+        type: 'value',
+        name: '',
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
       },
-      { 
-        type: 'value', 
-        name: '₹ Lakhs', 
-        axisLabel: { color: '#94a3b8', fontSize: 11 }, 
-        splitLine: { show: false } 
+      {
+        type: 'value',
+        name: '',
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        splitLine: { show: false }
       }
     ],
     series: [
@@ -873,7 +1143,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
         name: 'Deal Count',
         type: 'bar',
         yAxisIndex: 0,
-        barWidth: '35%',
+        barWidth: '32%',
         data: bracketCounts,
         itemStyle: {
           color: {
@@ -882,7 +1152,15 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
           },
           borderRadius: [6, 6, 0, 0]
         },
-        label: { show: true, position: 'top', color: '#cbd5e1', fontSize: 10, formatter: '{c} deals' }
+        label: {
+          show: true,
+          position: 'top',
+          distance: 4,
+          color: '#f8fafc',
+          fontSize: 10,
+          fontWeight: '600',
+          formatter: (p: any) => (p.value > 0 ? `${p.value} Deals` : '')
+        }
       },
       {
         name: 'Revenue (₹ Lakhs)',
@@ -890,9 +1168,19 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
         yAxisIndex: 1,
         smooth: true,
         data: bracketRevenues,
+        symbol: 'circle',
+        symbolSize: 7,
         lineStyle: { width: 3, color: '#10b981' },
-        itemStyle: { color: '#10b981' },
-        label: { show: true, position: 'top', color: '#10b981', fontSize: 10, formatter: (p: any) => `₹${Number(p.value).toFixed(2)} L` }
+        itemStyle: { color: '#10b981', borderWidth: 2, borderColor: '#ffffff' },
+        label: {
+          show: true,
+          position: 'top',
+          distance: 4,
+          color: '#34d399',
+          fontSize: 10,
+          fontWeight: '600',
+          formatter: (p: any) => (p.value > 0 ? `₹${Number(p.value).toFixed(2)} L` : '')
+        }
       }
     ]
   };
@@ -904,16 +1192,16 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
     }
   };
 
-  // Filter deals for selected Deal Size Bracket
-  const bracketDeals = selectedDealBracket 
-    ? records.filter(r => {
-        const rev = r.netRevenue;
-        if (selectedDealBracket.includes('Micro')) return rev < 25000;
-        if (selectedDealBracket.includes('Mid-Tier')) return rev >= 25000 && rev < 100000;
-        if (selectedDealBracket.includes('High-Value')) return rev >= 100000 && rev < 500000;
-        if (selectedDealBracket.includes('Enterprise')) return rev >= 500000;
-        return true;
-      })
+  // Filter deals for selected Deal Size Bracket (WON DEALS ONLY)
+  const bracketDeals = selectedDealBracket
+    ? wonDeals.filter(r => {
+      const rev = r.netRevenue;
+      if (selectedDealBracket.includes('Micro')) return rev < 25000;
+      if (selectedDealBracket.includes('Mid-Tier')) return rev >= 25000 && rev < 100000;
+      if (selectedDealBracket.includes('High-Value')) return rev >= 100000 && rev < 500000;
+      if (selectedDealBracket.includes('Enterprise')) return rev >= 500000;
+      return true;
+    })
     : [];
 
   const modalBracketFilteredDeals = bracketDeals.filter(r => {
@@ -931,22 +1219,28 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   });
 
   const exportBracketExcel = (bLabel: string) => {
-    const deals = bracketDeals;
-    const exportRows = deals.map(r => ({
-      'Deal ID': r.id,
-      'Deal Stage': r.stage,
-      'Status Type': r.type.toUpperCase(),
-      'Company': r.customer,
-      'Responsible Person': r.salesRep,
-      'Deal Name': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
-      'Lead Source': r.leadSource,
-      'Income / Revenue (₹)': r.netRevenue,
-      'Created Date': r.rawRecord?.['Created'] || r.date,
-      'End Date': r.rawRecord?.['End Date'] || r.date,
-      'Lost Reason': r.lostReason || 'N/A',
-      'Industry': r.industry,
-      'Solution Type': r.solution
-    }));
+    const deals = modalBracketFilteredDeals.length > 0 ? modalBracketFilteredDeals : bracketDeals;
+    const exportRows = deals.map(r => {
+      const isWon = r.type === 'won';
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = isWon ? Math.round((grossRev - r.netRevenue) * 100) / 100 : 0;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': r.lostReason || 'N/A'
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportRows);
@@ -955,7 +1249,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   };
 
   // Filter deals for selected Funnel Stage
-  const funnelStageDeals = selectedFunnelStage 
+  const funnelStageDeals = selectedFunnelStage
     ? (funnelStageMetrics.find(m => m.name === selectedFunnelStage)?.deals || [])
     : [];
 
@@ -974,22 +1268,28 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   });
 
   const exportFunnelExcel = (stageName: string) => {
-    const deals = funnelStageDeals;
-    const exportRows = deals.map(r => ({
-      'Deal ID': r.id,
-      'Deal Stage': r.stage,
-      'Status Type': r.type.toUpperCase(),
-      'Company': r.customer,
-      'Responsible Person': r.salesRep,
-      'Deal Name': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
-      'Lead Source': r.leadSource,
-      'Income / Revenue (₹)': r.netRevenue,
-      'Created Date': r.rawRecord?.['Created'] || r.date,
-      'End Date': r.rawRecord?.['End Date'] || r.date,
-      'Lost Reason': r.lostReason || 'N/A',
-      'Industry': r.industry,
-      'Solution Type': r.solution
-    }));
+    const deals = modalFunnelFilteredDeals.length > 0 ? modalFunnelFilteredDeals : funnelStageDeals;
+    const exportRows = deals.map(r => {
+      const isWon = r.type === 'won';
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = isWon ? Math.round((grossRev - r.netRevenue) * 100) / 100 : 0;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': r.lostReason || 'N/A'
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportRows);
@@ -998,7 +1298,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   };
 
   // Filter deals for selected Lead Source
-  const sourceAllDeals = selectedLeadSource 
+  const sourceAllDeals = selectedLeadSource
     ? records.filter(r => r.leadSource === selectedLeadSource)
     : [];
 
@@ -1026,22 +1326,28 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   });
 
   const exportSourceExcel = (sourceName: string) => {
-    const deals = records.filter(r => r.leadSource === sourceName && (modalStageTab === 'all' || r.type === modalStageTab));
-    const exportRows = deals.map(r => ({
-      'Deal ID': r.id,
-      'Deal Stage': r.stage,
-      'Status Type': r.type.toUpperCase(),
-      'Company': r.customer,
-      'Responsible Person': r.salesRep,
-      'Deal Name': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
-      'Lead Source': r.leadSource,
-      'Income / Revenue (₹)': r.netRevenue,
-      'Created Date': r.rawRecord?.['Created'] || r.date,
-      'End Date': r.rawRecord?.['End Date'] || r.date,
-      'Lost Reason': r.lostReason || 'N/A',
-      'Industry': r.industry,
-      'Solution Type': r.solution
-    }));
+    const deals = modalSourceFilteredDeals.length > 0 ? modalSourceFilteredDeals : stageFilteredDeals;
+    const exportRows = deals.map(r => {
+      const isWon = r.type === 'won';
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = isWon ? Math.round((grossRev - r.netRevenue) * 100) / 100 : 0;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': r.lostReason || 'N/A'
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportRows);
@@ -1050,7 +1356,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   };
 
   // Filter deals for selected Sales Rep
-  const repAllDeals = selectedRep 
+  const repAllDeals = selectedRep
     ? records.filter(r => r.salesRep === selectedRep)
     : [];
 
@@ -1078,22 +1384,28 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
   });
 
   const exportRepExcel = (repName: string) => {
-    const deals = records.filter(r => r.salesRep === repName && (modalStageTab === 'all' || r.type === modalStageTab));
-    const exportRows = deals.map(r => ({
-      'Deal ID': r.id,
-      'Deal Stage': r.stage,
-      'Status Type': r.type.toUpperCase(),
-      'Company': r.customer,
-      'Responsible Person': r.salesRep,
-      'Deal Name': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
-      'Lead Source': r.leadSource,
-      'Income / Revenue (₹)': r.netRevenue,
-      'Created Date': r.rawRecord?.['Created'] || r.date,
-      'End Date': r.rawRecord?.['End Date'] || r.date,
-      'Lost Reason': r.lostReason || 'N/A',
-      'Industry': r.industry,
-      'Solution Type': r.solution
-    }));
+    const deals = modalRepFilteredDeals.length > 0 ? modalRepFilteredDeals : repStageFilteredDeals;
+    const exportRows = deals.map(r => {
+      const isWon = r.type === 'won';
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = isWon ? Math.round((grossRev - r.netRevenue) * 100) / 100 : 0;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': r.lostReason || 'N/A'
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportRows);
@@ -1106,26 +1418,26 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
       {/* Row 1: Responsible Person & Lead Source */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartContainer title="Revenue by Responsible Person (Click Bar to View Excel)" icon={<User className="w-4 h-4 text-emerald-400" />}>
-          <ReactECharts 
-            option={repPerformanceOption} 
+          <ReactECharts
+            option={repPerformanceOption}
             onEvents={{ click: handleRepClick }}
-            style={{ height: '280px', cursor: 'pointer' }} 
+            style={{ height: '280px', cursor: 'pointer' }}
           />
         </ChartContainer>
 
         <ChartContainer title="Revenue by Acquisition Lead Source (Click Bar to View Excel)" icon={<Globe className="w-4 h-4 text-amber-400" />}>
-          <ReactECharts 
-            option={leadSourceOption} 
+          <ReactECharts
+            option={leadSourceOption}
             onEvents={{ click: handleLeadSourceClick }}
-            style={{ height: '280px', cursor: 'pointer' }} 
+            style={{ height: '280px', cursor: 'pointer' }}
           />
         </ChartContainer>
       </div>
 
       {/* Row 2: Revenue Trend & Target vs Actual */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="Monthly Revenue Trend & 3-Month Average" icon={<TrendingUp className="w-4 h-4 text-blue-400" />}>
-          <ReactECharts option={revenueTrendOption} style={{ height: '280px' }} />
+        <ChartContainer title={`Monthly Revenue Trend & ${avgSeriesName}`} icon={<TrendingUp className="w-4 h-4 text-blue-400" />}>
+          <ReactECharts option={revenueTrendOption} notMerge={true} style={{ height: '280px' }} />
         </ChartContainer>
 
         <ChartContainer title="Target vs Actual Revenue" icon={<BarChart3 className="w-4 h-4 text-emerald-400" />}>
@@ -1136,10 +1448,10 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
       {/* Row 3: Sales Pipeline Funnel & Win/Lost Donut */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartContainer title="Sales Pipeline Funnel (Click 3D Stage to View Excel)" icon={<Filter className="w-4 h-4 text-indigo-400" />}>
-          <ReactECharts 
-            option={funnelOption} 
+          <ReactECharts
+            option={funnelOption}
             onEvents={{ click: handleFunnelClick }}
-            style={{ height: '300px', cursor: 'pointer' }} 
+            style={{ height: '300px', cursor: 'pointer' }}
           />
         </ChartContainer>
 
@@ -1152,7 +1464,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-emerald-400 font-extrabold uppercase tracking-wider">Won Deals</span>
                   <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
-                    {kpis.winRatePct}%
+                    {wonPct}%
                   </span>
                 </div>
                 <div>
@@ -1170,7 +1482,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
                 <div className="flex items-center justify-between">
                   <span className="text-[10px] text-rose-400 font-extrabold uppercase tracking-wider">Lost Deals</span>
                   <span className="text-[10px] font-bold font-mono px-2 py-0.5 rounded-full bg-rose-500/20 text-rose-300 border border-rose-500/30">
-                    {kpis.lossRatePct}%
+                    {lostPct}%
                   </span>
                 </div>
                 <div>
@@ -1219,23 +1531,24 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
       {/* Row 5: Solution Treemap & Deal Size Bracket Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         <ChartContainer title="Revenue by Solution Type" icon={<Layers className="w-4 h-4 text-cyan-400" />}>
-          <ReactECharts option={treemapOption} style={{ height: '280px' }} />
+          <ReactECharts option={treemapOption} notMerge={true} style={{ height: '280px' }} />
         </ChartContainer>
 
         <ChartContainer title="Deal Size Category Breakdown (Ticket Size Analysis)" icon={<CircleDollarSign className="w-4 h-4 text-emerald-400" />}>
-          <ReactECharts 
-            option={dealSizeBracketOption} 
+          <ReactECharts
+            option={dealSizeBracketOption}
+            notMerge={true}
             onEvents={{ click: handleBracketClick }}
-            style={{ height: '280px', cursor: 'pointer' }} 
+            style={{ height: '280px', cursor: 'pointer' }}
           />
         </ChartContainer>
       </div>
 
       {/* Deal Size Bracket Worksheet Modal */}
-      {selectedDealBracket && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 animate-fade-in">
-          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700 shadow-2xl relative overflow-hidden">
-            
+      {selectedDealBracket && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
               <div className="flex items-center space-x-4">
@@ -1319,15 +1632,14 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
                       return (
                         <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
                           <td className="p-3.5 font-mono font-bold text-blue-400 whitespace-nowrap">{deal.id}</td>
-                          
+
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                              deal.type === 'won' 
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
-                                : deal.type === 'lost' 
-                                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                            }`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${deal.type === 'won'
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : deal.type === 'lost'
+                                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                  : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                              }`}>
                               {deal.stage}
                             </span>
                           </td>
@@ -1400,14 +1712,15 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Funnel Stage Deal Worksheet Modal */}
-      {selectedFunnelStage && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 animate-fade-in">
-          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700 shadow-2xl relative overflow-hidden">
-            
+      {selectedFunnelStage && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
               <div className="flex items-center space-x-4">
@@ -1491,15 +1804,14 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
                       return (
                         <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
                           <td className="p-3.5 font-mono font-bold text-blue-400 whitespace-nowrap">{deal.id}</td>
-                          
+
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                              deal.type === 'won' 
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
-                                : deal.type === 'lost' 
-                                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                            }`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${deal.type === 'won'
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : deal.type === 'lost'
+                                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                  : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                              }`}>
                               {deal.stage}
                             </span>
                           </td>
@@ -1572,14 +1884,15 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Lead Source Deal Worksheet Modal */}
-      {selectedLeadSource && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 animate-fade-in">
-          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700 shadow-2xl relative overflow-hidden">
-            
+      {selectedLeadSource && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
               <div className="flex items-center space-x-4">
@@ -1629,9 +1942,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
               <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setModalStageTab('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'all' ? 'bg-amber-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'all' ? 'bg-amber-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>All Deals ({sourceAllDeals.length})</span>
@@ -1639,9 +1951,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
                 <button
                   onClick={() => setModalStageTab('won')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'won' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'won' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Won Deals ({sourceWonDeals.length})</span>
@@ -1649,9 +1960,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
                 <button
                   onClick={() => setModalStageTab('lost')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'lost' ? 'bg-rose-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'lost' ? 'bg-rose-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <XCircle className="w-3.5 h-3.5 text-rose-400" />
                   <span>Lost Deals ({sourceLostDeals.length})</span>
@@ -1659,9 +1969,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
                 <button
                   onClick={() => setModalStageTab('in_progress')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'in_progress' ? 'bg-cyan-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'in_progress' ? 'bg-cyan-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <Clock className="w-3.5 h-3.5 text-cyan-400" />
                   <span>In Progress ({sourceProgressDeals.length})</span>
@@ -1705,15 +2014,14 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
                       return (
                         <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
                           <td className="p-3.5 font-mono font-bold text-blue-400 whitespace-nowrap">{deal.id}</td>
-                          
+
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                              deal.type === 'won' 
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
-                                : deal.type === 'lost' 
-                                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                            }`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${deal.type === 'won'
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : deal.type === 'lost'
+                                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                  : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                              }`}>
                               {deal.stage}
                             </span>
                           </td>
@@ -1786,14 +2094,15 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       {/* Sales Rep Deal Worksheet Modal */}
-      {selectedRep && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 animate-fade-in">
-          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700 shadow-2xl relative overflow-hidden">
-            
+      {selectedRep && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
               <div className="flex items-center space-x-4">
@@ -1843,9 +2152,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
               <div className="flex items-center space-x-2 overflow-x-auto scrollbar-none">
                 <button
                   onClick={() => setModalStageTab('all')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'all' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'all' ? 'bg-blue-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <Layers className="w-3.5 h-3.5" />
                   <span>All Deals ({repAllDeals.length})</span>
@@ -1853,9 +2161,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
                 <button
                   onClick={() => setModalStageTab('won')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'won' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'won' ? 'bg-emerald-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
                   <span>Won Deals ({repWonDeals.length})</span>
@@ -1863,9 +2170,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
                 <button
                   onClick={() => setModalStageTab('lost')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'lost' ? 'bg-rose-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'lost' ? 'bg-rose-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <XCircle className="w-3.5 h-3.5 text-rose-400" />
                   <span>Lost Deals ({repLostDeals.length})</span>
@@ -1873,9 +2179,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
 
                 <button
                   onClick={() => setModalStageTab('in_progress')}
-                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${
-                    modalStageTab === 'in_progress' ? 'bg-cyan-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
-                  }`}
+                  className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all flex items-center gap-1.5 ${modalStageTab === 'in_progress' ? 'bg-cyan-600 text-white shadow' : 'bg-slate-800 text-slate-300 hover:bg-slate-700'
+                    }`}
                 >
                   <Clock className="w-3.5 h-3.5 text-cyan-400" />
                   <span>In Progress ({repProgressDeals.length})</span>
@@ -1919,15 +2224,14 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
                       return (
                         <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
                           <td className="p-3.5 font-mono font-bold text-blue-400 whitespace-nowrap">{deal.id}</td>
-                          
+
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
-                              deal.type === 'won' 
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
-                                : deal.type === 'lost' 
-                                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
-                            }`}>
+                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${deal.type === 'won'
+                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30'
+                                : deal.type === 'lost'
+                                  ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
+                                  : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                              }`}>
                               {deal.stage}
                             </span>
                           </td>
@@ -2000,7 +2304,8 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, kpis 
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

@@ -1,4 +1,5 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { 
   Trophy, 
   Medal, 
@@ -34,6 +35,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
   const [modalSearch, setModalSearch] = useState<string>('');
   const [modalStageTab, setModalStageTab] = useState<'all' | 'won' | 'lost' | 'in_progress'>('all');
 
+  useEffect(() => {
+    if (selectedRep) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [selectedRep]);
+
   const repNames = Array.from(new Set(records.map(r => r.salesRep))).filter(Boolean);
 
   const defaultAvatars: Record<string, string> = {
@@ -58,7 +70,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
 
     const wonCount = repWon.length;
     const lostCount = repLost.length;
-    const closedCount = wonCount + lostCount;
 
     const pipelineValue = repProgress.reduce((acc, r) => acc + r.netRevenue, 0);
     const wonNetValues = repWon.map(r => r.netRevenue).sort((a, b) => a - b);
@@ -133,22 +144,28 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
   });
 
   const exportRepExcel = (rep: SalesRepMetric) => {
-    const deals = records.filter(r => r.salesRep === rep.name && (modalStageTab === 'all' || r.type === modalStageTab));
-    const exportRows = deals.map(r => ({
-      'Deal ID': r.id,
-      'Deal Stage': r.stage,
-      'Status Type': r.type.toUpperCase(),
-      'Company': r.customer,
-      'Responsible Person': r.salesRep,
-      'Deal Name': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
-      'Lead Source': r.leadSource,
-      'Income / Revenue (₹)': r.netRevenue,
-      'Created Date': r.rawRecord?.['Created'] || r.date,
-      'End Date': r.rawRecord?.['End Date'] || r.date,
-      'Lost Reason': r.lostReason || 'N/A',
-      'Industry': r.industry,
-      'Solution Type': r.solution
-    }));
+    const deals = modalFilteredDeals.length > 0 ? modalFilteredDeals : stageFilteredDeals;
+    const exportRows = deals.map(r => {
+      const isWon = r.type === 'won';
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = isWon ? Math.round((grossRev - r.netRevenue) * 100) / 100 : 0;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': r.lostReason || 'N/A'
+      };
+    });
 
     const wb = XLSX.utils.book_new();
     const ws = XLSX.utils.json_to_sheet(exportRows);
@@ -165,13 +182,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
             <h3 className="text-base font-extrabold text-slate-100 tracking-tight">
               Sales Team Leaderboard
             </h3>
-            <span className="text-[10px] font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30">
-              Click any sales rep to view full deal worksheet by stage
-            </span>
           </div>
-          <p className="text-xs text-slate-400 mt-1">
-            Rep performance ranking, deal counts, and revenue target progress
-          </p>
         </div>
 
         {topPerformerBanner(repMetrics[0])}
@@ -306,9 +317,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
       </div>
 
       {/* Rep Deals Excel Data Modal (SUPPORTING ALL DEALS & STAGE FILTERING) */}
-      {selectedRep && (
-        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/85 backdrop-blur-md p-3 md:p-6 animate-fade-in overflow-y-auto">
-          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700 shadow-2xl relative overflow-hidden my-auto">
+      {selectedRep && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
             
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
@@ -513,7 +524,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
             </div>
 
           </div>
-        </div>
+        </div>,
+        document.body
       )}
     </div>
   );

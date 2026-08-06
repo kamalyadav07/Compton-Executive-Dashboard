@@ -1,8 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
-import type { DealRecord, GlobalFilterState, KPIMetrics, UploadValidationReport } from './types/sales';
+import type { DealRecord, GlobalFilterState, KPIMetrics } from './types/sales';
 import { filterRecords, calculateKPIs } from './engine/kpiEngine';
-import { syncAllGoogleSheets, type SheetFetchStatus } from './engine/googleSheetsService';
+import { syncProjectsGoogleSheet, type SheetFetchStatus } from './engine/googleSheetsService';
 import { getStoredSheetsConfig, saveSheetsConfig, type GoogleSheetsConfig } from './config/sheetsConfig';
+import { getStoredBitrixConfig, saveBitrixConfig, type BitrixConfig } from './config/bitrixConfig';
+import { fetchBitrixDeals, getStoredBitrixCache, type BitrixSyncResult } from './engine/bitrixService';
 import { globalPlatform } from './platform/EventDrivenPlatform';
 
 import { Navbar } from './components/common/Navbar';
@@ -18,6 +20,9 @@ import { AIChatbotDrawer } from './components/chatbot/AIChatbotDrawer';
 import { ExportModal } from './components/export/ExportModal';
 import { PlatformControlCenter } from './components/platform/PlatformControlCenter';
 import { AIDealCommandCenterModal } from './components/predictive/AIDealCommandCenterModal';
+
+import type { ProjectFilterState } from './types/project';
+import { INITIAL_SAMPLE_PROJECTS } from './engine/projectSheetsService';
 
 const initialFilters: GlobalFilterState = {
   startDate: '',
@@ -42,72 +47,118 @@ export function App() {
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
+  const initialCache = getStoredBitrixCache();
+
   const [sheetsConfig, setSheetsConfig] = useState<GoogleSheetsConfig>(getStoredSheetsConfig());
-  const [wonRecords, setWonRecords] = useState<DealRecord[]>([]);
-  const [lostRecords, setLostRecords] = useState<DealRecord[]>([]);
-  const [progressRecords, setProgressRecords] = useState<DealRecord[]>([]);
+  const [bitrixConfig, setBitrixConfig] = useState<BitrixConfig>(getStoredBitrixConfig());
+  const [bitrixSyncResult, setBitrixSyncResult] = useState<BitrixSyncResult | null>(initialCache);
 
-  const [uploadReport, setUploadReport] = useState<UploadValidationReport | null>(null);
-  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(null);
+  const [wonRecords, setWonRecords] = useState<DealRecord[]>(initialCache?.won || []);
+  const [lostRecords, setLostRecords] = useState<DealRecord[]>(initialCache?.lost || []);
+  const [progressRecords, setProgressRecords] = useState<DealRecord[]>(initialCache?.progress || []);
 
-  const [sheetStatuses, setSheetStatuses] = useState<{
-    won: SheetFetchStatus;
-    lost: SheetFetchStatus;
-    progress: SheetFetchStatus;
-  }>({
-    won: { url: sheetsConfig.wonDealsUrl, status: 'loading', recordCount: 0 },
-    lost: { url: sheetsConfig.lostDealsUrl, status: 'loading', recordCount: 0 },
-    progress: { url: sheetsConfig.inProgressDealsUrl, status: 'loading', recordCount: 0 }
+  const [projectSheetStatus, setProjectSheetStatus] = useState<SheetFetchStatus>({
+    url: sheetsConfig.projectsSheetUrl,
+    status: 'loading',
+    recordCount: 0
   });
+  const [projectsCount, setProjectsCount] = useState<number>(0);
+  const [lastSyncedAt, setLastSyncedAt] = useState<Date | null>(initialCache?.lastSyncedAt || null);
 
   const [filters, setFilters] = useState<GlobalFilterState>(initialFilters);
+
+  // Operational Dashboard Filters State (passed to Navbar header and SalesDashboard)
+  const [opSearchQuery, setOpSearchQuery] = useState<string>('');
+  const [opDateFilter, setOpDateFilter] = useState<string>('All Dates');
+  const [opStartDate, setOpStartDate] = useState<string>('');
+  const [opEndDate, setOpEndDate] = useState<string>('');
+  const [opTableFilter, setOpTableFilter] = useState<'All' | 'Billed' | 'Unbilled'>('All');
+  const [opRepFilter, setOpRepFilter] = useState<string>('All');
+  const [opSourceFilter, setOpSourceFilter] = useState<string>('All');
+  const [opCompanyFilter, setOpCompanyFilter] = useState<string>('All');
+
+  const handleResetOpFilters = useCallback(() => {
+    setOpSearchQuery('');
+    setOpDateFilter('All Dates');
+    setOpStartDate('');
+    setOpEndDate('');
+    setOpTableFilter('All');
+    setOpRepFilter('All');
+    setOpSourceFilter('All');
+    setOpCompanyFilter('All');
+  }, []);
+
+  // Project Dashboard Filters State (passed to Navbar header and ProjectDashboard)
+  const initialProjectFilters: ProjectFilterState = useMemo(() => ({
+    searchQuery: '',
+    dateFilter: 'All Dates',
+    status: 'All',
+    timelineStatus: 'All',
+    budgetStatus: 'All',
+    projectType: 'All',
+    customer: 'All'
+  }), []);
+  const [projectFilters, setProjectFilters] = useState<ProjectFilterState>(initialProjectFilters);
+
+  const handleResetProjectFilters = useCallback(() => {
+    setProjectFilters(initialProjectFilters);
+  }, [initialProjectFilters]);
 
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPlatformOpen, setIsPlatformOpen] = useState(false);
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
 
-  // Sync Google Sheets Data through 10-Stage Event-Driven Data Platform
-  const handleSyncData = useCallback(async (currentConfig = sheetsConfig) => {
-    setIsSyncing(true);
+  // Sync Bitrix24 Deals & Leads Data in Background (Stale-While-Revalidate)
+  const handleSyncBitrix = useCallback(async (currentConfig = bitrixConfig) => {
     try {
-      const res = await syncAllGoogleSheets(currentConfig);
-      setWonRecords(res.won);
-      setLostRecords(res.lost);
-      setProgressRecords(res.progress);
-      setUploadReport(res.report);
-      setSheetStatuses(res.statuses);
-      setLastSyncedAt(res.lastSyncedAt);
+      const res = await fetchBitrixDeals(currentConfig);
+      setBitrixSyncResult(res);
 
-      // Ingest into 10-Stage Platform Architecture
-      const allRaw = [...res.won, ...res.lost, ...res.progress];
-      if (allRaw.length > 0) {
-        await globalPlatform.processSheetIngestion('Google Sheets Combined', allRaw, 'manual');
+      if (res.status === 'success' && (res.totalFetchedDeals > 0 || res.won.length > 0)) {
+        setWonRecords(res.won);
+        setLostRecords(res.lost);
+        setProgressRecords(res.progress);
+        setLastSyncedAt(res.lastSyncedAt);
+
+        const allRaw = [...res.won, ...res.lost, ...res.progress];
+        await globalPlatform.processSheetIngestion('Bitrix24 CRM Webhook', allRaw, 'manual');
       }
     } catch (err) {
-      console.error("Failed to sync Google Sheets:", err);
+      console.error("Failed to sync Bitrix24:", err);
     } finally {
       setIsSyncing(false);
     }
+  }, [bitrixConfig]);
+
+  // Sync Google Sheets Project Dashboard Data
+  const handleSyncProjectsSheet = useCallback(async (currentConfig = sheetsConfig) => {
+    try {
+      const res = await syncProjectsGoogleSheet(currentConfig);
+      setProjectSheetStatus(res.status);
+      setProjectsCount(res.projects.length);
+    } catch (err) {
+      console.error("Failed to sync Projects Sheet:", err);
+    }
   }, [sheetsConfig]);
 
-  // Initial Sync & Auto-polling timer (every 60s)
+  // Initial Sync on mount (Stable single-sync without periodic interval state resets)
   useEffect(() => {
-    handleSyncData();
-
-    const intervalSec = sheetsConfig.autoRefreshSeconds || 60;
-    const timer = setInterval(() => {
-      handleSyncData();
-    }, intervalSec * 1000);
-
-    return () => clearInterval(timer);
-  }, [handleSyncData, sheetsConfig.autoRefreshSeconds]);
+    handleSyncBitrix();
+    handleSyncProjectsSheet();
+  }, []);
 
   // Save new sheet URLs
   const handleSaveConfig = async (newConfig: GoogleSheetsConfig) => {
     setSheetsConfig(newConfig);
     await saveSheetsConfig(newConfig);
-    handleSyncData(newConfig);
+    handleSyncProjectsSheet(newConfig);
+  };
+
+  const handleSaveBitrixConfig = (newConfig: BitrixConfig) => {
+    setBitrixConfig(newConfig);
+    saveBitrixConfig(newConfig);
+    handleSyncBitrix(newConfig);
   };
 
   const allRecords = useMemo(() => {
@@ -119,8 +170,8 @@ export function App() {
   }, [allRecords, filters]);
 
   const kpis: KPIMetrics = useMemo(() => {
-    return calculateKPIs(filteredRecords, filters);
-  }, [filteredRecords, filters]);
+    return calculateKPIs(filteredRecords, filters, undefined, allRecords);
+  }, [filteredRecords, filters, allRecords]);
 
   return (
     <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'dark bg-[#0a0e1a]' : 'light-theme'}`}>
@@ -134,6 +185,27 @@ export function App() {
         onFilterChange={setFilters}
         onResetFilters={() => setFilters(initialFilters)}
         allRecords={allRecords}
+        opSearchQuery={opSearchQuery}
+        onOpSearchQueryChange={setOpSearchQuery}
+        opDateFilter={opDateFilter}
+        onOpDateFilterChange={setOpDateFilter}
+        opStartDate={opStartDate}
+        onOpStartDateChange={setOpStartDate}
+        opEndDate={opEndDate}
+        onOpEndDateChange={setOpEndDate}
+        opTableFilter={opTableFilter}
+        onOpTableFilterChange={setOpTableFilter}
+        opRepFilter={opRepFilter}
+        onOpRepFilterChange={setOpRepFilter}
+        opSourceFilter={opSourceFilter}
+        onOpSourceFilterChange={setOpSourceFilter}
+        opCompanyFilter={opCompanyFilter}
+        onOpCompanyFilterChange={setOpCompanyFilter}
+        onResetOpFilters={handleResetOpFilters}
+        projectFilters={projectFilters}
+        onProjectFilterChange={setProjectFilters}
+        onResetProjectFilters={handleResetProjectFilters}
+        allProjects={INITIAL_SAMPLE_PROJECTS}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -159,22 +231,56 @@ export function App() {
             />
           )}
 
-          {activeDashboardId === 'sales' && <SalesDashboard />}
-          {activeDashboardId === 'project' && <ProjectDashboard onOpenExportModal={() => setIsExportModalOpen(true)} />}
+          {activeDashboardId === 'sales' && (
+            <SalesDashboard 
+              allRecords={allRecords} 
+              bitrixSyncResult={bitrixSyncResult}
+              onOpenExportModal={() => setIsExportModalOpen(true)}
+              searchQuery={opSearchQuery}
+              onSearchQueryChange={setOpSearchQuery}
+              dateFilter={opDateFilter}
+              onDateFilterChange={setOpDateFilter}
+              startDate={opStartDate}
+              onStartDateChange={setOpStartDate}
+              endDate={opEndDate}
+              onEndDateChange={setOpEndDate}
+              tableFilter={opTableFilter}
+              onTableFilterChange={setOpTableFilter}
+              repFilter={opRepFilter}
+              onRepFilterChange={setOpRepFilter}
+              sourceFilter={opSourceFilter}
+              onSourceFilterChange={setOpSourceFilter}
+              companyFilter={opCompanyFilter}
+              onCompanyFilterChange={setOpCompanyFilter}
+              onResetFilters={handleResetOpFilters}
+            />
+          )}
+          {activeDashboardId === 'project' && (
+            <ProjectDashboard 
+              onOpenExportModal={() => setIsExportModalOpen(true)}
+              filters={projectFilters}
+              onFilterChange={setProjectFilters}
+              onResetFilters={handleResetProjectFilters}
+            />
+          )}
           {activeDashboardId === 'service' && <ServiceDashboard />}
           
           {activeDashboardId === 'data-sync' && (
             <DataSyncScreen
               config={sheetsConfig}
-              statuses={sheetStatuses}
+              bitrixConfig={bitrixConfig}
+              bitrixSyncResult={bitrixSyncResult}
+              projectSheetStatus={projectSheetStatus}
+              projectsCount={projectsCount}
               wonRecords={wonRecords}
               lostRecords={lostRecords}
               progressRecords={progressRecords}
-              uploadReport={uploadReport}
               lastSyncedAt={lastSyncedAt}
               isSyncing={isSyncing}
-              onRefresh={() => handleSyncData()}
+              onRefresh={() => handleSyncProjectsSheet()}
+              onRefreshBitrix={() => handleSyncBitrix()}
               onSaveConfig={handleSaveConfig}
+              onSaveBitrixConfig={handleSaveBitrixConfig}
             />
           )}
         </main>
@@ -198,7 +304,6 @@ export function App() {
       <PlatformControlCenter
         isOpen={isPlatformOpen}
         onClose={() => setIsPlatformOpen(false)}
-        onRefreshData={() => handleSyncData()}
       />
 
       <AIDealCommandCenterModal

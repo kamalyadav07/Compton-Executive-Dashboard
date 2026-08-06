@@ -1,7 +1,5 @@
 {
-  "wonDealsUrl": "https://docs.google.com/spreadsheets/d/1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU/edit?gid=0#gid=0",
-  "lostDealsUrl": "https://docs.google.com/spreadsheets/d/16fuiVZUB5GC-RvVicpeieicVg7KmQAX2UNiQ3Fo5l0Q/edit?gid=0#gid=0",
-  "inProgressDealsUrl": "https://docs.google.com/spreadsheets/d/1vLQAbqhtNGZQSX_Vs5OA6d9HWXrA5zg_JS6wjKTZQeQ/edit?gid=0#gid=0",
+  "projectsSheetUrl": "https://docs.google.com/spreadsheets/d/1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU/edit?gid=0#gid=0",
   "autoRefreshSeconds": 60,
-  "lastUpdated": "2026-08-01T23:00:00.000Z"
+  "lastUpdated": "2026-08-05T18:10:28.141Z"
 }

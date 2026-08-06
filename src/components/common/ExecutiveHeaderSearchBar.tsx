@@ -49,7 +49,11 @@ export const ExecutiveHeaderSearchBar: React.FC<ExecutiveHeaderSearchBarProps> =
   }, []);
 
   // Filter options lists
-  const salesReps = useMemo(() => Array.from(new Set(allRecords.map(r => r.salesRep))).filter(Boolean).sort(), [allRecords]);
+  const ALLOWED_REPS = ['Ashok Kumar', 'Jitesh Chander', 'Rohit Yadav', 'Sandeep Vahi', 'Taniya Negi', 'Tausif Ahmad'];
+  const salesReps = useMemo(() => {
+    const set = new Set(allRecords.map(r => r.salesRep));
+    return ALLOWED_REPS.filter(r => set.has(r) || true);
+  }, [allRecords]);
   const industries = useMemo(() => Array.from(new Set(allRecords.map(r => r.industry))).filter(Boolean).sort(), [allRecords]);
   const solutions = useMemo(() => Array.from(new Set(allRecords.map(r => r.solution))).filter(Boolean).sort(), [allRecords]);
   const leadSources = useMemo(() => Array.from(new Set(allRecords.map(r => r.leadSource))).filter(Boolean).sort(), [allRecords]);
@@ -75,11 +79,35 @@ export const ExecutiveHeaderSearchBar: React.FC<ExecutiveHeaderSearchBarProps> =
   const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   const currentShortMonthStr = `${shortMonthNames[currentMonthIdx]} ${currentYear}`;
 
+  // Helper to parse Month-Year strings into timestamp for chronological sorting
+  const monthMap: Record<string, number> = {
+    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+  };
+
+  const getMonthYearTime = (str: string): number => {
+    if (!str) return 0;
+    const parts = str.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const mStr = parts[0].toLowerCase().substring(0, 3);
+      const yNum = parseInt(parts[1], 10);
+      const mNum = monthMap[mStr] !== undefined ? monthMap[mStr] : 0;
+      if (!isNaN(yNum)) {
+        return new Date(yNum, mNum, 1).getTime();
+      }
+    }
+    return 0;
+  };
+
   const allMonthSet = new Set([currentShortMonthStr, ...allRecords.map(r => r.monthYear)]);
-  const uniqueMonths = Array.from(allMonthSet).filter(Boolean);
+  const uniqueMonths = Array.from(allMonthSet)
+    .filter(Boolean)
+    .sort((a, b) => getMonthYearTime(b) - getMonthYearTime(a));
 
   const allYearSet = new Set([String(currentYear), ...allRecords.map(r => String(r.year))]);
-  const uniqueYears = Array.from(allYearSet).filter(Boolean);
+  const uniqueYears = Array.from(allYearSet)
+    .filter(Boolean)
+    .sort((a, b) => parseInt(b, 10) - parseInt(a, 10));
 
   const handleFieldChange = (key: keyof GlobalFilterState, value: any) => {
     onFilterChange({

@@ -30,7 +30,11 @@ export const GlobalFilters: React.FC<GlobalFiltersProps> = ({
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const salesReps = useMemo(() => Array.from(new Set(allRecords.map(r => r.salesRep))).filter(Boolean).sort(), [allRecords]);
+  const ALLOWED_REPS = ['Ashok Kumar', 'Jitesh Chander', 'Rohit Yadav', 'Sandeep Vahi', 'Taniya Negi', 'Tausif Ahmad'];
+  const salesReps = useMemo(() => {
+    const set = new Set(allRecords.map(r => r.salesRep));
+    return ALLOWED_REPS.filter(r => set.has(r) || true);
+  }, [allRecords]);
   const industries = useMemo(() => Array.from(new Set(allRecords.map(r => r.industry))).filter(Boolean).sort(), [allRecords]);
   const solutions = useMemo(() => Array.from(new Set(allRecords.map(r => r.solution))).filter(Boolean).sort(), [allRecords]);
   const leadSources = useMemo(() => Array.from(new Set(allRecords.map(r => r.leadSource))).filter(Boolean).sort(), [allRecords]);

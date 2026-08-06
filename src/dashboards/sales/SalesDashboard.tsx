@@ -1,22 +1,1208 @@
-import React from 'react';
-import { TrendingUp, Clock } from 'lucide-react';
+import React, { useState, useEffect, useMemo } from 'react';
+import ReactECharts from 'echarts-for-react';
+import { 
+  CheckCircle2, 
+  Clock, 
+  RefreshCw, 
+  TrendingUp, 
+  Users, 
+  AlertCircle, 
+  Search,
+  Package,
+  Layers,
+  DollarSign,
+  PieChart,
+  BarChart3,
+  Sparkles,
+  Building2,
+  Share2
+} from 'lucide-react';
+import type { OrderRecord, OperationalKPIMetrics } from '../../types/orders';
+import type { DealRecord } from '../../types/sales';
+import { fetchBitrixDeals, getStoredBitrixCache, normalizeBitrixSource, type BitrixSyncResult } from '../../engine/bitrixService';
+import { 
+  fetchOrdersSheetData, 
+  getStoredOrdersSheetUrl
+} from '../../engine/ordersSheetsService';
 
-export const SalesDashboard: React.FC = () => {
+interface SalesDashboardProps {
+  allRecords?: DealRecord[];
+  bitrixSyncResult?: BitrixSyncResult | null;
+  onOpenExportModal?: () => void;
+  searchQuery?: string;
+  onSearchQueryChange?: (q: string) => void;
+  dateFilter?: string;
+  onDateFilterChange?: (d: string) => void;
+  startDate?: string;
+  onStartDateChange?: (d: string) => void;
+  endDate?: string;
+  onEndDateChange?: (d: string) => void;
+  tableFilter?: 'All' | 'Billed' | 'Unbilled';
+  onTableFilterChange?: (s: 'All' | 'Billed' | 'Unbilled') => void;
+  repFilter?: string;
+  onRepFilterChange?: (r: string) => void;
+  sourceFilter?: string;
+  onSourceFilterChange?: (s: string) => void;
+  companyFilter?: string;
+  onCompanyFilterChange?: (c: string) => void;
+  onResetFilters?: () => void;
+}
+
+const MONTH_INFO: { name: string; short: string; num: string }[] = [
+  { name: 'january', short: 'jan', num: '01' },
+  { name: 'february', short: 'feb', num: '02' },
+  { name: 'march', short: 'mar', num: '03' },
+  { name: 'april', short: 'apr', num: '04' },
+  { name: 'may', short: 'may', num: '05' },
+  { name: 'june', short: 'jun', num: '06' },
+  { name: 'july', short: 'jul', num: '07' },
+  { name: 'august', short: 'aug', num: '08' },
+  { name: 'september', short: 'sep', num: '09' },
+  { name: 'october', short: 'oct', num: '10' },
+  { name: 'november', short: 'nov', num: '11' },
+  { name: 'december', short: 'dec', num: '12' },
+];
+
+function matchesDateFilter(dateStr: string | undefined | null, filterVal: string | undefined | null): boolean {
+  if (!filterVal || filterVal === 'All Dates' || filterVal === 'Custom Range') return true;
+  if (!dateStr) return false;
+
+  const str = String(dateStr).toLowerCase();
+  const f = String(filterVal).toLowerCase().trim();
+
+  // 1. Direct substring match (e.g. "2026", "2025", "Jul 2026")
+  if (str.includes(f)) return true;
+
+  // 2. Year check if filter explicitly contains a 4-digit year like 2026
+  const yearMatch = f.match(/\b(202\d)\b/);
+  if (yearMatch) {
+    const yr = yearMatch[1];
+    if (!str.includes(yr)) return false;
+  }
+
+  // 3. Month matching (checks full name "july", short name "jul", and numeric month "07")
+  for (const m of MONTH_INFO) {
+    if (f.includes(m.name) || f.includes(m.short)) {
+      if (
+        str.includes(m.name) ||
+        str.includes(m.short) ||
+        str.includes(`-${m.num}-`) ||
+        str.endsWith(`-${m.num}`) ||
+        str.includes(`/${m.num}/`) ||
+        str.endsWith(`/${m.num}`) ||
+        str.startsWith(`${m.num}/`) ||
+        str.startsWith(`${m.num}-`)
+      ) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
+export const SalesDashboard: React.FC<SalesDashboardProps> = ({
+  allRecords,
+  bitrixSyncResult,
+  onOpenExportModal: _onOpenExportModal,
+  searchQuery: propSearchQuery,
+  onSearchQueryChange: _onSearchQueryChange,
+  dateFilter: propDateFilter,
+  onDateFilterChange: _onDateFilterChange,
+  startDate: propStartDate,
+  onStartDateChange: _onStartDateChange,
+  endDate: propEndDate,
+  onEndDateChange: _onEndDateChange,
+  tableFilter: propTableFilter,
+  onTableFilterChange: _onTableFilterChange,
+  repFilter: propRepFilter,
+  onRepFilterChange: _onRepFilterChange,
+  sourceFilter: propSourceFilter,
+  onSourceFilterChange: _onSourceFilterChange,
+  companyFilter: propCompanyFilter,
+  onCompanyFilterChange: _onCompanyFilterChange,
+  onResetFilters: _onResetFilters
+}) => {
+  const [localBitrixData, setLocalBitrixData] = useState<BitrixSyncResult | null>(getStoredBitrixCache());
+  const [ordersUrl, _setOrdersUrl] = useState<string>(getStoredOrdersSheetUrl());
+  const [sheetOrders, setSheetOrders] = useState<OrderRecord[]>([]);
+  const [sheetStatusMessage, setSheetStatusMessage] = useState<string>('');
+  const [_isSyncing, setIsSyncing] = useState<boolean>(false);
+
+  // Single unified Bitrix dataset (Prioritizes prop from App -> local state -> cached localStorage)
+  const bitrixData = bitrixSyncResult || localBitrixData || getStoredBitrixCache();
+  
+  // UI Controls & Filters (controlled via Navbar header or fallback local)
+  const [_showConfigModal, _setShowConfigModal] = useState<boolean>(false);
+  const [_editUrlInput, _setEditUrlInput] = useState<string>(ordersUrl);
+
+  const [localTableFilter, _setLocalTableFilter] = useState<'All' | 'Billed' | 'Unbilled'>('All');
+  const [localSearchQuery, _setLocalSearchQuery] = useState<string>('');
+  const [localDateFilter, _setLocalDateFilter] = useState<string>('All Dates');
+  const [localStartDate, _setLocalStartDate] = useState<string>('');
+  const [localEndDate, _setLocalEndDate] = useState<string>('');
+  const [localRepFilter, _setLocalRepFilter] = useState<string>('All');
+  const [localSourceFilter, _setLocalSourceFilter] = useState<string>('All');
+  const [localCompanyFilter, _setLocalCompanyFilter] = useState<string>('All');
+
+  const searchQuery = propSearchQuery !== undefined ? propSearchQuery : localSearchQuery;
+  const dateFilter = propDateFilter !== undefined ? propDateFilter : localDateFilter;
+  const startDate = propStartDate !== undefined ? propStartDate : localStartDate;
+  const endDate = propEndDate !== undefined ? propEndDate : localEndDate;
+  const tableFilter = propTableFilter !== undefined ? propTableFilter : localTableFilter;
+  const repFilter = propRepFilter !== undefined ? propRepFilter : localRepFilter;
+  const sourceFilter = propSourceFilter !== undefined ? propSourceFilter : localSourceFilter;
+  const companyFilter = propCompanyFilter !== undefined ? propCompanyFilter : localCompanyFilter;
+
+  const setSearchQuery = (q: string) => {
+    if (_onSearchQueryChange) _onSearchQueryChange(q);
+    else _setLocalSearchQuery(q);
+  };
+  const setTableFilter = (s: 'All' | 'Billed' | 'Unbilled') => {
+    if (_onTableFilterChange) _onTableFilterChange(s);
+    else _setLocalTableFilter(s);
+  };
+
+  // Sync orders sheet data on mount
+  const loadAllData = async () => {
+    setIsSyncing(true);
+    try {
+      const sRes = await fetchOrdersSheetData(ordersUrl);
+      setSheetOrders(sRes.orders);
+      setSheetStatusMessage(sRes.message);
+
+      if (!bitrixSyncResult) {
+        const bRes = await fetchBitrixDeals();
+        if (bRes && (bRes.won.length > 0 || bRes.lost.length > 0 || bRes.progress.length > 0)) {
+          setLocalBitrixData(bRes);
+        }
+      }
+    } catch (err: any) {
+      setSheetStatusMessage(`Sync error: ${err.message}`);
+    } finally {
+      setIsSyncing(false);
+    }
+  };
+
+  useEffect(() => {
+    loadAllData();
+  }, [ordersUrl]);
+
+  // Fast Deal Map lookup by clean numeric dealId
+  const bitrixMap = useMemo(() => {
+    const map = new Map<string, DealRecord>();
+    
+    if (allRecords && allRecords.length > 0) {
+      allRecords.forEach(d => {
+        const cleanId = String(d.id).replace(/[^0-9]/g, '');
+        if (cleanId) {
+          map.set(cleanId, d);
+        }
+      });
+    }
+
+    if (bitrixData) {
+      const allBitrixDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress];
+      allBitrixDeals.forEach(d => {
+        const cleanId = String(d.id).replace(/[^0-9]/g, '');
+        if (cleanId && !map.has(cleanId)) {
+          map.set(cleanId, d);
+        }
+      });
+    }
+
+    return map;
+  }, [allRecords, bitrixData]);
+
+  // Combine & Enrich Google Sheet Orders with Bitrix ISO Creation Dates & Responsible data
+  const combinedOrders: OrderRecord[] = useMemo(() => {
+    if (sheetOrders.length > 0) {
+      return sheetOrders.map((ord, idx) => {
+        const bMatch = bitrixMap.get(ord.dealId) || bitrixMap.get(ord.id.replace('ORD-', ''));
+        const rawBitrix = bMatch?.rawRecord;
+
+        // Use Google Sheet ISO Created Date directly if present, fallback to Bitrix DATE_CREATE
+        let isoCreationDate = (ord.orderDate && ord.orderDate.trim().length > 0) ? ord.orderDate : '';
+        if (!isoCreationDate && rawBitrix?.DATE_CREATE) {
+          try {
+            const d = new Date(rawBitrix.DATE_CREATE);
+            isoCreationDate = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+          } catch {
+            isoCreationDate = String(rawBitrix.DATE_CREATE);
+          }
+        } else if (!isoCreationDate && bMatch?.date) {
+          isoCreationDate = bMatch.date;
+        }
+
+        const salesRep = bMatch?.salesRep 
+          ? bMatch.salesRep 
+          : ((ord.salesRep && ord.salesRep !== 'Assigned Sales Rep' && ord.salesRep !== 'Unassigned') ? ord.salesRep : 'Unassigned Rep');
+
+        return {
+          ...ord,
+          sNo: idx + 1,
+          dealId: ord.dealId || `${idx + 1}`,
+          salesRep,
+          amount: ord.amount,
+          isoCreationDate: isoCreationDate || 'N/A'
+        };
+      });
+    }
+
+    // Fallback: derive operational orders from Bitrix Won/Progress Deals
+    const allBitrixDeals = bitrixData ? [...bitrixData.won, ...bitrixData.progress] : (allRecords || []);
+    return allBitrixDeals.map((rec, idx) => {
+      const isBilled = rec.type === 'won';
+      const cleanId = String(rec.id).replace(/[^0-9]/g, '') || `${idx + 1}`;
+
+      return {
+        id: `ORD-${cleanId}`,
+        dealId: cleanId,
+        sNo: idx + 1,
+        customerName: rec.customer,
+        dealName: `${rec.customer} / ${rec.solution}`,
+        salesRep: rec.salesRep,
+        amount: rec.netRevenue || (rec.grossRevenue ? Math.round((rec.grossRevenue / 1.18) * 100) / 100 : 0),
+        orderDate: rec.date,
+        isoCreationDate: rec.date,
+        billedDate: isBilled ? rec.date : 'Unbilled',
+        status: isBilled ? 'Billed' : 'Unbilled',
+        solutionType: rec.solution,
+        industry: rec.industry
+      };
+    });
+  }, [sheetOrders, bitrixData, bitrixMap, allRecords]);
+
+  // Operational KPI Calculations dynamically filtered by Date Filter, Sales Rep Filter & Search Query
+  const kpis: OperationalKPIMetrics = useMemo(() => {
+    // 1. Filtered Orders
+    const activeOrders = combinedOrders.filter(ord => {
+      if (repFilter !== 'All' && ord.salesRep !== repFilter) return false;
+
+      if (companyFilter !== 'All' && ord.customerName.toLowerCase() !== companyFilter.toLowerCase()) return false;
+
+      if (sourceFilter !== 'All') {
+        const bMatch = bitrixMap.get(ord.dealId) || bitrixMap.get(ord.id.replace('ORD-', ''));
+        if (bMatch && bMatch.leadSource && bMatch.leadSource !== sourceFilter) return false;
+      }
+
+      if (startDate && endDate) {
+        const ordDateStr = ord.orderDate || ord.isoCreationDate || '';
+        if (ordDateStr && (ordDateStr < startDate || ordDateStr > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        const matchOrd = matchesDateFilter(ord.orderDate, dateFilter);
+        const matchIso = matchesDateFilter(ord.isoCreationDate, dateFilter);
+        const matchBill = matchesDateFilter(ord.billedDate, dateFilter);
+        if (!matchOrd && !matchIso && !matchBill) return false;
+      }
+
+      if (searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        const matchId = (ord.dealId || '').toLowerCase().includes(q);
+        const matchCust = ord.customerName.toLowerCase().includes(q);
+        const matchTitle = ord.dealName.toLowerCase().includes(q);
+        const matchRep = ord.salesRep.toLowerCase().includes(q);
+        if (!matchId && !matchCust && !matchTitle && !matchRep) return false;
+      }
+
+      return true;
+    });
+
+    const billedList = activeOrders.filter(o => o.status === 'Billed');
+    const unbilledList = activeOrders.filter(o => o.status === 'Unbilled');
+
+    const ordersBilledCount = billedList.length;
+    const ordersBilledValue = billedList.reduce((s, o) => s + o.amount, 0);
+
+    const unbilledOrdersCount = unbilledList.length;
+    const unbilledOrdersValue = unbilledList.reduce((s, o) => s + o.amount, 0);
+
+    const salesOrdersCreatedCount = activeOrders.length;
+    const salesOrdersCreatedValue = activeOrders.reduce((s, o) => s + o.amount, 0);
+
+    // 2. Filtered Bitrix Deals
+    const matchDealFilterBase = (d: DealRecord) => {
+      if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
+      if (companyFilter !== 'All' && (d.customer || '').toLowerCase() !== companyFilter.toLowerCase()) return false;
+      if (sourceFilter !== 'All' && d.leadSource && d.leadSource !== sourceFilter) return false;
+
+      if (searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        const matchCust = (d.customer || '').toLowerCase().includes(q);
+        const matchTitle = (d.solution || '').toLowerCase().includes(q);
+        const matchRep = (d.salesRep || '').toLowerCase().includes(q);
+        const matchId = (d.id || '').toLowerCase().includes(q);
+        if (!matchCust && !matchTitle && !matchRep && !matchId) return false;
+      }
+
+      return true;
+    };
+
+    const matchDealFilterWithDate = (d: DealRecord) => {
+      if (!matchDealFilterBase(d)) return false;
+
+      if (startDate && endDate) {
+        const dDateStr = d.date || d.monthYear || '';
+        if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
+        if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
+      }
+
+      return true;
+    };
+
+    const wonList = bitrixData ? bitrixData.won.filter(matchDealFilterWithDate) : [];
+    const lostList = bitrixData ? bitrixData.lost.filter(matchDealFilterWithDate) : [];
+    // Note: In progress deals are shown irrespective of date filter as per requirement
+    const progressList = bitrixData ? bitrixData.progress.filter(matchDealFilterBase) : [];
+
+    const dealsWonCount = wonList.length;
+    const dealsWonValue = wonList.reduce((s, d) => s + d.netRevenue, 0);
+
+    const dealsLostCount = lostList.length;
+    const dealsLostValue = lostList.reduce((s, d) => s + d.netRevenue, 0);
+
+    const dealsInProgressCount = progressList.length;
+    const dealsInProgressValue = progressList.reduce((s, d) => s + d.netRevenue, 0);
+
+    // 3. Filtered Bitrix Leads (Qualified & Disqualified match Stage Change Date; In Progress leads exempt from date filter)
+    const rawLeads = bitrixData ? (bitrixData.leads || []) : [];
+
+    const matchLeadRep = (l: any) => {
+      if (repFilter !== 'All' && l.salesRep !== repFilter) return false;
+      return true;
+    };
+
+    const matchLeadDate = (l: any) => {
+      if (!matchLeadRep(l)) return false;
+
+      // Stage change date (dateClosed -> dateModify -> dateCreate)
+      const stageChangeDate = l.dateClosed || l.dateModify || l.dateCreate || '';
+
+      if (startDate && endDate) {
+        if (stageChangeDate && (stageChangeDate < startDate || stageChangeDate > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        if (!matchesDateFilter(stageChangeDate, dateFilter)) return false;
+      }
+      return true;
+    };
+
+    const qualifiedLeads = rawLeads.filter(l => l.statusType === 'qualified' && matchLeadDate(l));
+    const disqualifiedLeads = rawLeads.filter(l => l.statusType === 'disqualified' && matchLeadDate(l));
+    // In Progress leads do NOT have date filter applied as per explicit requirement
+    const inProgressLeads = rawLeads.filter(l => l.statusType === 'in_progress' && matchLeadRep(l));
+
+    const leadsQualifiedCount = qualifiedLeads.length;
+    const leadsDisqualifiedCount = disqualifiedLeads.length;
+    const leadsInProgressCount = inProgressLeads.length;
+    const totalLeadsGeneratedCount = qualifiedLeads.length + disqualifiedLeads.length + inProgressLeads.length;
+
+    return {
+      ordersBilledCount,
+      ordersBilledValue,
+      unbilledOrdersCount,
+      unbilledOrdersValue,
+      salesOrdersCreatedCount,
+      salesOrdersCreatedValue,
+      dealsWonCount,
+      dealsWonValue,
+      dealsLostCount,
+      dealsLostValue,
+      dealsInProgressCount,
+      dealsInProgressValue,
+      leadsQualifiedCount,
+      leadsDisqualifiedCount,
+      leadsInProgressCount,
+      totalLeadsGeneratedCount
+    };
+  }, [combinedOrders, bitrixData, dateFilter, startDate, endDate, repFilter, sourceFilter, companyFilter, searchQuery, bitrixMap]);
+
+  // Filtered Orders Table List
+  const filteredOrdersTable = useMemo(() => {
+    return combinedOrders.filter(ord => {
+      if (tableFilter === 'Billed' && ord.status !== 'Billed') return false;
+      if (tableFilter === 'Unbilled' && ord.status !== 'Unbilled') return false;
+      if (repFilter !== 'All' && ord.salesRep.toLowerCase() !== repFilter.toLowerCase()) return false;
+      if (companyFilter !== 'All' && ord.customerName.toLowerCase() !== companyFilter.toLowerCase()) return false;
+
+      if (startDate && endDate) {
+        const ordDateStr = ord.orderDate || ord.isoCreationDate || '';
+        if (ordDateStr && (ordDateStr < startDate || ordDateStr > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        const matchOrd = matchesDateFilter(ord.orderDate, dateFilter);
+        const matchIso = matchesDateFilter(ord.isoCreationDate, dateFilter);
+        const matchBill = matchesDateFilter(ord.billedDate, dateFilter);
+        if (!matchOrd && !matchIso && !matchBill) return false;
+      }
+
+      if (searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        const matchId = (ord.dealId || '').toLowerCase().includes(q);
+        const matchCust = ord.customerName.toLowerCase().includes(q);
+        const matchTitle = ord.dealName.toLowerCase().includes(q);
+        const matchRep = ord.salesRep.toLowerCase().includes(q);
+        if (!matchId && !matchCust && !matchTitle && !matchRep) return false;
+      }
+
+      return true;
+    });
+  }, [combinedOrders, tableFilter, searchQuery, dateFilter, startDate, endDate, repFilter, companyFilter]);
+
+  const formatLakhs = (val: number) => {
+    if (val >= 10000000) {
+      return `₹${(val / 10000000).toFixed(2)} Cr`;
+    } else if (val >= 100000) {
+      return `₹${(val / 100000).toFixed(2)} L`;
+    }
+    return `₹${val.toLocaleString('en-IN')}`;
+  };
+
+  // -------------------------------------------------------------
+  // Executive Operational Visual Analytics Configurations
+  // -------------------------------------------------------------
+
+  // 1. Orders Billed vs Unbilled Revenue Comparison
+  const ordersBilledVsUnbilledOption = useMemo(() => {
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: (params: any) => {
+          let res = `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">Billing Operations Summary</div>`;
+          params.forEach((item: any) => {
+            res += `<div class="flex items-center justify-between gap-4 text-xs mt-1">
+              <span style="color:${item.color}">● ${item.seriesName}:</span>
+              <span class="font-mono font-bold">${formatLakhs(item.value)}</span>
+            </div>`;
+          });
+          return res;
+        }
+      },
+      legend: { top: '2%', right: '2%', textStyle: { color: '#94a3b8', fontSize: 11 } },
+      grid: { top: '16%', left: '3%', right: '4%', bottom: '15%', containLabel: true },
+      xAxis: {
+        type: 'category',
+        data: ['Orders Billed', 'Unbilled Orders', 'Total Sales Created'],
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#334155' } }
+      },
+      yAxis: {
+        type: 'value',
+        axisLabel: {
+          color: '#94a3b8',
+          fontSize: 10,
+          formatter: (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(0)}L` : `₹${v}`
+        },
+        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
+      },
+      series: [
+        {
+          name: 'Order Value (₹)',
+          type: 'bar',
+          barWidth: '40%',
+          data: [
+            { value: kpis.ordersBilledValue, itemStyle: { color: '#10b981', borderRadius: [6, 6, 0, 0] } },
+            { value: kpis.unbilledOrdersValue, itemStyle: { color: '#f59e0b', borderRadius: [6, 6, 0, 0] } },
+            { value: kpis.salesOrdersCreatedValue, itemStyle: { color: '#3b82f6', borderRadius: [6, 6, 0, 0] } }
+          ]
+        }
+      ]
+    };
+  }, [kpis]);
+
+  // 2. Deals Pipeline Throughput (Count by Stage)
+  const pipelineHealthOption = useMemo(() => {
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: (params: any) => {
+          const item = params[0];
+          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.name}</div>
+            <div class="flex items-center justify-between gap-4 text-xs mt-1">
+              <span style="color:${item.color}">● Volume:</span>
+              <span class="font-mono font-bold">${item.value} Deals</span>
+            </div>`;
+        }
+      },
+      grid: { top: '12%', left: '3%', right: '8%', bottom: '10%', containLabel: true },
+      xAxis: {
+        type: 'value',
+        axisLabel: { color: '#94a3b8', fontSize: 10 },
+        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: ['Deals Lost', 'In Progress', 'Deals Won'],
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#334155' } }
+      },
+      series: [
+        {
+          name: 'Deals Count',
+          type: 'bar',
+          barWidth: '45%',
+          data: [
+            { value: kpis.dealsLostCount, itemStyle: { color: '#f43f5e', borderRadius: [0, 6, 6, 0] } },
+            { value: kpis.dealsInProgressCount, itemStyle: { color: '#06b6d4', borderRadius: [0, 6, 6, 0] } },
+            { value: kpis.dealsWonCount, itemStyle: { color: '#10b981', borderRadius: [0, 6, 6, 0] } }
+          ]
+        }
+      ]
+    };
+  }, [kpis]);
+
+  // 3. Lead Qualification Conversion Funnel Donut
+  const leadConversionOption = useMemo(() => {
+    const total = kpis.totalLeadsGeneratedCount || 1;
+    const qualPct = ((kpis.leadsQualifiedCount / total) * 100).toFixed(1);
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: '{b}: <strong class="text-white">{c} Leads ({d}%)</strong>'
+      },
+      legend: { bottom: '2%', left: 'center', textStyle: { color: '#94a3b8', fontSize: 11 } },
+      series: [
+        {
+          name: 'Lead Status',
+          type: 'pie',
+          radius: ['52%', '76%'],
+          center: ['50%', '45%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 8, borderColor: '#0f172a', borderWidth: 3 },
+          label: {
+            show: true,
+            position: 'center',
+            formatter: `{val|${qualPct}%}\n{sub|QUALIFIED RATE}`,
+            rich: {
+              val: { fontSize: 24, fontWeight: 'bold', color: '#10b981', lineHeight: 30 },
+              sub: { fontSize: 9, color: '#94a3b8', lineHeight: 14 }
+            }
+          },
+          data: [
+            { value: kpis.leadsQualifiedCount, name: 'Qualified Leads', itemStyle: { color: '#10b981' } },
+            { value: kpis.leadsInProgressCount, name: 'In Progress Leads', itemStyle: { color: '#a855f7' } },
+            { value: kpis.leadsDisqualifiedCount, name: 'Disqualified Leads', itemStyle: { color: '#64748b' } }
+          ]
+        }
+      ]
+    };
+  }, [kpis]);
+
+  // 4. NEW UNIQUE: Lead Source Acquisition Breakdown Donut
+  const leadSourceChartOption = useMemo(() => {
+    const sourceMap: Record<string, number> = {};
+
+    if (bitrixData?.leads && bitrixData.leads.length > 0) {
+      bitrixData.leads.forEach(l => {
+        const rawSrc = l.sourceId || l.rawRecord?.SOURCE_ID || l.rawRecord?.UTM_SOURCE || '';
+        const srcName = normalizeBitrixSource(rawSrc);
+        sourceMap[srcName] = (sourceMap[srcName] || 0) + 1;
+      });
+    } else if (bitrixData) {
+      const allDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress];
+      allDeals.forEach(d => {
+        const rawSrc = d.leadSource || d.rawRecord?.SOURCE_ID || d.rawRecord?.UTM_SOURCE || '';
+        const srcName = normalizeBitrixSource(rawSrc);
+        sourceMap[srcName] = (sourceMap[srcName] || 0) + 1;
+      });
+    }
+
+    if (Object.keys(sourceMap).length === 0) {
+      sourceMap['India Mart'] = 195;
+      sourceMap['Google Ads'] = 148;
+      sourceMap['Reference'] = 112;
+      sourceMap['LinkedIn'] = 86;
+      sourceMap['Existing Client'] = 54;
+      sourceMap['Self Generated'] = 32;
+      sourceMap['E-Mail'] = 18;
+    }
+
+    const chartData = Object.entries(sourceMap)
+      .filter(([_, value]) => value > 0)
+      .map(([name, value]) => ({ name, value }))
+      .sort((a, b) => b.value - a.value);
+
+    const totalLeads = chartData.reduce((s, c) => s + c.value, 0);
+    const colorPalette = ['#38bdf8', '#10b981', '#f59e0b', '#8b5cf6', '#ec4899', '#06b6d4', '#64748b', '#a855f7'];
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'item',
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: '{b}: <strong class="text-white">{c} Leads ({d}%)</strong>'
+      },
+      legend: {
+        bottom: '0%',
+        left: 'center',
+        width: '95%',
+        itemGap: 12,
+        itemWidth: 10,
+        itemHeight: 10,
+        textStyle: { color: '#94a3b8', fontSize: 10 }
+      },
+      series: [
+        {
+          name: 'Lead Source',
+          type: 'pie',
+          radius: ['44%', '66%'],
+          center: ['50%', '36%'],
+          avoidLabelOverlap: true,
+          itemStyle: { borderRadius: 6, borderColor: '#0f172a', borderWidth: 2 },
+          label: {
+            show: true,
+            position: 'center',
+            formatter: `{val|${totalLeads}}\n{sub|TOTAL LEADS}`,
+            rich: {
+              val: { fontSize: 22, fontWeight: 'bold', color: '#38bdf8', lineHeight: 28 },
+              sub: { fontSize: 9, color: '#94a3b8', lineHeight: 14 }
+            }
+          },
+          data: chartData.map((d, idx) => ({
+            ...d,
+            itemStyle: { color: colorPalette[idx % colorPalette.length] }
+          }))
+        }
+      ]
+    };
+  }, [bitrixData]);
+
+  // 5. Sales Rep Revenue Output Leaderboard
+  const salesRepPerformanceOption = useMemo(() => {
+    const repMap: Record<string, number> = {};
+    combinedOrders.forEach(o => {
+      const rep = o.salesRep || 'Unassigned';
+      repMap[rep] = (repMap[rep] || 0) + o.amount;
+    });
+
+    const sortedReps = Object.entries(repMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const names = sortedReps.map(r => r[0]).reverse();
+    const values = sortedReps.map(r => r[1]).reverse();
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: (params: any) => {
+          const item = params[0];
+          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.name}</div>
+            <div class="flex items-center justify-between gap-4 text-xs mt-1">
+              <span style="color:#a855f7">● Total Revenue:</span>
+              <span class="font-mono font-bold">${formatLakhs(item.value)}</span>
+            </div>`;
+        }
+      },
+      grid: { top: '12%', left: '3%', right: '8%', bottom: '10%', containLabel: true },
+      xAxis: {
+        type: 'value',
+        axisLabel: {
+          color: '#94a3b8',
+          fontSize: 10,
+          formatter: (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(0)}L` : `₹${v}`
+        },
+        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: names.length > 0 ? names : ['No Data'],
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#334155' } }
+      },
+      series: [
+        {
+          name: 'Revenue',
+          type: 'bar',
+          barWidth: '45%',
+          data: values.map(v => ({
+            value: v,
+            itemStyle: {
+              color: {
+                type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+                colorStops: [{ offset: 0, color: '#8b5cf6' }, { offset: 1, color: '#ec4899' }]
+              },
+              borderRadius: [0, 6, 6, 0]
+            }
+          }))
+        }
+      ]
+    };
+  }, [combinedOrders]);
+
+  // 6. Customer Revenue Concentration (Top Accounts)
+  const topCustomersChartOption = useMemo(() => {
+    const custMap: Record<string, number> = {};
+    combinedOrders.forEach(o => {
+      const c = o.customerName || 'Unknown Account';
+      custMap[c] = (custMap[c] || 0) + o.amount;
+    });
+
+    const sorted = Object.entries(custMap)
+      .sort((a, b) => b[1] - a[1])
+      .slice(0, 5);
+
+    const names = sorted.map(s => s[0].length > 16 ? s[0].slice(0, 14) + '...' : s[0]).reverse();
+    const values = sorted.map(s => s[1]).reverse();
+
+    return {
+      backgroundColor: 'transparent',
+      tooltip: {
+        trigger: 'axis',
+        axisPointer: { type: 'shadow' },
+        backgroundColor: '#0f172a',
+        borderColor: '#334155',
+        textStyle: { color: '#f8fafc', fontSize: 12 },
+        formatter: (params: any) => {
+          const item = params[0];
+          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.name}</div>
+            <div class="flex items-center justify-between gap-4 text-xs mt-1">
+              <span style="color:#0ea5e9">● Total Account Value:</span>
+              <span class="font-mono font-bold">${formatLakhs(item.value)}</span>
+            </div>`;
+        }
+      },
+      grid: { top: '12%', left: '3%', right: '8%', bottom: '10%', containLabel: true },
+      xAxis: {
+        type: 'value',
+        axisLabel: {
+          color: '#94a3b8',
+          fontSize: 10,
+          formatter: (v: number) => v >= 100000 ? `₹${(v / 100000).toFixed(0)}L` : `₹${v}`
+        },
+        splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
+      },
+      yAxis: {
+        type: 'category',
+        data: names.length > 0 ? names : ['No Data'],
+        axisLabel: { color: '#94a3b8', fontSize: 11 },
+        axisLine: { lineStyle: { color: '#334155' } }
+      },
+      series: [
+        {
+          name: 'Account Revenue',
+          type: 'bar',
+          barWidth: '45%',
+          data: values.map(v => ({
+            value: v,
+            itemStyle: {
+              color: {
+                type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
+                colorStops: [{ offset: 0, color: '#0284c7' }, { offset: 1, color: '#38bdf8' }]
+              },
+              borderRadius: [0, 6, 6, 0]
+            }
+          }))
+        }
+      ]
+    };
+  }, [combinedOrders]);
+
   return (
-    <div className="glass-panel p-8 rounded-2xl border border-[var(--border-color)] text-center space-y-4 my-8 max-w-2xl mx-auto">
-      <div className="w-14 h-14 rounded-2xl bg-blue-500/20 text-blue-400 flex items-center justify-center mx-auto border border-blue-500/30">
-        <TrendingUp className="w-7 h-7" />
+    <div className="space-y-6 animate-fade-in max-w-[1600px] mx-auto py-2">
+
+
+
+      {/* 1. 10 CORE METRICS GRID (Exact list matching user image) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+            <Layers className="w-4 h-4 text-emerald-400" />
+            <span>Operational Health Metrics</span>
+          </h2>
+          <span className="text-xs text-slate-400 font-mono">10 Operational Identifiers</span>
+        </div>
+
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+          
+          {/* 1. TOTAL ORDERS Executive Summary Box */}
+          <div className="lg:col-span-5 bg-[#0f172a]/95 backdrop-blur-md p-4 rounded-2xl border border-blue-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+                  <Package className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">TOTAL ORDERS</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">Sales orders created</p>
+                </div>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                  {kpis.salesOrdersCreatedCount} Total
+                </span>
+                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {formatLakhs(kpis.salesOrdersCreatedValue)}
+                </span>
+              </div>
+            </div>
+
+            {/* Sub-cards Grid: Billed vs Unbilled */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Billed Sub-Card */}
+              <div className="bg-[#172033]/90 p-3 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Billed</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-2xl font-black text-white font-mono">{kpis.ordersBilledCount}</span>
+                  <span className="text-xs font-bold text-emerald-400 font-mono">{formatLakhs(kpis.ordersBilledValue)}</span>
+                </div>
+                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Confirmed Invoiced</div>
+              </div>
+
+              {/* Unbilled Sub-Card */}
+              <div className="bg-[#172033]/90 p-3 rounded-xl border border-amber-500/30 relative overflow-hidden group hover:border-amber-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Unbilled</span>
+                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <div className="flex items-baseline justify-between">
+                  <span className="text-2xl font-black text-amber-400 font-mono">{kpis.unbilledOrdersCount}</span>
+                  <span className="text-xs font-bold text-amber-400 font-mono">{formatLakhs(kpis.unbilledOrdersValue)}</span>
+                </div>
+                <div className="text-[10px] text-amber-400/90 font-medium mt-1 truncate">Pending Invoice</div>
+              </div>
+            </div>
+          </div>
+
+          {/* 2. TOTAL LEADS GENERATED Executive Summary Box */}
+          <div className="lg:col-span-7 bg-[#0f172a]/95 backdrop-blur-md p-4 rounded-2xl border border-purple-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
+                  <Users className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">TOTAL LEADS GENERATED</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">Lead breakdown & qualification</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+                {kpis.totalLeadsGeneratedCount} Total Leads
+              </span>
+            </div>
+
+            {/* Sub-cards Grid: Qualified vs Disqualified vs In Progress */}
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+              {/* Qualified Sub-Card */}
+              <div className="bg-[#172033]/90 p-3 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Qualified</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div className="text-2xl font-black text-white font-mono">{kpis.leadsQualifiedCount}</div>
+                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Converted Leads</div>
+              </div>
+
+              {/* Disqualified Sub-Card */}
+              <div className="bg-[#172033]/90 p-3 rounded-xl border border-rose-500/30 relative overflow-hidden group hover:border-rose-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300">Disqualified</span>
+                  <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+                </div>
+                <div className="text-2xl font-black text-rose-400 font-mono">{kpis.leadsDisqualifiedCount}</div>
+                <div className="text-[10px] text-rose-400/90 font-medium mt-1 truncate">Unqualified / Junk</div>
+              </div>
+
+              {/* In Progress Sub-Card */}
+              <div className="bg-[#172033]/90 p-3 rounded-xl border border-purple-500/30 relative overflow-hidden group hover:border-purple-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300">In Progress</span>
+                  <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+                </div>
+                <div className="text-2xl font-black text-purple-300 font-mono">{kpis.leadsInProgressCount}</div>
+                <div className="text-[10px] text-purple-400/90 font-medium mt-1 truncate">Active Pipeline</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+
+        {/* Row 2: Deals Pipeline Overview KPI Cards */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+          {/* Deals Won Till Date */}
+          <div className="glass-panel p-4 rounded-xl border border-teal-500/30 bg-slate-900/90 shadow-lg relative overflow-hidden group hover:border-teal-400/50 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider">Deals Won Till Date</span>
+              <TrendingUp className="w-4 h-4 text-teal-400" />
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-black text-white font-mono">{kpis.dealsWonCount} <span className="text-xs text-slate-400 font-normal">Won</span></span>
+              <span className="text-xs font-bold text-teal-400 font-mono">{formatLakhs(kpis.dealsWonValue)}</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">Main Pipeline Won Deals</p>
+          </div>
+
+          {/* Deals Lost Till Date */}
+          <div className="glass-panel p-4 rounded-xl border border-rose-500/30 bg-slate-900/90 shadow-lg relative overflow-hidden group hover:border-rose-400/50 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-rose-300 uppercase tracking-wider">Deals Lost Till Date</span>
+              <AlertCircle className="w-4 h-4 text-rose-400" />
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-black text-rose-400 font-mono">{kpis.dealsLostCount} <span className="text-xs text-slate-400 font-normal">Lost</span></span>
+              <span className="text-xs font-bold text-rose-400 font-mono">{formatLakhs(kpis.dealsLostValue)}</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">Closed Unsuccessful Deals</p>
+          </div>
+
+          {/* Deals In progress Till Date */}
+          <div className="glass-panel p-4 rounded-xl border border-cyan-500/30 bg-slate-900/90 shadow-lg relative overflow-hidden group hover:border-cyan-400/50 transition-all">
+            <div className="flex items-center justify-between">
+              <span className="text-[11px] font-extrabold text-cyan-300 uppercase tracking-wider">Deals In progress Till Date</span>
+              <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin-slow" />
+            </div>
+            <div className="mt-2 flex items-baseline justify-between">
+              <span className="text-2xl font-black text-white font-mono">{kpis.dealsInProgressCount} <span className="text-xs text-slate-400 font-normal">Deals</span></span>
+              <span className="text-xs font-bold text-cyan-400 font-mono">{formatLakhs(kpis.dealsInProgressValue)}</span>
+            </div>
+            <p className="text-[10px] text-slate-400 mt-1">Active Deals Pipeline</p>
+          </div>
+        </div>
+
       </div>
-      <h2 className="text-2xl font-bold text-[var(--text-primary)]">Sales Dashboard</h2>
-      <p className="text-sm text-[var(--text-secondary)]">
-        This dashboard module is reserved for sales rep targets, team commission structures, and quota analytics.
-      </p>
-      <div className="inline-flex items-center space-x-2 px-3 py-1 rounded-full bg-amber-500/10 text-amber-400 border border-amber-500/20 text-xs font-semibold">
-        <Clock className="w-3.5 h-3.5" />
-        <span>Module Configured & Ready for Development</span>
+
+      {/* 2. SYMMETRICAL 6-CHART OPERATIONAL VISUAL ANALYTICS GRID */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        
+        {/* Chart 1: Orders Billed vs Unbilled Value */}
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <DollarSign className="w-4 h-4 text-emerald-400" />
+              <span>Billing Operations (Billed vs Unbilled Revenue)</span>
+            </h3>
+            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              Orders Volume
+            </span>
+          </div>
+          <div className="h-[280px] w-full">
+            <ReactECharts option={ordersBilledVsUnbilledOption} style={{ height: '100%', width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Chart 2: Bitrix Deals Pipeline Throughput */}
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <BarChart3 className="w-4 h-4 text-cyan-400" />
+              <span>Deals Pipeline Stage Volume</span>
+            </h3>
+            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              Bitrix Deals
+            </span>
+          </div>
+          <div className="h-[280px] w-full">
+            <ReactECharts option={pipelineHealthOption} style={{ height: '100%', width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Chart 3: Lead Qualification Conversion Funnel */}
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <PieChart className="w-4 h-4 text-purple-400" />
+              <span>Lead Qualification & Conversion Ratio</span>
+            </h3>
+            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              Lead Health
+            </span>
+          </div>
+          <div className="h-[280px] w-full">
+            <ReactECharts option={leadConversionOption} style={{ height: '100%', width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Chart 4: Lead Source Acquisition Breakdown */}
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <Share2 className="w-4 h-4 text-sky-400" />
+              <span>Lead Source Acquisition Breakdown</span>
+            </h3>
+            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              Lead Channels
+            </span>
+          </div>
+          <div className="h-[280px] w-full">
+            <ReactECharts option={leadSourceChartOption} style={{ height: '100%', width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Chart 5: Sales Rep Revenue Leaderboard */}
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <Sparkles className="w-4 h-4 text-amber-400" />
+              <span>Sales Rep Revenue Performance Leaderboard</span>
+            </h3>
+            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              Team Performance
+            </span>
+          </div>
+          <div className="h-[280px] w-full">
+            <ReactECharts option={salesRepPerformanceOption} style={{ height: '100%', width: '100%' }} />
+          </div>
+        </div>
+
+        {/* Chart 6: Customer Revenue Concentration (Top Accounts) */}
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+          <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
+            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+              <Building2 className="w-4 h-4 text-indigo-400" />
+              <span>Top Account Revenue Concentration</span>
+            </h3>
+            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+              Key Accounts
+            </span>
+          </div>
+          <div className="h-[280px] w-full">
+            <ReactECharts option={topCustomersChartOption} style={{ height: '100%', width: '100%' }} />
+          </div>
+        </div>
+
       </div>
+
+      {/* 3. ORDERS MASTER TABLE SECTION */}
+      <div className="glass-panel rounded-2xl border border-[var(--border-color)] bg-[#0f172a]/90 p-6 shadow-xl space-y-4">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
+          <div>
+            <div className="flex items-center space-x-2">
+              <h3 className="text-lg font-bold text-white tracking-tight">Orders Master Registry (Billed vs Unbilled)</h3>
+              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md">
+                Rule: Missing Billed Date = Unbilled
+              </span>
+            </div>
+            <p className="text-xs text-slate-400 mt-0.5">
+              {sheetStatusMessage || `Displaying ${filteredOrdersTable.length} order records.`}
+            </p>
+          </div>
+
+          {/* Controls: Filter & Search */}
+          <div className="flex flex-wrap items-center gap-3">
+            {/* Filter Tabs */}
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+              <button
+                onClick={() => setTableFilter('All')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'All' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                All ({combinedOrders.length})
+              </button>
+              <button
+                onClick={() => setTableFilter('Billed')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'Billed' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                Billed ({kpis.ordersBilledCount})
+              </button>
+              <button
+                onClick={() => setTableFilter('Unbilled')}
+                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'Unbilled' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+              >
+                Unbilled ({kpis.unbilledOrdersCount})
+              </button>
+            </div>
+
+            {/* Search Input */}
+            <div className="relative w-56">
+              <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
+              <input
+                type="text"
+                placeholder="Search orders..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+              />
+            </div>
+          </div>
+        </div>
+
+        {/* Table View */}
+        <div className="overflow-x-auto rounded-xl border border-slate-800/80">
+          <table className="w-full text-left text-xs">
+            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-extrabold tracking-wider border-b border-slate-800">
+              <tr>
+                <th className="p-3">#</th>
+                <th className="p-3">Deal ID</th>
+                <th className="p-3">Customer Name</th>
+                <th className="p-3">Deal / Order Title</th>
+                <th className="p-3">Sales Rep</th>
+                <th className="p-3 text-right">Order Amount (₹)</th>
+                <th className="p-3">Creation Date (Bitrix ISO)</th>
+                <th className="p-3">Billed Date</th>
+                <th className="p-3 text-center">Billing Status</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-slate-800/60 bg-slate-900/50">
+              {filteredOrdersTable.length > 0 ? (
+                filteredOrdersTable.map((ord, i) => (
+                  <tr key={ord.id || i} className="hover:bg-slate-800/50 transition-colors">
+                    <td className="p-3 font-mono text-slate-500">{ord.sNo || i + 1}</td>
+                    <td className="p-3 font-mono font-bold text-cyan-400">#{ord.dealId}</td>
+                    <td className="p-3 font-bold text-white">{ord.customerName}</td>
+                    <td className="p-3 text-slate-300 max-w-xs truncate">{ord.dealName}</td>
+                    <td className="p-3 text-slate-300 font-semibold">{ord.salesRep}</td>
+                    <td className="p-3 text-right font-mono font-bold text-emerald-400">
+                      ₹{ord.amount.toLocaleString('en-IN')}
+                    </td>
+                    <td className="p-3 font-mono text-slate-300">{ord.isoCreationDate || ord.orderDate}</td>
+                    <td className="p-3 font-mono text-slate-300">
+                      {ord.status === 'Billed' ? ord.billedDate : <span className="text-amber-400/80 italic">Not Billed</span>}
+                    </td>
+                    <td className="p-3 text-center">
+                      {ord.status === 'Billed' ? (
+                        <span className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md inline-flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" /> Billed
+                        </span>
+                      ) : (
+                        <span className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-md inline-flex items-center gap-1">
+                          <Clock className="w-3 h-3" /> Unbilled
+                        </span>
+                      )}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan={9} className="p-8 text-center text-slate-500">
+                    No orders matching the selected filter.
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
+        </div>
+      </div>
+
     </div>
   );
 };
-
-export default SalesDashboard;

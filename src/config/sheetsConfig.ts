@@ -1,14 +1,10 @@
 export interface GoogleSheetsConfig {
-  wonDealsUrl: string;
-  lostDealsUrl: string;
-  inProgressDealsUrl: string;
+  projectsSheetUrl: string;
   autoRefreshSeconds: number;
 }
 
 export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
-  wonDealsUrl: "https://docs.google.com/spreadsheets/d/1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU/edit?gid=0#gid=0",
-  lostDealsUrl: "https://docs.google.com/spreadsheets/d/16fuiVZUB5GC-RvVicpeieicVg7KmQAX2UNiQ3Fo5l0Q/edit?gid=0#gid=0",
-  inProgressDealsUrl: "https://docs.google.com/spreadsheets/d/1vLQAbqhtNGZQSX_Vs5OA6d9HWXrA5zg_JS6wjKTZQeQ/edit?gid=0#gid=0",
+  projectsSheetUrl: "https://docs.google.com/spreadsheets/d/1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU/edit?gid=0#gid=0",
   autoRefreshSeconds: 60
 };
 
@@ -20,9 +16,7 @@ export const getStoredSheetsConfig = (): GoogleSheetsConfig => {
     if (raw) {
       const parsed = JSON.parse(raw);
       return {
-        wonDealsUrl: parsed.wonDealsUrl || DEFAULT_SHEETS_CONFIG.wonDealsUrl,
-        lostDealsUrl: parsed.lostDealsUrl || DEFAULT_SHEETS_CONFIG.lostDealsUrl,
-        inProgressDealsUrl: parsed.inProgressDealsUrl || DEFAULT_SHEETS_CONFIG.inProgressDealsUrl,
+        projectsSheetUrl: parsed.projectsSheetUrl || DEFAULT_SHEETS_CONFIG.projectsSheetUrl,
         autoRefreshSeconds: parsed.autoRefreshSeconds || 60
       };
     }

@@ -34,7 +34,6 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis }) => {
             <Zap className="w-4 h-4 text-amber-400" />
             <span>Key Performance Indicators</span>
           </h3>
-          <p className="text-xs text-slate-400">Calculated directly from your uploaded deal records</p>
         </div>
       </div>
 
@@ -94,8 +93,6 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis }) => {
           icon={<CheckCircle className="w-5 h-5 text-emerald-400" />}
           gradient="from-emerald-500/15 to-teal-500/15"
           borderColor="border-emerald-500/40"
-          trend={kpis.totalWonCount > 0 ? `${kpis.winRatePct}% win rate by value` : undefined}
-          trendPositive={true}
         />
 
         {/* 10. Loss Rate % (Value-Based) */}
