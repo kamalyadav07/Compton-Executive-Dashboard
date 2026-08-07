@@ -52,7 +52,13 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
   onResetFilters: _propOnResetFilters
 }) => {
   const [sheetUrl, _setSheetUrl] = useState<string>(() => {
-    return localStorage.getItem('project_dashboard_sheet_url') || DEFAULT_PROJECT_SHEET_URL;
+    const saved = localStorage.getItem('project_dashboard_sheet_url');
+    if (saved && saved.includes('1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU')) {
+      const correctUrl = DEFAULT_PROJECT_SHEET_URL || 'https://docs.google.com/spreadsheets/d/1-iXdZ3bhvsE-xQs5xplb9xG0L-sOVTnMMYNdfXrFJUQ/edit?gid=0#gid=0';
+      localStorage.setItem('project_dashboard_sheet_url', correctUrl);
+      return correctUrl;
+    }
+    return saved || DEFAULT_PROJECT_SHEET_URL;
   });
 
   const [projects, setProjects] = useState<ProjectRecord[]>(INITIAL_SAMPLE_PROJECTS);
@@ -354,17 +360,32 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
     };
   }, [filteredProjects]);
 
-  // 2. Budget Variance Breakdown Chart (Refined Vertical Bar with Bottom Baseline)
-  const budgetVarianceChartOption = useMemo(() => {
-    const topProjects = filteredProjects.slice(0, 10);
-    const names = topProjects.map(p => p.customerName);
-    const variances = topProjects.map(p => p.budgetVariance / 100000);
+  // 2. Project Type Breakdown Chart (Count of Projects by Category like CCTV, Networking, etc.)
+  const projectTypeChartOption = useMemo(() => {
+    const typeCounts: Record<string, { count: number; totalBudget: number }> = {};
 
-    const maxVar = Math.max(...variances, 0.1);
-    const minVar = Math.min(...variances, 0);
+    filteredProjects.forEach(p => {
+      const type = p.projectType || 'Other';
+      if (!typeCounts[type]) {
+        typeCounts[type] = { count: 0, totalBudget: 0 };
+      }
+      typeCounts[type].count += 1;
+      typeCounts[type].totalBudget += (p.plannedBudget || p.actualCost || 0);
+    });
 
-    const yMin = minVar < 0 ? Math.floor(minVar * 1.2 * 10) / 10 : 0;
-    const yMax = Math.ceil(maxVar * 1.18 * 10) / 10;
+    const categories = Object.keys(typeCounts);
+    const counts = categories.map(cat => typeCounts[cat].count);
+
+    const colors = [
+      { start: '#38bdf8', end: '#0284c7' }, // Cyan / Sky blue
+      { start: '#818cf8', end: '#4f46e5' }, // Indigo
+      { start: '#c084fc', end: '#9333ea' }, // Purple
+      { start: '#f472b6', end: '#db2777' }, // Pink
+      { start: '#fb923c', end: '#ea580c' }, // Orange
+      { start: '#34d399', end: '#059669' }, // Emerald
+      { start: '#facc15', end: '#ca8a04' }, // Yellow
+      { start: '#a7f3d0', end: '#10b981' }  // Mint
+    ];
 
     return {
       backgroundColor: 'transparent',
@@ -375,64 +396,76 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
         textStyle: { color: '#f8fafc', fontSize: 12 },
         formatter: (params: any) => {
           const item = params[0];
-          const val = Number(item.value);
-          const isOver = val > 0;
-          const isSavings = val < 0;
-          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.axisValue}</div>
+          const idx = item.dataIndex;
+          const catName = categories[idx] || item.axisValue;
+          const count = typeCounts[catName]?.count || 0;
+          const budget = typeCounts[catName]?.totalBudget || 0;
+          const budgetFormatted = budget >= 100000 
+            ? `₹${(budget / 100000).toFixed(2)} Lakhs` 
+            : `₹${budget.toLocaleString('en-IN')}`;
+
+          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-cyan-300">${catName}</div>
             <div class="flex items-center justify-between gap-4 text-xs mt-1">
-              <span style="color:${isOver ? '#f43f5e' : isSavings ? '#10b981' : '#94a3b8'}">● ${isOver ? 'Over Budget Variance' : isSavings ? 'Cost Savings' : 'On Budget'}:</span>
-              <span class="font-mono font-bold">${val > 0 ? '+' : ''}₹${val.toFixed(2)} Lakhs</span>
+              <span class="text-slate-300">Total Projects:</span>
+              <span class="font-mono font-bold text-white">${count} Project${count > 1 ? 's' : ''}</span>
+            </div>
+            <div class="flex items-center justify-between gap-4 text-xs mt-1">
+              <span class="text-slate-300">Total Value:</span>
+              <span class="font-mono font-bold text-emerald-400">${budgetFormatted}</span>
             </div>`;
         }
       },
-      grid: { top: '15%', left: '3%', right: '3%', bottom: '10%', containLabel: true },
+      grid: { top: 32, left: 20, right: 20, bottom: 20, containLabel: true },
       xAxis: {
         type: 'category',
-        data: names.length > 0 ? names : ['No Projects'],
-        axisLabel: { color: '#cbd5e1', fontSize: 11, fontWeight: 'bold' },
+        data: categories.length > 0 ? categories : ['No Projects'],
+        axisLabel: { 
+          color: '#e2e8f0', 
+          fontSize: 12, 
+          fontWeight: 'bold',
+          interval: 0,
+          rotate: categories.length > 6 ? 15 : 0
+        },
         axisLine: { lineStyle: { color: '#334155' } }
       },
       yAxis: {
         type: 'value',
-        min: yMin,
-        max: yMax,
-        name: '₹ Lakhs',
-        nameTextStyle: { color: '#94a3b8', fontSize: 10 },
-        axisLabel: { color: '#94a3b8', fontSize: 10, formatter: '₹{value}L' },
+        name: 'Projects',
+        nameGap: 10,
+        nameTextStyle: { color: '#94a3b8', fontSize: 11, fontWeight: 'bold', align: 'left' },
+        minInterval: 1,
+        axisLabel: { color: '#94a3b8', fontSize: 11, fontWeight: 'medium' },
         splitLine: { lineStyle: { color: '#1e293b', type: 'dashed' } }
       },
       series: [
         {
-          name: 'Variance',
+          name: 'Projects',
           type: 'bar',
-          barMaxWidth: 32,
-          data: variances.map(v => ({
-            value: v,
-            label: {
-              show: true,
-              position: v >= 0 ? 'top' : 'bottom',
-              formatter: () => v > 0 ? `+₹${v.toFixed(2)}L` : v < 0 ? `-₹${Math.abs(v).toFixed(2)}L` : '₹0L',
-              fontSize: 10,
-              fontWeight: 'bold',
-              color: v > 0 ? '#f43f5e' : v < 0 ? '#10b981' : '#94a3b8'
-            },
-            itemStyle: {
-              color: v > 0 ? {
-                type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [{ offset: 0, color: '#f43f5e' }, { offset: 1, color: '#be123c' }]
-              } : v < 0 ? {
-                type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
-                colorStops: [{ offset: 0, color: '#34d399' }, { offset: 1, color: '#059669' }]
-              } : '#475569',
-              borderRadius: v > 0 ? [6, 6, 0, 0] : v < 0 ? [0, 0, 6, 6] : [4, 4, 4, 4]
-            }
-          })),
-          markLine: {
-            symbol: 'none',
-            silent: true,
-            label: { show: false },
-            data: [{ yAxis: 0, lineStyle: { color: '#475569', type: 'dashed', width: 1.5 } }]
-          }
+          barMaxWidth: 38,
+          data: counts.map((cnt, idx) => {
+            const colorPair = colors[idx % colors.length];
+            return {
+              value: cnt,
+              label: {
+                show: true,
+                position: 'top',
+                formatter: '{c}',
+                fontSize: 12,
+                fontWeight: 'bold',
+                color: '#f8fafc'
+              },
+              itemStyle: {
+                color: {
+                  type: 'linear', x: 0, y: 0, x2: 0, y2: 1,
+                  colorStops: [
+                    { offset: 0, color: colorPair.start },
+                    { offset: 1, color: colorPair.end }
+                  ]
+                },
+                borderRadius: [6, 6, 0, 0]
+              }
+            };
+          })
         }
       ]
     };
@@ -700,19 +733,19 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
           </div>
         </div>
 
-        {/* Chart 2: Budget Variance Analysis per Project */}
+        {/* Chart 2: Project Type Breakdown (CCTV, Networking, etc.) */}
         <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-2 flex flex-col justify-between">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
             <h3 className="text-sm font-bold text-white flex items-center space-x-2">
-              <TrendingUp className="w-4 h-4 text-amber-400" />
-              <span>Budget Variance Analysis (+Over / -Savings in ₹ Lakhs)</span>
+              <FolderKanban className="w-4 h-4 text-cyan-400" />
+              <span>Projects by Project Type</span>
             </h3>
             <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
-              Variance Breakdown
+              Type Breakdown
             </span>
           </div>
           <div className="h-[220px] w-full">
-            <ReactECharts option={budgetVarianceChartOption} style={{ height: '100%', width: '100%' }} />
+            <ReactECharts option={projectTypeChartOption} style={{ height: '100%', width: '100%' }} />
           </div>
         </div>
 

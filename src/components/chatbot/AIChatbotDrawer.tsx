@@ -8,6 +8,7 @@ import {
   MicOff, 
   Volume2,
   VolumeX,
+  Trash2,
   Paperclip,
   FileText,
   Image as ImageIcon,
@@ -271,18 +272,19 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
   const chatEndRef = useRef<HTMLDivElement>(null);
   const latestTranscriptRef = useRef<string>('');
 
-  const [messages, setMessages] = useState<ChatMessage[]>([
-    {
-      id: 'init-1',
-      sender: 'assistant',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: `Hello Director! I am your **Senior AI Sales & Deal Strategy Partner** powered by Google Gemini 2.5 Flash.
+  const getInitialMessage = (): ChatMessage => ({
+    id: `init-${Date.now()}`,
+    sender: 'assistant',
+    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+    text: `Hello Director! How can I assist you with your sales & deals today?`
+  });
 
-I have complete visibility into all your **sales orders, Bitrix deals/leads, customer timeline comments, remarks, and uploaded quotes**.
+  const [messages, setMessages] = useState<ChatMessage[]>([getInitialMessage()]);
 
-🎙 **Hands-Free Conversation Mode Active!** Simply tap the **Mic** button and speak your question. I will automatically send it and speak back to you in a natural female voice!`
-    }
-  ]);
+  const handleClearChat = () => {
+    if (isSpeaking) stopSpeech();
+    setMessages([getInitialMessage()]);
+  };
 
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -535,7 +537,7 @@ I have complete visibility into all your **sales orders, Bitrix deals/leads, cus
                 </span>
               </h3>
             </div>
-            <p className="text-[11px] text-slate-400">Speak naturally — auto-submits & responds in human female voice</p>
+            <p className="text-[11px] text-slate-400">Speak naturally — auto-submits & responds out loud</p>
           </div>
         </div>
 
@@ -551,10 +553,20 @@ I have complete visibility into all your **sales orders, Bitrix deals/leads, cus
                 ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm shadow-purple-500/20'
                 : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
             }`}
-            title="Auto-speak AI responses out loud in natural female voice"
+            title="Auto-speak AI responses out loud"
           >
             {autoSpeak ? <Volume2 className="w-3.5 h-3.5 text-purple-400 animate-bounce" /> : <VolumeX className="w-3.5 h-3.5" />}
-            <span>{autoSpeak ? 'Female Voice ON' : 'Voice OFF'}</span>
+            <span>{autoSpeak ? 'Voice ON' : 'Voice OFF'}</span>
+          </button>
+
+          {/* Clear Chat */}
+          <button
+            onClick={handleClearChat}
+            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/10 flex items-center space-x-1.5 transition-all"
+            title="Clear Chat"
+          >
+            <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400" />
+            <span>Clear Chat</span>
           </button>
 
           {/* Close */}
@@ -618,7 +630,7 @@ I have complete visibility into all your **sales orders, Bitrix deals/leads, cus
                     className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold transition-all active:scale-95"
                   >
                     <Volume2 className="w-3.5 h-3.5" />
-                    <span>{isSpeaking ? 'Replay Voice' : '🔊 Speak in Female Voice'}</span>
+                    <span>{isSpeaking ? 'Replay Voice' : '🔊 Speak Response'}</span>
                   </button>
 
                   {isSpeaking && (

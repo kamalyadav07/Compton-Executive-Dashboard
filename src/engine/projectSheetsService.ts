@@ -1,7 +1,7 @@
 import type { ProjectRecord, ProjectKPIMetrics, ProjectFilterState } from '../types/project';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
 
-export const DEFAULT_PROJECT_SHEET_URL = import.meta.env.VITE_PROJECTS_SHEET_URL || '';
+export const DEFAULT_PROJECT_SHEET_URL = import.meta.env.VITE_PROJECTS_SHEET_URL || 'https://docs.google.com/spreadsheets/d/1-iXdZ3bhvsE-xQs5xplb9xG0L-sOVTnMMYNdfXrFJUQ/edit?gid=0#gid=0';
 
 /**
  * Initial sample dataset matching exact records from the user's Google Sheet
@@ -207,16 +207,16 @@ export const parseProjectCsv = (csvText: string): ProjectRecord[] => {
     return -1;
   };
 
-  const sNoIdx = findHeaderIdx(['sno', 's.no', 's no', 'serial', 'id', 'number'], ['sno', 'serial']);
-  const custIdx = findHeaderIdx(['customername', 'customer name', 'customer', 'client'], ['customername', 'client']);
-  const projIdx = findHeaderIdx(['projectname', 'project name', 'project'], ['projectname']);
-  const statusIdx = findHeaderIdx(['status', 'state'], ['status']);
-  const typeIdx = findHeaderIdx(['projecttype', 'project type', 'type'], ['projecttype']);
-  const startIdx = findHeaderIdx(['startdate', 'start date', 'start'], ['startdate']);
-  const plannedEndIdx = findHeaderIdx(['plannedenddate', 'planned end date', 'plannedend'], ['plannedenddate', 'plannedend']);
-  const actualEndIdx = findHeaderIdx(['actualenddate', 'actual end date', 'actualend'], ['actualenddate', 'actualend']);
-  const plannedBudgetIdx = findHeaderIdx(['plannedbudget', 'planned budget', 'budget'], ['plannedbudget', 'budget']);
-  const actualCostIdx = findHeaderIdx(['actualcost', 'actual cost', 'cost', 'actualcostamount'], ['actualcost', 'costamount']);
+  const sNoIdx = findHeaderIdx(['id', 'sno', 's.no', 's no', 'serial', 'number', 'deal id'], ['id', 'sno', 'serial']);
+  const custIdx = findHeaderIdx(['company', 'customername', 'customer name', 'customer', 'client', 'company name'], ['company', 'customer', 'client']);
+  const projIdx = findHeaderIdx(['deal name', 'dealname', 'projectname', 'project name', 'project', 'opportunity'], ['deal', 'project', 'opportunity']);
+  const statusIdx = findHeaderIdx(['stage', 'status', 'state', 'billing status'], ['stage', 'status']);
+  const typeIdx = findHeaderIdx(['solution type', 'solutiontype', 'projecttype', 'project type', 'type', 'industry', 'category'], ['solution', 'projecttype', 'type']);
+  const startIdx = findHeaderIdx(['created', 'startdate', 'start date', 'start', 'iso created date', 'created date'], ['created', 'start']);
+  const plannedEndIdx = findHeaderIdx(['end date', 'enddate', 'plannedenddate', 'planned end date', 'plannedend', 'billing date'], ['end', 'plannedend']);
+  const actualEndIdx = findHeaderIdx(['end date', 'enddate', 'actualenddate', 'actual end date', 'actualend', 'billing date'], ['end', 'actualend']);
+  const plannedBudgetIdx = findHeaderIdx(['income', 'plannedbudget', 'planned budget', 'budget', 'deal value with tax', 'deal value without tax', 'opportunity amount'], ['income', 'budget', 'value']);
+  const actualCostIdx = findHeaderIdx(['billed value', 'actualcost', 'actual cost', 'cost', 'actualcostamount'], ['billed', 'cost']);
 
   const records: ProjectRecord[] = [];
 
@@ -244,17 +244,26 @@ export const parseProjectCsv = (csvText: string): ProjectRecord[] => {
       return parseFloat(cleaned) || 0;
     };
 
-    const plannedBudget = parseNum(cleanCell(plannedBudgetIdx));
-    const actualCost = parseNum(cleanCell(actualCostIdx));
+    const rawBudget = parseNum(cleanCell(plannedBudgetIdx));
+    const rawCost = actualCostIdx !== -1 ? parseNum(cleanCell(actualCostIdx)) : rawBudget;
+
+    const plannedBudget = rawBudget;
+    const actualCost = rawCost;
 
     // Normalize Status
     let status: ProjectRecord['status'] = 'Running';
     const sLower = rawStatus.toLowerCase();
-    if (sLower.includes('complete') || sLower.includes('done')) status = 'Completed';
-    else if (sLower.includes('delay') || sLower.includes('late')) status = 'Delayed';
-    else if (sLower.includes('hold') || sLower.includes('pause')) status = 'On Hold';
-    else if (sLower.includes('plan')) status = 'Planning';
-    else status = 'Running';
+    if (sLower.includes('complete') || sLower.includes('done') || sLower.includes('won') || sLower.includes('billed') || sLower.includes('delivered')) {
+      status = 'Completed';
+    } else if (sLower.includes('delay') || sLower.includes('late') || sLower.includes('overdue')) {
+      status = 'Delayed';
+    } else if (sLower.includes('hold') || sLower.includes('pause')) {
+      status = 'On Hold';
+    } else if (sLower.includes('plan') || sLower.includes('draft') || sLower.includes('lead')) {
+      status = 'Planning';
+    } else {
+      status = 'Running';
+    }
 
     const { timelineStatus, delayDays } = computeTimelineAnalytics(plannedEndDate, actualEndDate);
     const { budgetStatus, variance, variancePct } = computeBudgetAnalytics(plannedBudget, actualCost);

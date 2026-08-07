@@ -65,36 +65,60 @@ const MONTH_INFO: { name: string; short: string; num: string }[] = [
 
 function matchesDateFilter(dateStr: string | undefined | null, filterVal: string | undefined | null): boolean {
   if (!filterVal || filterVal === 'All Dates' || filterVal === 'Custom Range') return true;
-  if (!dateStr) return false;
+  if (!dateStr || dateStr === 'N/A' || dateStr === 'Unbilled') return false;
 
-  const str = String(dateStr).toLowerCase();
-  const f = String(filterVal).toLowerCase().trim();
+  const str = String(dateStr).trim().toLowerCase();
+  const f = String(filterVal).trim().toLowerCase();
 
-  // 1. Direct substring match (e.g. "2026", "2025", "Jul 2026")
+  // 1. Direct substring match
   if (str.includes(f)) return true;
 
   // 2. Year check if filter explicitly contains a 4-digit year like 2026
-  const yearMatch = f.match(/\b(202\d)\b/);
-  if (yearMatch) {
-    const yr = yearMatch[1];
-    if (!str.includes(yr)) return false;
+  const filterYearMatch = f.match(/\b(202\d)\b/);
+  const filterYear = filterYearMatch ? filterYearMatch[1] : null;
+
+  const dateYearMatch = str.match(/\b(202\d)\b/);
+  const dateYear = dateYearMatch ? dateYearMatch[1] : null;
+
+  if (filterYear) {
+    if (dateYear && dateYear !== filterYear) return false;
+    if (!dateYear && !str.includes(filterYear)) return false;
   }
 
-  // 3. Month matching (checks full name "july", short name "jul", and numeric month "07")
-  for (const m of MONTH_INFO) {
+  // 3. Find target month from filterVal
+  let targetMonthIdx = -1;
+  for (let i = 0; i < MONTH_INFO.length; i++) {
+    const m = MONTH_INFO[i];
     if (f.includes(m.name) || f.includes(m.short)) {
-      if (
-        str.includes(m.name) ||
-        str.includes(m.short) ||
-        str.includes(`-${m.num}-`) ||
-        str.endsWith(`-${m.num}`) ||
-        str.includes(`/${m.num}/`) ||
-        str.endsWith(`/${m.num}`) ||
-        str.startsWith(`${m.num}/`) ||
-        str.startsWith(`${m.num}-`)
-      ) {
-        return true;
-      }
+      targetMonthIdx = i;
+      break;
+    }
+  }
+
+  if (targetMonthIdx === -1) {
+    return filterYear ? (dateYear === filterYear || str.includes(filterYear)) : true;
+  }
+
+  const targetMonthNum = targetMonthIdx + 1;
+  const targetMonthInfo = MONTH_INFO[targetMonthIdx];
+
+  // Match month in textual form (e.g. "august", "aug")
+  if (str.includes(targetMonthInfo.name) || str.includes(targetMonthInfo.short)) {
+    return true;
+  }
+
+  // Match month in numeric form (e.g. 5/8/2026, 2026-08-05, 05/08/2026)
+  const parts = str.split(/[\sT]+/)[0].split(/[-/.]/);
+  if (parts.length === 3) {
+    const p0 = parseInt(parts[0], 10);
+    const p1 = parseInt(parts[1], 10);
+    const p2 = parseInt(parts[2], 10);
+
+    if (p0 >= 2000 && p0 <= 2100) {
+      if (p1 === targetMonthNum) return true;
+    }
+    if (p2 >= 2000 && p2 <= 2100) {
+      if (p1 === targetMonthNum || p0 === targetMonthNum) return true;
     }
   }
 
@@ -684,12 +708,43 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     };
   }, [bitrixData]);
 
-  // 5. Sales Rep Revenue Output Leaderboard
+  // Won deals filtered by active Date Filter, Rep Filter, Source Filter, Company Filter & Search Query
+  const filteredWonDeals = useMemo(() => {
+    const rawWon = bitrixData ? bitrixData.won : (allRecords ? allRecords.filter(r => r.type === 'won') : []);
+
+    return rawWon.filter(d => {
+      if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
+      if (companyFilter !== 'All' && (d.customer || '').toLowerCase() !== companyFilter.toLowerCase()) return false;
+      if (sourceFilter !== 'All' && d.leadSource && d.leadSource !== sourceFilter) return false;
+
+      if (startDate && endDate) {
+        const dDateStr = d.date || d.monthYear || '';
+        if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
+        if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
+      }
+
+      if (searchQuery.trim().length > 0) {
+        const q = searchQuery.toLowerCase();
+        const matchCust = (d.customer || '').toLowerCase().includes(q);
+        const matchTitle = (d.solution || '').toLowerCase().includes(q);
+        const matchRep = (d.salesRep || '').toLowerCase().includes(q);
+        const matchId = (d.id || '').toLowerCase().includes(q);
+        if (!matchCust && !matchTitle && !matchRep && !matchId) return false;
+      }
+
+      return true;
+    });
+  }, [bitrixData, allRecords, dateFilter, startDate, endDate, repFilter, sourceFilter, companyFilter, searchQuery]);
+
+  // 5. Sales Rep Revenue Performance Leaderboard (Won Deals for Selected Month)
   const salesRepPerformanceOption = useMemo(() => {
     const repMap: Record<string, number> = {};
-    combinedOrders.forEach(o => {
-      const rep = o.salesRep || 'Unassigned';
-      repMap[rep] = (repMap[rep] || 0) + o.amount;
+    filteredWonDeals.forEach(d => {
+      const rep = d.salesRep || 'Unassigned';
+      const rev = d.netRevenue || d.grossRevenue || 0;
+      repMap[rep] = (repMap[rep] || 0) + rev;
     });
 
     const sortedReps = Object.entries(repMap)
@@ -711,7 +766,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           const item = params[0];
           return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.name}</div>
             <div class="flex items-center justify-between gap-4 text-xs mt-1">
-              <span style="color:#a855f7">● Total Revenue:</span>
+              <span style="color:#a855f7">● Won Deals Revenue:</span>
               <span class="font-mono font-bold">${formatLakhs(item.value)}</span>
             </div>`;
         }
@@ -734,7 +789,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       },
       series: [
         {
-          name: 'Revenue',
+          name: 'Won Revenue',
           type: 'bar',
           barWidth: '45%',
           data: values.map(v => ({
@@ -750,14 +805,15 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         }
       ]
     };
-  }, [combinedOrders]);
+  }, [filteredWonDeals]);
 
-  // 6. Customer Revenue Concentration (Top Accounts)
+  // 6. Customer Revenue Concentration (Top Accounts - Won Deals for Selected Month)
   const topCustomersChartOption = useMemo(() => {
     const custMap: Record<string, number> = {};
-    combinedOrders.forEach(o => {
-      const c = o.customerName || 'Unknown Account';
-      custMap[c] = (custMap[c] || 0) + o.amount;
+    filteredWonDeals.forEach(d => {
+      const c = d.customer || 'Unknown Account';
+      const rev = d.netRevenue || d.grossRevenue || 0;
+      custMap[c] = (custMap[c] || 0) + rev;
     });
 
     const sorted = Object.entries(custMap)
@@ -779,7 +835,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           const item = params[0];
           return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.name}</div>
             <div class="flex items-center justify-between gap-4 text-xs mt-1">
-              <span style="color:#0ea5e9">● Total Account Value:</span>
+              <span style="color:#0ea5e9">● Total Won Account Value:</span>
               <span class="font-mono font-bold">${formatLakhs(item.value)}</span>
             </div>`;
         }
@@ -802,7 +858,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       },
       series: [
         {
-          name: 'Account Revenue',
+          name: 'Won Revenue',
           type: 'bar',
           barWidth: '45%',
           data: values.map(v => ({
@@ -810,7 +866,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             itemStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
-                colorStops: [{ offset: 0, color: '#0284c7' }, { offset: 1, color: '#38bdf8' }]
+                colorStops: [{ offset: 0, color: '#0ea5e9' }, { offset: 1, color: '#38bdf8' }]
               },
               borderRadius: [0, 6, 6, 0]
             }
@@ -818,13 +874,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         }
       ]
     };
-  }, [combinedOrders]);
+  }, [filteredWonDeals]);
 
   return (
     <div className="space-y-6 animate-fade-in max-w-[1600px] mx-auto py-2">
-
-
-
       {/* 1. 10 CORE METRICS GRID (Exact list matching user image) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
