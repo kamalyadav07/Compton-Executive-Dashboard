@@ -4,7 +4,7 @@ export interface GoogleSheetsConfig {
 }
 
 export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
-  projectsSheetUrl: "https://docs.google.com/spreadsheets/d/1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU/edit?gid=0#gid=0",
+  projectsSheetUrl: import.meta.env.VITE_PROJECTS_SHEET_URL || '',
   autoRefreshSeconds: 60
 };
 

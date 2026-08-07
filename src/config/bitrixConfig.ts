@@ -6,10 +6,13 @@ export interface BitrixConfig {
   minDate: string; // YYYY-MM-DD
 }
 
+const envWebhookUrl = import.meta.env.VITE_BITRIX_WEBHOOK_URL || '';
+const cleanEnvWebhookUrl = envWebhookUrl.endsWith('/') ? envWebhookUrl : `${envWebhookUrl}/`;
+
 export const DEFAULT_BITRIX_CONFIG: BitrixConfig = {
-  webhookBaseUrl: "https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/",
-  dealsWebhookUrl: "https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/crm.deal.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*",
-  leadsWebhookUrl: "https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/crm.lead.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*",
+  webhookBaseUrl: cleanEnvWebhookUrl,
+  dealsWebhookUrl: `${cleanEnvWebhookUrl}crm.deal.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*`,
+  leadsWebhookUrl: `${cleanEnvWebhookUrl}crm.lead.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*`,
   autoSync: true,
   minDate: "2019-01-01"
 };

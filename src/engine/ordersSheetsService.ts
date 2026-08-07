@@ -1,7 +1,7 @@
 import type { OrderRecord } from '../types/orders';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
 
-export const DEFAULT_ORDERS_SHEET_URL = "https://docs.google.com/spreadsheets/d/1HUkXoXIBgEBghfoVvazgunX-Cq66YTEHd96ke1scugo/edit?gid=1388928136#gid=1388928136";
+export const DEFAULT_ORDERS_SHEET_URL = import.meta.env.VITE_ORDERS_SHEET_URL || '';
 
 const STORAGE_KEY = 'sales_dashboard_orders_sheet_url';
 

@@ -2,7 +2,7 @@ import { GoogleGenAI } from '@google/genai';
 import type { DealRecord, KPIMetrics, ChatMessage } from '../types/sales';
 import { getStoredBitrixConfig } from '../config/bitrixConfig';
 
-const DEFAULT_GEMINI_KEY = 'AIzaSyA5okDQhDmFomeYTiaU-0wb3kZ9-A3dToI';
+const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
 
 export const getStoredGeminiKey = (): string => {
   return localStorage.getItem('compton_gemini_api_key') || DEFAULT_GEMINI_KEY;

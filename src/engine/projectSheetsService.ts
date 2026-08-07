@@ -1,7 +1,7 @@
 import type { ProjectRecord, ProjectKPIMetrics, ProjectFilterState } from '../types/project';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
 
-export const DEFAULT_PROJECT_SHEET_URL = "https://docs.google.com/spreadsheets/d/1-iXdZ3bhvsE-xQs5xpIb9xG0L-sOVTnMMYNdfXrFJUQ/edit?gid=0#gid=0";
+export const DEFAULT_PROJECT_SHEET_URL = import.meta.env.VITE_PROJECTS_SHEET_URL || '';
 
 /**
  * Initial sample dataset matching exact records from the user's Google Sheet
