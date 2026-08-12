@@ -272,7 +272,7 @@ export const ExecutiveHeaderSearchBar: React.FC<ExecutiveHeaderSearchBarProps> =
 
       {/* Filter Dropdown Panel */}
       {isOpen && (
-        <div className="absolute left-0 right-0 top-full mt-2 glass-panel rounded-2xl border border-slate-700 bg-[#0f172a]/98 shadow-2xl overflow-hidden z-[120] animate-fade-in text-xs">
+        <div className="absolute left-0 right-0 top-full mt-2 rounded-2xl border border-slate-700 bg-[#0b0f19] shadow-2xl overflow-hidden z-[120] animate-fade-in text-xs">
           
           {/* Full Selectors & Filter Fields Form */}
           <div className="p-5 space-y-4 max-h-[75vh] overflow-y-auto custom-scrollbar">

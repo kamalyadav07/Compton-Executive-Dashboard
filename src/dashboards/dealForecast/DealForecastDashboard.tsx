@@ -11,6 +11,8 @@ import {
   type SalesProjection
 } from '../../engine/salesProjectionEngine';
 
+import { COMPANY_MONTHLY_TARGET, COMPANY_YEARLY_TARGET, INDIVIDUAL_REP_MONTHLY_TARGETS } from '../../config/salesTargets';
+
 // ── Types ──────────────────────────────────────────────────────────────
 
 type SortKey =
@@ -34,6 +36,12 @@ interface Targets {
   yearlyTarget: number;
   repTargets: Record<string, number>;
 }
+
+const DEFAULT_TARGETS: Targets = {
+  monthlyTarget: COMPANY_MONTHLY_TARGET,
+  yearlyTarget: COMPANY_YEARLY_TARGET,
+  repTargets: INDIVIDUAL_REP_MONTHLY_TARGETS
+};
 
 interface ProjectionSnapshot {
   date: string;
@@ -278,15 +286,21 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
   const [sortDir, setSortDir] = useState<SortDir>('desc');
   const [searchQuery, setSearchQuery] = useState('');
   const [pipelineFilter, setPipelineFilter] = useState<PipelineFilter>('all');
-  const [targets, setTargets] = useState<Targets | null>(null);
+  const [targets, setTargets] = useState<Targets>(DEFAULT_TARGETS);
   const [snapshots, setSnapshots] = useState<ProjectionSnapshot[]>([]);
 
-  // Fetch targets from server (single source of truth)
+  // Fetch targets from server (if server API exists; else falls back to DEFAULT_TARGETS)
   useEffect(() => {
     fetch('/api/targets')
-      .then(r => r.json())
-      .then(setTargets)
-      .catch(console.error);
+      .then(r => {
+        const ct = r.headers.get('content-type') || '';
+        if (r.ok && ct.includes('application/json')) return r.json();
+        return null;
+      })
+      .then(data => {
+        if (data && data.monthlyTarget) setTargets(data);
+      })
+      .catch(() => {});
   }, []);
 
   // Fetch trend snapshots

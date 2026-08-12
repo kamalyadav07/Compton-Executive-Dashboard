@@ -552,7 +552,15 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-y-0 right-0 z-50 w-full max-w-2xl glass-panel border-l border-slate-700/80 shadow-2xl flex flex-col justify-between">
+    <div className="fixed inset-0 z-50 flex justify-end">
+      {/* Dark backdrop overlay to prevent background elements from bleeding through */}
+      <div 
+        className="fixed inset-0 bg-slate-950/85 backdrop-blur-md transition-opacity animate-fade-in"
+        onClick={onClose}
+      />
+
+      {/* Drawer Container */}
+      <div className="relative z-10 w-full max-w-2xl bg-[#0b0f19] border-l border-slate-700/80 shadow-2xl flex flex-col justify-between h-full overflow-hidden">
       {/* Header */}
       <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 backdrop-blur-md">
         <div className="flex items-center space-x-3">
@@ -816,6 +824,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
           </button>
         </div>
       </div>
+    </div>
     </div>
   );
 };
