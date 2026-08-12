@@ -1,4 +1,5 @@
 import type { ProjectRecord, ProjectKPIMetrics, ProjectFilterState } from '../types/project';
+export type { ProjectRecord, ProjectKPIMetrics, ProjectFilterState } from '../types/project';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
 
 export const DEFAULT_PROJECT_SHEET_URL = import.meta.env.VITE_PROJECTS_SHEET_URL || 'https://docs.google.com/spreadsheets/d/1-iXdZ3bhvsE-xQs5xplb9xG0L-sOVTnMMYNdfXrFJUQ/edit?gid=0#gid=0';
@@ -295,7 +296,7 @@ export const parseProjectCsv = (csvText: string): ProjectRecord[] => {
  * Fetches Google Sheet Project data from URL
  */
 export const fetchProjectSheetData = async (
-  rawUrl: string
+  rawUrl?: string
 ): Promise<{ records: ProjectRecord[]; status: 'success' | 'error'; message: string }> => {
   try {
     const csvUrl = convertToCsvExportUrl(rawUrl || DEFAULT_PROJECT_SHEET_URL);
@@ -336,6 +337,8 @@ export const fetchProjectSheetData = async (
     };
   }
 };
+
+export const fetchProjectSheetsData = fetchProjectSheetData;
 
 /**
  * Filter project records based on user search query & filter selections

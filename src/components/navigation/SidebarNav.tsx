@@ -9,7 +9,9 @@ import {
   ChevronRight,
   RefreshCw,
   Rocket,
-  ShieldCheck
+  ShieldCheck,
+  LineChart,
+  Trophy
 } from 'lucide-react';
 import { DASHBOARDS } from '../../dashboards/dashboardRegistry';
 
@@ -35,6 +37,10 @@ const getDashboardIcon = (iconName: string, isActive: boolean) => {
       return <FolderKanban className={iconClass} />;
     case 'Headphones':
       return <Headphones className={iconClass} />;
+    case 'LineChart':
+      return <LineChart className={iconClass} />;
+    case 'Trophy':
+      return <Trophy className={iconClass} />;
     default:
       return <Briefcase className={iconClass} />;
   }

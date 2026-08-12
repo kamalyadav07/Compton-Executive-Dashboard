@@ -23,7 +23,7 @@ import { INITIAL_SAMPLE_PROJECTS, fetchProjectSheetData } from '../../engine/pro
 import { getStoredSheetsConfig, saveSheetsConfig } from '../../config/sheetsConfig';
 import { getStoredOrdersSheetUrl, saveStoredOrdersSheetUrl, fetchOrdersSheetData } from '../../engine/ordersSheetsService';
 import { getStoredBitrixConfig, saveBitrixConfig } from '../../config/bitrixConfig';
-import { fetchBitrixDeals } from '../../engine/bitrixService';
+import { fetchDealsFromServer } from '../../engine/apiClient';
 
 interface ExportModalProps {
   isOpen: boolean;
@@ -113,7 +113,7 @@ export const ExportModal: React.FC<ExportModalProps> = ({
         dealsWebhookUrl: `${cleanBUrl}crm.deal.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*`,
         leadsWebhookUrl: `${cleanBUrl}crm.lead.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*`
       });
-      await fetchBitrixDeals();
+      await fetchDealsFromServer();
 
       setSyncStatusMsg('All Data Streams & Google Sheets synced successfully!');
       setTimeout(() => setSyncStatusMsg(''), 3000);

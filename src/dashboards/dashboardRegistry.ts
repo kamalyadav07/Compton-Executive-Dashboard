@@ -12,6 +12,17 @@ export const DASHBOARDS: DashboardConfig[] = [
     category: 'core'
   },
   {
+    id: 'deal-forecast',
+    name: 'Deal Forecast',
+    shortName: 'Forecast',
+    iconName: 'LineChart',
+    description: 'AI-powered deal win probability and close-date forecasting',
+    status: 'active',
+    badge: 'LIVE',
+    category: 'core'
+  },
+
+  {
     id: 'sales',
     name: 'Operational Dashboard',
     shortName: 'Operational Dashboard',

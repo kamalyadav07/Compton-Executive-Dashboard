@@ -52,10 +52,13 @@ export interface KPIMetrics {
   totalGrossRevenue: number;
   totalNetRevenue: number;
   monthlyTarget: number;
+  yearlyTarget: number;
   targetAchievementPct: number;
+  yearlyAchievementPct: number;
   revenueRemaining: number;
   totalWonCount: number;
   totalLostCount: number;
+  totalDealsInPipeline: number;
   pipelineGrossValue: number;
   pipelineNetValue: number;
   forecastRevenue: number;

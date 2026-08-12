@@ -1,4 +1,4 @@
-import React, { useState, useRef, useEffect } from 'react';
+import React, { useState, useRef, useEffect, useCallback, useMemo } from 'react';
 import { 
   Bot, 
   Send, 
@@ -11,16 +11,12 @@ import {
   Trash2,
   Paperclip,
   FileText,
-  Image as ImageIcon,
-  TrendingUp,
-  Target,
-  FileSpreadsheet,
   Zap,
-  Radio
+  Radio,
+  AlertTriangle
 } from 'lucide-react';
-import * as XLSX from 'xlsx';
-import type { DealRecord, KPIMetrics, ChatMessage } from '../../types/sales';
-import { processGeminiRAGQuery, type FileAttachmentPayload } from '../../ai/geminiRAG';
+import type { DealRecord, KPIMetrics } from '../../types/sales';
+import { useStreamingChat } from '../../ai/useStreamingChat';
 
 interface AIChatbotDrawerProps {
   isOpen: boolean;
@@ -52,6 +48,72 @@ const renderInlineMarkdown = (text: string): React.ReactNode => {
   });
 };
 
+const renderTableCell = (headerName: string, cellValue: string, colIndex: number) => {
+  const hLower = (headerName || '').toLowerCase();
+  const valLower = (cellValue || '').toLowerCase();
+
+  if (colIndex === 0 || hLower.includes('id')) {
+    return (
+      <span className="inline-block px-2 py-0.5 rounded-md bg-blue-500/20 border border-blue-400/40 text-blue-300 font-mono text-[11px] font-bold tracking-tight shadow-sm shadow-blue-500/10">
+        {cellValue}
+      </span>
+    );
+  }
+
+  if (hLower.includes('value') || hLower.includes('revenue') || cellValue.includes('₹')) {
+    return (
+      <span className="font-bold text-emerald-400 font-mono text-[11px]">
+        {renderInlineMarkdown(cellValue)}
+      </span>
+    );
+  }
+
+  if (hLower.includes('stage')) {
+    let pillStyle = 'bg-slate-800 text-slate-300 border-slate-700';
+    if (valLower.includes('won')) pillStyle = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/10';
+    else if (valLower.includes('lost')) pillStyle = 'bg-rose-500/20 text-rose-300 border-rose-500/40';
+    else pillStyle = 'bg-amber-500/20 text-amber-300 border-amber-500/40';
+
+    return (
+      <span className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-bold border ${pillStyle}`}>
+        {renderInlineMarkdown(cellValue)}
+      </span>
+    );
+  }
+
+  return <span className="text-slate-200 font-sans text-xs">{renderInlineMarkdown(cellValue)}</span>;
+};
+
+// Clean Executive Table View Component for Chatbot Messages
+const RichTableOrCardView: React.FC<{ headers: string[]; rows: string[][] }> = ({ headers, rows }) => {
+  if (rows.length === 0) return null;
+
+  return (
+    <div className="my-3.5 overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-950/95 shadow-2xl backdrop-blur-md">
+      <table className="w-full text-left text-xs border-collapse">
+        <thead className="bg-slate-900/90 text-blue-300 font-extrabold uppercase text-[10px] tracking-wider border-b border-slate-700/80">
+          <tr>
+            {headers.map((h, i) => (
+              <th key={i} className="p-3 whitespace-nowrap">{renderInlineMarkdown(h)}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody className="divide-y divide-slate-800/60">
+          {rows.map((r, rIdx) => (
+            <tr key={rIdx} className="hover:bg-slate-900/70 transition-all duration-150">
+              {r.map((cell, cIdx) => (
+                <td key={cIdx} className="p-3 text-slate-200 font-medium whitespace-nowrap">
+                  {renderTableCell(headers[cIdx] || '', cell, cIdx)}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 // Rich Executive Markdown & Table Renderer Component
 const FormattedMarkdownContent: React.FC<{ content: string }> = ({ content }) => {
   if (!content) return null;
@@ -70,35 +132,10 @@ const FormattedMarkdownContent: React.FC<{ content: string }> = ({ content }) =>
       rowStr.split('|').map(c => c.trim()).filter((_, idx, arr) => idx > 0 && idx < arr.length - 1);
 
     const headers = parseCells(headerRow);
+    const rows = dataRows.map(parseCells);
 
     if (headers.length > 0) {
-      elements.push(
-        <div key={`table-${keyIndex}`} className="my-3 overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-950/90 shadow-xl">
-          <table className="w-full text-left text-xs border-collapse">
-            <thead className="bg-slate-800/90 text-blue-300 font-bold uppercase text-[10px] tracking-wider border-b border-slate-700">
-              <tr>
-                {headers.map((h, i) => (
-                  <th key={i} className="p-2.5">{renderInlineMarkdown(h)}</th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-800/60">
-              {dataRows.map((r, rIdx) => {
-                const cells = parseCells(r);
-                return (
-                  <tr key={rIdx} className="hover:bg-slate-900/60 transition-colors">
-                    {cells.map((cell, cIdx) => (
-                      <td key={cIdx} className="p-2.5 text-slate-200 font-medium">
-                        {renderInlineMarkdown(cell)}
-                      </td>
-                    ))}
-                  </tr>
-                );
-              })}
-            </tbody>
-          </table>
-        </div>
-      );
+      elements.push(<RichTableOrCardView key={`table-${keyIndex}`} headers={headers} rows={rows} />);
     }
     tableRows = [];
     inTable = false;
@@ -246,7 +283,7 @@ const prepareTextForNaturalSpeech = (rawText: string): string => {
 
   // 4. Strip robotic punctuation words like "comma", "fullstop", "colon", "hash"
   text = text.replace(/\b(fullstop|comma|colon|semicolon|dash|underscore|asterisk|hash)\b/gi, '');
-  text = text.replace(/[\\/<>(){}[\]]/g, ' ');
+  text = text.replace(/[\\/\<\>(){}[\]]/g, ' ');
 
   // 5. Clean whitespace & extract first ~3-4 key sentences for crisp human voice
   text = text.replace(/\s+/g, ' ').trim();
@@ -254,41 +291,34 @@ const prepareTextForNaturalSpeech = (rawText: string): string => {
   return sentences.slice(0, 4).join(' ');
 };
 
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+
 export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
   isOpen,
   onClose,
-  records,
-  kpis
+  records: _records,
+  kpis: _kpis
 }) => {
   const [inputQuery, setInputQuery] = useState('');
-  const [isProcessing, setIsProcessing] = useState(false);
   const [isListening, setIsListening] = useState(false);
   const [speechTranscript, setSpeechTranscript] = useState('');
   const [autoSpeak, setAutoSpeak] = useState(true); // Default ON for natural conversation!
   const [isSpeaking, setIsSpeaking] = useState(false);
-  const [attachedFile, setAttachedFile] = useState<FileAttachmentPayload | null>(null);
+  const [attachedFile, setAttachedFile] = useState<{ name: string; extractedText: string } | null>(null);
+  const [isUploading, setIsUploading] = useState(false);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
   const latestTranscriptRef = useRef<string>('');
+  const prevIsStreamingRef = useRef(false);
 
-  const getInitialMessage = (): ChatMessage => ({
-    id: `init-${Date.now()}`,
-    sender: 'assistant',
-    timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-    text: `Hello Director! How can I assist you with your sales & deals today?`
-  });
+  // ── Use the streaming chat hook ───────────────────────────────────
+  const { messages: streamMessages, sendMessage, retryLastMessage, clearChat, isStreaming, errorState } = useStreamingChat();
 
-  const [messages, setMessages] = useState<ChatMessage[]>([getInitialMessage()]);
-
-  const handleClearChat = () => {
-    if (isSpeaking) stopSpeech();
-    setMessages([getInitialMessage()]);
-  };
-
+  // Scroll to bottom when messages change
   useEffect(() => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
-  }, [messages, isProcessing]);
+  }, [streamMessages, isStreaming]);
 
   // Warm up voices on mount
   useEffect(() => {
@@ -304,123 +334,106 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
     };
   }, []);
 
-  const handleSend = async (queryText?: string) => {
+  // ── Auto-speak when streaming finishes ────────────────────────────
+  useEffect(() => {
+    if (prevIsStreamingRef.current && !isStreaming && autoSpeak) {
+      // Streaming just finished — read the last assistant message aloud
+      const lastMsg = streamMessages[streamMessages.length - 1];
+      if (lastMsg && lastMsg.role === 'assistant' && lastMsg.content) {
+        speakText(lastMsg.content);
+      }
+    }
+    prevIsStreamingRef.current = isStreaming;
+  }, [isStreaming, autoSpeak, streamMessages]);
+
+  const handleSend = useCallback(async (queryText?: string) => {
     const textToSend = queryText || inputQuery;
-    if ((!textToSend.trim() && !attachedFile) || isProcessing) return;
+    if ((!textToSend.trim() && !attachedFile) || isStreaming) return;
 
     const currentFile = attachedFile;
-    const fileLabel = currentFile ? ` 📎 [Attached: ${currentFile.name}]` : '';
-    const userMsgText = textToSend ? `${textToSend}${fileLabel}` : `Please analyze attached document: ${currentFile?.name}`;
-
-    const userMsg: ChatMessage = {
-      id: `user-${Date.now()}`,
-      sender: 'user',
-      timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      text: userMsgText
-    };
-
-    setMessages(prev => [...prev, userMsg]);
     setInputQuery('');
     setSpeechTranscript('');
     latestTranscriptRef.current = '';
     setAttachedFile(null); // Reset attachment after send
-    setIsProcessing(true);
 
-    try {
-      const response = await processGeminiRAGQuery(
-        textToSend || `Analyze attached file ${currentFile?.name}`,
-        records,
-        kpis,
-        undefined,
-        currentFile || undefined
-      );
+    // Send via streaming hook — pass attached file if present
+    await sendMessage(
+      textToSend || `Please analyze attached document: ${currentFile?.name}`,
+      currentFile || undefined
+    );
+  }, [inputQuery, attachedFile, isStreaming, sendMessage]);
 
-      setMessages(prev => [...prev, response]);
-
-      // Auto-speak if enabled
-      if (autoSpeak) {
-        speakText(response.text);
-      }
-    } catch (err) {
-      console.error("Chat error:", err);
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
-  const handleFileUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  // ── File Upload via server-side extraction ─────────────────────────
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    // Reset the input so the same file can be re-selected
+    e.target.value = '';
 
     const fileName = file.name;
     const lowerName = fileName.toLowerCase();
 
-    // 1. Image Files (.png, .jpg, .jpeg, .webp)
-    if (file.type.startsWith('image/')) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        const base64 = evt.target?.result as string;
-        setAttachedFile({
-          name: fileName,
-          type: 'image',
-          content: base64,
-          mimeType: file.type
+    // For PDF, Word, Excel — upload to server for extraction
+    if (
+      lowerName.endsWith('.pdf') ||
+      lowerName.endsWith('.docx') || lowerName.endsWith('.doc') ||
+      lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')
+    ) {
+      setIsUploading(true);
+      try {
+        const formData = new FormData();
+        formData.append('file', file);
+        const res = await fetch(`${API_BASE}/api/chat/upload`, {
+          method: 'POST',
+          body: formData,
         });
-      };
-      reader.readAsDataURL(file);
-      return;
-    }
-
-    // 2. Excel & CSV (.xlsx, .xls, .csv)
-    if (lowerName.endsWith('.xlsx') || lowerName.endsWith('.xls') || lowerName.endsWith('.csv')) {
-      const reader = new FileReader();
-      reader.onload = (evt) => {
-        try {
-          const data = new Uint8Array(evt.target?.result as ArrayBuffer);
-          const workbook = XLSX.read(data, { type: 'array' });
-          const firstSheet = workbook.SheetNames[0];
-          const csvText = XLSX.utils.sheet_to_csv(workbook.Sheets[firstSheet]);
-          setAttachedFile({
-            name: fileName,
-            type: 'excel',
-            content: csvText
-          });
-        } catch (err) {
-          console.error("Error parsing Excel file:", err);
-          alert("Could not parse Excel spreadsheet. Please upload standard XLSX or CSV file.");
+        if (res.ok) {
+          const data = await res.json();
+          setAttachedFile({ name: data.name, extractedText: data.extractedText });
+        } else {
+          alert('Failed to process file. Please try again.');
         }
-      };
-      reader.readAsArrayBuffer(file);
+      } catch (err) {
+        console.error('File upload error:', err);
+        alert('File upload failed. Please try again.');
+      } finally {
+        setIsUploading(false);
+      }
       return;
     }
 
-    // 3. PDF Files (.pdf) - Read as Base64 DataURL for Gemini 2.5 Flash Native PDF multimodal analysis!
-    if (lowerName.endsWith('.pdf') || file.type === 'application/pdf') {
+    // For plain text files — read client-side
+    if (lowerName.endsWith('.txt') || lowerName.endsWith('.json')) {
       const reader = new FileReader();
       reader.onload = (evt) => {
-        const base64 = evt.target?.result as string;
-        setAttachedFile({
-          name: fileName,
-          type: 'pdf',
-          content: base64,
-          mimeType: 'application/pdf'
-        });
+        const textContent = evt.target?.result as string || '';
+        setAttachedFile({ name: fileName, extractedText: textContent.slice(0, 50000) });
       };
-      reader.readAsDataURL(file);
+      reader.readAsText(file);
       return;
     }
 
-    // 4. Text, Word, JSON (.txt, .docx, .json, etc.)
-    const reader = new FileReader();
-    reader.onload = (evt) => {
-      const textContent = evt.target?.result as string || '';
-      setAttachedFile({
-        name: fileName,
-        type: lowerName.endsWith('.docx') || lowerName.endsWith('.doc') ? 'word' : 'text',
-        content: textContent
+    // For other files (images etc.) — try server upload as fallback
+    setIsUploading(true);
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+      const res = await fetch(`${API_BASE}/api/chat/upload`, {
+        method: 'POST',
+        body: formData,
       });
-    };
-    reader.readAsText(file);
+      if (res.ok) {
+        const data = await res.json();
+        setAttachedFile({ name: data.name, extractedText: data.extractedText });
+      } else {
+        alert('Unsupported file type.');
+      }
+    } catch (err) {
+      console.error('File upload error:', err);
+    } finally {
+      setIsUploading(false);
+    }
   };
 
   const handleSpeechInput = () => {
@@ -509,14 +522,32 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
     }
   };
 
-  const quickQuestions = [
-    "Deep-dive deal BITRIX-3742",
-    "Win probability for Sudhir Kamate",
-    "What are my closing chances for Panacea?",
-    "How to increase win probability for RegisterKaro?",
-    "Compare deal 3742 with deal 3408",
-    "Highest revenue sales rep"
-  ];
+  const handleClearChat = () => {
+    if (isSpeaking) stopSpeech();
+    clearChat();
+  };
+
+  const dynamicQuickQuestions = useMemo(() => {
+    const defaultChips = [
+      "What is my company sales projection this month?",
+      "Which deals are most likely to close in the next 15 days?",
+      "List all deals with no updates in the last 10 days",
+      "Which sales rep has the highest revenue?",
+      "What about this financial year?",
+      "List lost deals over ₹5 lakh and why they were lost"
+    ];
+
+    if (_records && _records.length > 0) {
+      const openDeals = _records.filter(r => r.type === 'in_progress');
+      if (openDeals.length > 0) {
+        const topDeal = [...openDeals].sort((a, b) => b.grossRevenue - a.grossRevenue)[0];
+        if (topDeal) {
+          defaultChips[2] = `Deep-dive deal ${topDeal.customer || topDeal.id}`;
+        }
+      }
+    }
+    return defaultChips;
+  }, [_records]);
 
   if (!isOpen) return null;
 
@@ -537,7 +568,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
                 </span>
               </h3>
             </div>
-            <p className="text-[11px] text-slate-400">Speak naturally — auto-submits & responds out loud</p>
+            <p className="text-[11px] text-slate-400">Speak naturally — auto-submits &amp; responds out loud</p>
           </div>
         </div>
 
@@ -581,7 +612,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
 
       {/* Quick Action Chips Bar */}
       <div className="p-3 bg-slate-950/60 border-b border-slate-800/80 overflow-x-auto flex space-x-2 scrollbar-none">
-        {quickQuestions.map((q, idx) => (
+        {dynamicQuickQuestions.map((q, idx) => (
           <button
             key={idx}
             onClick={() => handleSend(q)}
@@ -595,38 +626,54 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
 
       {/* Chat Messages Body */}
       <div className="flex-1 overflow-y-auto p-4 space-y-4">
-        {messages.map((msg) => (
+        {/* Welcome message if no messages yet */}
+        {streamMessages.length === 0 && (
+          <div className="flex flex-col items-start">
+            <div className="flex items-center space-x-2 mb-1 text-[10px] text-slate-400">
+              <span className="font-semibold text-slate-300">Gemini Sales Partner</span>
+              <span>•</span>
+              <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+            <div className="p-4 rounded-2xl max-w-[95%] text-xs leading-relaxed glass-panel border border-slate-800 text-slate-200 rounded-tl-none bg-slate-900/95 shadow-xl font-sans">
+              <p className="text-xs text-slate-200 leading-relaxed">
+                Hello Director! How can I assist you with your sales &amp; deals today?
+              </p>
+            </div>
+          </div>
+        )}
+
+        {streamMessages.map((msg, idx) => (
           <div
-            key={msg.id}
-            className={`flex flex-col ${msg.sender === 'user' ? 'items-end' : 'items-start'}`}
+            key={`${msg.role}-${idx}-${msg.timestamp}`}
+            className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
           >
             <div className="flex items-center space-x-2 mb-1 text-[10px] text-slate-400">
               <span className="font-semibold text-slate-300">
-                {msg.sender === 'user' ? 'Director' : 'Gemini Sales Partner'}
+                {msg.role === 'user' ? 'Director' : 'Gemini Sales Partner'}
               </span>
               <span>•</span>
-              <span>{msg.timestamp}</span>
+              <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
 
             <div
               className={`p-4 rounded-2xl max-w-[95%] text-xs leading-relaxed ${
-                msg.sender === 'user'
+                msg.role === 'user'
                   ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none shadow-md shadow-blue-600/20'
                   : 'glass-panel border border-slate-800 text-slate-200 rounded-tl-none bg-slate-900/95 shadow-xl font-sans'
               }`}
             >
               {/* Formatted Rich Markdown Renderer */}
-              {msg.sender === 'user' ? (
-                <div className="whitespace-pre-wrap font-sans text-xs">{msg.text}</div>
+              {msg.role === 'user' ? (
+                <div className="whitespace-pre-wrap font-sans text-xs">{msg.content}</div>
               ) : (
-                <FormattedMarkdownContent content={msg.text} />
+                <FormattedMarkdownContent content={msg.content} />
               )}
 
               {/* Voice Read Controls on Assistant messages */}
-              {msg.sender === 'assistant' && (
+              {msg.role === 'assistant' && msg.content && (
                 <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between">
                   <button
-                    onClick={() => speakText(msg.text)}
+                    onClick={() => speakText(msg.content)}
                     className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold transition-all active:scale-95"
                   >
                     <Volume2 className="w-3.5 h-3.5" />
@@ -648,33 +695,33 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
           </div>
         ))}
 
-        {isProcessing && (
+        {isStreaming && streamMessages.length > 0 && streamMessages[streamMessages.length - 1]?.content === '' && (
           <div className="flex items-center space-x-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 animate-pulse">
             <Sparkles className="w-4 h-4 text-blue-400 animate-spin" />
-            <span>Gemini 2.5 Flash analyzing deal quotes, comments, sales orders & win probability...</span>
+            <span>Gemini AI analyzing deal quotes, comments, sales orders &amp; win probability...</span>
+          </div>
+        )}
+
+        {errorState && (
+          <div className="flex items-center justify-between gap-2 text-xs text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 shadow-lg my-2">
+            <div className="flex items-center gap-2">
+              <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
+              <span>{errorState}</span>
+            </div>
+            <button
+              onClick={retryLastMessage}
+              className="px-3 py-1 bg-rose-600 hover:bg-rose-500 text-white rounded-lg font-bold text-[11px] shrink-0 transition-all shadow-md active:scale-95 flex items-center gap-1"
+            >
+              <Zap className="w-3 h-3 text-amber-300" />
+              <span>Try Again</span>
+            </button>
           </div>
         )}
 
         <div ref={chatEndRef} />
       </div>
 
-      {/* Quick Action Suggestion Footer */}
-      <div className="px-4 py-2 bg-slate-950/90 border-t border-slate-800/80 flex items-center space-x-2 overflow-x-auto scrollbar-none text-[11px]">
-        <button
-          onClick={() => handleSend("Tell me how to increase win probability for deal BITRIX-3742")}
-          className="px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 whitespace-nowrap font-semibold flex items-center space-x-1"
-        >
-          <TrendingUp className="w-3 h-3 text-emerald-400" />
-          <span>📈 Increase Win Chances</span>
-        </button>
-        <button
-          onClick={() => handleSend("Compare deal BITRIX-3742 with deal BITRIX-3408 in detail")}
-          className="px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-300 border border-purple-500/30 whitespace-nowrap font-semibold flex items-center space-x-1"
-        >
-          <Target className="w-3 h-3 text-purple-400" />
-          <span>⚖ Compare Deals</span>
-        </button>
-      </div>
+
 
       {/* Input Bar with File Upload & Microphone */}
       <div className="p-4 border-t border-slate-800 bg-slate-900/95">
@@ -683,16 +730,10 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
         {attachedFile && (
           <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-between text-xs text-blue-200">
             <div className="flex items-center space-x-2 truncate">
-              {attachedFile.type === 'image' ? (
-                <ImageIcon className="w-4 h-4 text-purple-400 shrink-0" />
-              ) : attachedFile.type === 'excel' ? (
-                <FileSpreadsheet className="w-4 h-4 text-emerald-400 shrink-0" />
-              ) : (
-                <FileText className="w-4 h-4 text-blue-400 shrink-0" />
-              )}
+              <FileText className="w-4 h-4 text-blue-400 shrink-0" />
               <span className="font-semibold truncate">{attachedFile.name}</span>
               <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 uppercase font-bold">
-                {attachedFile.type}
+                {attachedFile.name.split('.').pop()}
               </span>
             </div>
             <button
@@ -702,6 +743,14 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             >
               <X className="w-3.5 h-3.5" />
             </button>
+          </div>
+        )}
+
+        {/* Upload in progress */}
+        {isUploading && (
+          <div className="mb-2 px-3.5 py-1.5 rounded-xl bg-blue-500/20 border border-blue-500/40 text-xs text-blue-300 flex items-center space-x-2 animate-pulse">
+            <Sparkles className="w-4 h-4 text-blue-400 animate-spin shrink-0" />
+            <span className="font-semibold">Extracting text from file...</span>
           </div>
         )}
 
@@ -719,14 +768,15 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             type="file"
             ref={fileInputRef}
             onChange={handleFileUpload}
-            accept=".pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.json,image/*"
+            accept=".pdf,.xlsx,.xls,.csv,.docx,.doc,.txt,.json"
             className="hidden"
           />
           <button
             type="button"
             onClick={() => fileInputRef.current?.click()}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition-all hover:scale-105"
-            title="Upload Quote, PDF, Excel, Word, or Screenshot Image"
+            disabled={isUploading}
+            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition-all hover:scale-105 disabled:opacity-50"
+            title="Upload Quote, PDF, Excel, or Word Document"
           >
             <Paperclip className="w-4 h-4 text-indigo-400" />
           </button>
@@ -759,7 +809,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
           <button
             type="button"
             onClick={() => handleSend()}
-            disabled={(!inputQuery.trim() && !attachedFile) || isProcessing}
+            disabled={(!inputQuery.trim() && !attachedFile) || isStreaming}
             className="p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             <Send className="w-4 h-4" />

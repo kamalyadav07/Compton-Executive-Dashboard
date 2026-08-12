@@ -27,6 +27,7 @@ import {
   filterProjectRecords,
   calculateProjectKPIs
 } from '../../engine/projectSheetsService';
+import { scanPortfolioForOverspendRisk, type ProjectHealthSignal } from '../../engine/projectHealthEngine';
 
 const initialProjectFilters: ProjectFilterState = {
   searchQuery: '',
@@ -78,6 +79,8 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
   };
   const [sortField, setSortField] = useState<keyof ProjectRecord>('sNo');
   const [sortOrder, setSortOrder] = useState<'asc' | 'desc'>('asc');
+  // Tracks which at-risk project IDs the user has already dismissed from the banner
+  const [dismissedOverspendIds, setDismissedOverspendIds] = useState<Set<string>>(new Set());
 
   const handleSort = (field: keyof ProjectRecord) => {
     if (sortField === field) {
@@ -166,6 +169,12 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
   const kpis = useMemo(() => {
     return calculateProjectKPIs(filteredProjects, isAllStatusFilter);
   }, [filteredProjects, isAllStatusFilter]);
+
+  // EVM Early-Warning: scan ALL running projects (not the filtered view) so the
+  // banner fires even when the user has filtered to a subset of the portfolio.
+  const overspendSignals: ProjectHealthSignal[] = useMemo(() => {
+    return scanPortfolioForOverspendRisk(projects);
+  }, [projects]);
 
   // Format currency helper
   const formatCurrency = (amount: number): string => {
@@ -571,8 +580,70 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
   return (
     <div className="space-y-6 pb-12 animate-fade-in text-slate-100 max-w-[1600px] mx-auto py-2">
 
+      {/* ── EVM EARLY-WARNING BANNER (additive, layered above the existing budget status cards) ── */}
+      {overspendSignals
+        .filter(sig => sig.shouldTriggerPopup && !dismissedOverspendIds.has(sig.projectId))
+        .map(sig => {
+          const isCritical = sig.riskLevel === 'Critical Overspend Forecast';
+          return (
+            <div
+              key={sig.projectId}
+              className={`animate-fade-in relative rounded-2xl border px-5 py-4 shadow-xl backdrop-blur-md flex items-start gap-4 ${
+                isCritical
+                  ? 'bg-rose-950/60 border-rose-500/50 shadow-rose-900/30'
+                  : 'bg-amber-950/60 border-amber-500/50 shadow-amber-900/30'
+              }`}
+            >
+              {/* Icon */}
+              <div className={`shrink-0 mt-0.5 w-9 h-9 rounded-xl flex items-center justify-center border ${
+                isCritical
+                  ? 'bg-rose-500/20 border-rose-500/30 text-rose-400'
+                  : 'bg-amber-500/20 border-amber-500/30 text-amber-400'
+              }`}>
+                <AlertTriangle className="w-5 h-5" />
+              </div>
 
+              {/* Content */}
+              <div className="flex-1 min-w-0">
+                {/* Badge row */}
+                <div className="flex items-center gap-2 mb-1 flex-wrap">
+                  <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${
+                    isCritical
+                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
+                      : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                  }`}>
+                    ⚡ {sig.riskLevel}
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400 font-bold">
+                    Spend pace: <strong className={isCritical ? 'text-rose-300' : 'text-amber-300'}>
+                      {sig.spendPaceRatio.toFixed(2)}×
+                    </strong> planned rate
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Forecast final cost: <strong className="text-white">₹{sig.forecastFinalCost.toLocaleString('en-IN')}</strong>
+                  </span>
+                  <span className="text-[10px] font-mono text-slate-400">
+                    Overrun: <strong className={isCritical ? 'text-rose-300' : 'text-amber-300'}>
+                      +₹{sig.forecastOverrunAmount.toLocaleString('en-IN')} ({sig.forecastOverrunPct}%)
+                    </strong>
+                  </span>
+                </div>
+                {/* Pre-written EVM message from the engine */}
+                <p className="text-xs text-slate-300 leading-relaxed">{sig.message}</p>
+              </div>
 
+              {/* Dismiss button */}
+              <button
+                onClick={() => setDismissedOverspendIds(prev => new Set([...prev, sig.projectId]))}
+                className="shrink-0 p-1.5 rounded-lg text-slate-500 hover:text-white hover:bg-slate-800 transition-all"
+                title="Dismiss this warning"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+          );
+        })
+      }
       {/* 2. EXECUTIVE COMPOUND KPI METRIC CARDS (3 SEPARATE GROUPED BOXES) */}
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         

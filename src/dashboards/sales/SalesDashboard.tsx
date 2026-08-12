@@ -15,15 +15,27 @@ import {
   BarChart3,
   Sparkles,
   Building2,
-  Share2
+  Share2,
+  FolderKanban,
+  PlayCircle,
+  AlertTriangle,
+  TrendingDown
 } from 'lucide-react';
 import type { OrderRecord, OperationalKPIMetrics } from '../../types/orders';
 import type { DealRecord } from '../../types/sales';
-import { fetchBitrixDeals, getStoredBitrixCache, normalizeBitrixSource, type BitrixSyncResult } from '../../engine/bitrixService';
+import { getStoredBitrixCache, normalizeBitrixSource, type BitrixSyncResult } from '../../engine/bitrixService';
+import { fetchDealsFromServer } from '../../engine/apiClient';
 import { 
   fetchOrdersSheetData, 
   getStoredOrdersSheetUrl
 } from '../../engine/ordersSheetsService';
+import { 
+  fetchProjectSheetsData, 
+  calculateProjectKPIs, 
+  INITIAL_SAMPLE_PROJECTS, 
+  type ProjectRecord 
+} from '../../engine/projectSheetsService';
+import { splitGst } from '../../utils/financeUtils';
 
 interface SalesDashboardProps {
   allRecords?: DealRecord[];
@@ -187,6 +199,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     else _setLocalTableFilter(s);
   };
 
+  const [projectRecords, setProjectRecords] = useState<ProjectRecord[]>(INITIAL_SAMPLE_PROJECTS);
+
   // Sync orders sheet data on mount
   const loadAllData = async () => {
     setIsSyncing(true);
@@ -196,11 +210,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       setSheetStatusMessage(sRes.message);
 
       if (!bitrixSyncResult) {
-        const bRes = await fetchBitrixDeals();
+        const bRes = await fetchDealsFromServer();
         if (bRes && (bRes.won.length > 0 || bRes.lost.length > 0 || bRes.progress.length > 0)) {
           setLocalBitrixData(bRes);
         }
       }
+
+      fetchProjectSheetsData()
+        .then(res => {
+          if (res && res.records && res.records.length > 0) {
+            setProjectRecords(res.records);
+          }
+        })
+        .catch(() => {});
+
     } catch (err: any) {
       setSheetStatusMessage(`Sync error: ${err.message}`);
     } finally {
@@ -211,6 +234,17 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   useEffect(() => {
     loadAllData();
   }, [ordersUrl]);
+
+  const projectKpis = useMemo(() => {
+    return calculateProjectKPIs(projectRecords, true);
+  }, [projectRecords]);
+
+  const formatProjectCurrency = (amount: number): string => {
+    if (Math.abs(amount) >= 100000) {
+      return `₹${(amount / 100000).toFixed(2)} L`;
+    }
+    return `₹${amount.toLocaleString('en-IN')}`;
+  };
 
   // Fast Deal Map lookup by clean numeric dealId
   const bitrixMap = useMemo(() => {
@@ -286,7 +320,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         customerName: rec.customer,
         dealName: `${rec.customer} / ${rec.solution}`,
         salesRep: rec.salesRep,
-        amount: rec.netRevenue || (rec.grossRevenue ? Math.round((rec.grossRevenue / 1.18) * 100) / 100 : 0),
+        amount: rec.netRevenue || (rec.grossRevenue ? splitGst(rec.grossRevenue, true).netRevenue : 0),
         orderDate: rec.date,
         isoCreationDate: rec.date,
         billedDate: isBilled ? rec.date : 'Unbilled',
@@ -885,7 +919,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             <Layers className="w-4 h-4 text-emerald-400" />
             <span>Operational Health Metrics</span>
           </h2>
-          <span className="text-xs text-slate-400 font-mono">10 Operational Identifiers</span>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
@@ -1039,13 +1072,147 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               <span className="text-2xl font-black text-white font-mono">{kpis.dealsInProgressCount} <span className="text-xs text-slate-400 font-normal">Deals</span></span>
               <span className="text-xs font-bold text-cyan-400 font-mono">{formatLakhs(kpis.dealsInProgressValue)}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">Active Deals Pipeline</p>
           </div>
         </div>
 
+        {/* Row 3: Project Execution & Portfolio Health KPI Cards (Matching Row 2 gap) */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1">
+          {/* GROUP 1: TOTAL PROJECT SUMMARY CARD (Running | Completed) */}
+          <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-blue-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
+                  <FolderKanban className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">TOTAL PROJECT</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">Portfolio status</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+                {projectKpis.totalProjects} Total
+              </span>
+            </div>
+
+            {/* Sub-cards Grid: Running vs Completed */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Running Sub-Card */}
+              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-cyan-500/30 relative overflow-hidden group hover:border-cyan-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">RUNNING</span>
+                  <PlayCircle className="w-3.5 h-3.5 text-cyan-400 animate-spin-slow" />
+                </div>
+                <div className="text-2xl font-black text-white font-mono">{projectKpis.projectsRunning}</div>
+                <div className="text-[10px] text-cyan-400/90 font-medium mt-1 truncate">Active execution</div>
+              </div>
+
+              {/* Completed Sub-Card */}
+              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">COMPLETED</span>
+                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div className="text-2xl font-black text-white font-mono">{projectKpis.totalProjects - projectKpis.projectsRunning}</div>
+                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Delivered</div>
+              </div>
+            </div>
+          </div>
+
+          {/* GROUP 2: RUNNING PROJECTS SCHEDULE CARD (Delayed | Ontime) */}
+          <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-cyan-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
+                  <PlayCircle className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">RUNNING PROJECTS</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">Timeline schedule</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+                {projectKpis.projectsRunning} Running
+              </span>
+            </div>
+
+            {/* Breakdown Cards Grid: Delayed vs Ontime */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Delayed */}
+              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-rose-500/30 relative overflow-hidden group hover:border-rose-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300">DELAYED</span>
+                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+                </div>
+                <div className="text-2xl font-black text-rose-400 font-mono">{projectKpis.delayedProjects}</div>
+                <div className="text-[10px] text-rose-400/90 font-medium mt-1 truncate">Intervention needed</div>
+              </div>
+
+              {/* On Time */}
+              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">ONTIME</span>
+                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
+                </div>
+                <div className="text-2xl font-black text-white font-mono">{projectKpis.onTimeProjects}</div>
+                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">{projectKpis.onTimeRatePct}% Compliance</div>
+              </div>
+            </div>
+          </div>
+
+          {/* GROUP 3: BUDGET STATUS CARD (Under Budget | Over Budget) */}
+          <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-teal-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
+            <div className="absolute top-0 right-0 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
+            
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
+                  <TrendingDown className="w-4.5 h-4.5" />
+                </div>
+                <div>
+                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">BUDGET STATUS</h3>
+                  <p className="text-[10px] text-slate-400 font-mono">Cost health analysis</p>
+                </div>
+              </div>
+              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+                Budget Health
+              </span>
+            </div>
+
+            {/* Breakdown Cards Grid: Under Budget vs Over Budget */}
+            <div className="grid grid-cols-2 gap-3">
+              {/* Under Budget */}
+              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-teal-500/30 relative overflow-hidden group hover:border-teal-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-300">UNDER BUDGET</span>
+                  <TrendingDown className="w-3.5 h-3.5 text-teal-400" />
+                </div>
+                <div className="text-2xl font-black text-white font-mono">{projectKpis.underBudgetProjects}</div>
+                <div className="text-[10px] text-teal-400/90 font-medium mt-1 truncate">{projectKpis.underBudgetRatePct}% Cost Saving</div>
+              </div>
+
+              {/* Over Budget */}
+              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-amber-500/30 relative overflow-hidden group hover:border-amber-400/60 transition-all shadow-inner">
+                <div className="flex items-center justify-between mb-1">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">OVER BUDGET</span>
+                  <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+                </div>
+                <div className="text-2xl font-black text-amber-400 font-mono">{projectKpis.overBudgetProjects}</div>
+                <div className="text-[10px] text-amber-400/90 font-medium mt-1 truncate">Variance: {formatProjectCurrency(projectKpis.netBudgetVariance)}</div>
+              </div>
+            </div>
+          </div>
+
+        </div>
       </div>
 
-      {/* 2. SYMMETRICAL 6-CHART OPERATIONAL VISUAL ANALYTICS GRID */}
+      {/* 3. SYMMETRICAL 6-CHART OPERATIONAL VISUAL ANALYTICS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         
         {/* Chart 1: Orders Billed vs Unbilled Value */}

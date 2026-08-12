@@ -19,7 +19,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { DealRecord, KPIMetrics, SalesRepMetric } from '../../types/sales';
-import { INDIVIDUAL_REP_MONTHLY_TARGETS } from '../../engine/kpiEngine';
+import { INDIVIDUAL_REP_MONTHLY_TARGETS } from '../../config/salesTargets';
 
 interface LeaderboardProps {
   records: DealRecord[];
@@ -235,11 +235,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
 
                 <td className="p-3">
                   <div className="flex items-center space-x-3">
-                    <img
-                      src={rep.avatar}
-                      alt={rep.name}
-                      className="w-8 h-8 rounded-full object-cover border border-slate-700 shadow-sm group-hover:border-blue-500 transition-colors"
-                    />
+                    <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center justify-center text-cyan-300 font-bold text-xs font-mono shrink-0 shadow-inner group-hover:border-blue-500 transition-colors">
+                      {rep.name.split(' ').map(n => n[0]).join('')}
+                    </div>
                     <div>
                       <span className="font-bold text-slate-100 group-hover:text-blue-400 transition-colors flex items-center gap-1">
                         {rep.name}
@@ -324,11 +322,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
             {/* Modal Header */}
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
               <div className="flex items-center space-x-4">
-                <img
-                  src={selectedRep.avatar}
-                  alt={selectedRep.name}
-                  className="w-12 h-12 rounded-full object-cover border-2 border-blue-500 shadow-md"
-                />
+                <div className="w-12 h-12 rounded-2xl bg-slate-800 border border-blue-500/50 flex items-center justify-center text-blue-400 font-black text-sm font-mono shrink-0 shadow-md">
+                  {selectedRep.name.split(' ').map(n => n[0]).join('')}
+                </div>
                 <div>
                   <div className="flex items-center space-x-2">
                     <h3 className="text-lg font-extrabold text-slate-100">

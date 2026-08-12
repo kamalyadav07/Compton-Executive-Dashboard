@@ -1,5 +1,6 @@
 import type { OrderRecord } from '../types/orders';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
+import { splitGst } from '../utils/financeUtils';
 
 export const DEFAULT_ORDERS_SHEET_URL = import.meta.env.VITE_ORDERS_SHEET_URL || '';
 
@@ -136,9 +137,9 @@ export const fetchOrdersSheetData = async (
       if (numNet > 0) {
         amount = numNet;
       } else if (numWithTax > 0) {
-        amount = Math.round((numWithTax / 1.18) * 100) / 100;
+        amount = splitGst(numWithTax, true).netRevenue;
       } else if (numBilled > 0) {
-        amount = Math.round((numBilled / 1.18) * 100) / 100;
+        amount = splitGst(numBilled, true).netRevenue;
       }
 
       const isoCreationDate = idxIsoCreated >= 0 ? row[idxIsoCreated] : '';

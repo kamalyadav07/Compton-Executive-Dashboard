@@ -1,13 +1,8 @@
 import type { DealRecord, GlobalFilterState, KPIMetrics } from '../types/sales';
+import { COMPANY_MONTHLY_TARGET, COMPANY_YEARLY_TARGET, INDIVIDUAL_REP_MONTHLY_TARGETS } from '../config/salesTargets';
+import { getFYBounds } from './salesProjectionEngine';
 
-export const INDIVIDUAL_REP_MONTHLY_TARGETS: Record<string, number> = {
-  'Taniya Negi': 550000,
-  'Jitesh Chander': 4000000,
-  'Tausif Ahmad': 4000000,
-  'Rohit Yadav': 7500000,
-  'Sandeep Vahi': 7500000,
-  'Ashok Kumar': 550000,
-};
+export { INDIVIDUAL_REP_MONTHLY_TARGETS };
 
 const normalizeIsoString = (dateStr: string): string => {
   if (!dateStr) return '';
@@ -127,20 +122,52 @@ export const calculateKPIs = (
   }
 
   // Check if a specific Sales Rep / Owner filter is selected
-  let baseTargetPerMonth = 7500000; // Company Default Target = ₹75 Lakhs / month
+  let baseTargetPerMonth = COMPANY_MONTHLY_TARGET; // Company Default Target = ₹1.6 Cr / month
+  let yearlyTarget = COMPANY_YEARLY_TARGET; // Company Default Target = ₹20 Cr / year
   if (filters?.salesRep && filters.salesRep !== 'All') {
     baseTargetPerMonth = INDIVIDUAL_REP_MONTHLY_TARGETS[filters.salesRep] || 550000;
+    yearlyTarget = baseTargetPerMonth * 12;
   } else {
     // If all records belong to 1 single sales rep
     const uniqueReps = Array.from(new Set(records.map(r => r.salesRep))).filter(Boolean);
     if (uniqueReps.length === 1 && INDIVIDUAL_REP_MONTHLY_TARGETS[uniqueReps[0]]) {
       baseTargetPerMonth = INDIVIDUAL_REP_MONTHLY_TARGETS[uniqueReps[0]];
+      yearlyTarget = baseTargetPerMonth * 12;
     }
   }
 
   const monthlyTarget = targetOverride || (baseTargetPerMonth * monthMultiplier);
   const targetAchievementPct = monthlyTarget > 0 ? Math.round((totalNetRevenue / monthlyTarget) * 1000) / 10 : 0;
   const revenueRemaining = Math.max(0, monthlyTarget - totalNetRevenue);
+
+  // Yearly Achievement % (net revenue booked within current FY Apr 1 - Mar 31 respecting filters)
+  const fyBounds = getFYBounds();
+  const poolForFY = allUnfilteredRecords && allUnfilteredRecords.length > 0 ? allUnfilteredRecords : records;
+  const fyWonDeals = poolForFY.filter(rec => {
+    if (rec.type !== 'won') return false;
+
+    if (filters?.salesRep && filters.salesRep !== 'All' && rec.salesRep !== filters.salesRep) return false;
+    if (filters?.industry && filters.industry !== 'All' && rec.industry !== filters.industry) return false;
+    if (filters?.solution && filters.solution !== 'All' && rec.solution !== filters.solution) return false;
+    if (filters?.leadSource && filters.leadSource !== 'All' && rec.leadSource !== filters.leadSource) return false;
+    if (filters?.pipelineStage && filters.pipelineStage !== 'All' && rec.stage !== filters.pipelineStage) return false;
+
+    if (filters?.customerQuery && !rec.customer.toLowerCase().includes(filters.customerQuery.toLowerCase())) return false;
+    if (filters?.dealQuery && !rec.id.toLowerCase().includes(filters.dealQuery.toLowerCase())) return false;
+    if (filters?.companyQuery && !rec.customer.toLowerCase().includes(filters.companyQuery.toLowerCase())) return false;
+
+    if (filters?.minDealValue && rec.grossRevenue < filters.minDealValue) return false;
+    if (filters?.maxDealValue && filters.maxDealValue > 0 && rec.grossRevenue > filters.maxDealValue) return false;
+
+    const closeDate = new Date(rec.rawRecord?.CLOSEDATE || rec.rawRecord?.DATE_MODIFY || rec.date);
+    return !isNaN(closeDate.getTime()) && closeDate >= fyBounds.start && closeDate <= fyBounds.end;
+  });
+
+  const fyNetRevenue = fyWonDeals.reduce((sum, r) => sum + r.netRevenue, 0);
+  const yearlyAchievementPct = yearlyTarget > 0 ? Math.round((fyNetRevenue / yearlyTarget) * 1000) / 10 : 0;
+
+  // Pipeline count
+  const totalDealsInPipeline = progressDeals.length;
 
   // Weighted Forecast Revenue
   const weightedPipelineForecast = progressDeals.reduce((acc, r) => {
@@ -261,10 +288,13 @@ export const calculateKPIs = (
     totalGrossRevenue,
     totalNetRevenue,
     monthlyTarget,
+    yearlyTarget,
     targetAchievementPct,
+    yearlyAchievementPct,
     revenueRemaining,
     totalWonCount,
     totalLostCount,
+    totalDealsInPipeline,
     pipelineGrossValue,
     pipelineNetValue,
     forecastRevenue,

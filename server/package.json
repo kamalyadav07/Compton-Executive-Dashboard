@@ -1,0 +1,29 @@
+{
+  "name": "compton-dashboard-server",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Backend proxy for Compton Executive Dashboard — keeps Bitrix webhook URL and Gemini API key server-side.",
+  "main": "dashboard-server.js",
+  "scripts": {
+    "build:engines": "node build-engines.mjs",
+    "prestart": "node build-engines.mjs",
+    "start": "node dashboard-server.js",
+    "dev": "node build-engines.mjs && node --watch dashboard-server.js"
+  },
+  "dependencies": {
+    "@google/genai": "^2.15.0",
+    "@google/generative-ai": "^0.24.1",
+    "@langchain/core": "^1.2.5",
+    "@langchain/google-genai": "^2.2.0",
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "esbuild": "^0.25.0",
+    "express": "^4.21.2",
+    "langchain": "^1.5.5",
+    "mammoth": "^1.9.0",
+    "multer": "^1.4.5-lts.2",
+    "pdf-parse": "^1.1.1",
+    "xlsx": "^0.18.5",
+    "zod": "^3.24.0"
+  }
+}

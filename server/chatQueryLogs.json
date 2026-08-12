@@ -1,0 +1,46 @@
+[
+  {
+    "id": "chat-1786516139463-oob7",
+    "timestamp": "2026-08-12T06:28:59.463Z",
+    "sessionId": "test-session",
+    "userQuery": "all deals won in July and its value",
+    "toolsCalled": [
+      "query_deals"
+    ],
+    "responseLength": 450,
+    "isDissatisfactionSignal": false
+  },
+  {
+    "id": "chat-1786516139467-0g7v",
+    "timestamp": "2026-08-12T06:28:59.467Z",
+    "sessionId": "test-session",
+    "userQuery": "that's wrong where is the deal id",
+    "toolsCalled": [
+      "query_deals"
+    ],
+    "responseLength": 120,
+    "isDissatisfactionSignal": true
+  },
+  {
+    "id": "chat-1786516208281-4gtv",
+    "timestamp": "2026-08-12T06:30:08.281Z",
+    "sessionId": "test-session",
+    "userQuery": "all deals won in July and its value",
+    "toolsCalled": [
+      "query_deals"
+    ],
+    "responseLength": 450,
+    "isDissatisfactionSignal": false
+  },
+  {
+    "id": "chat-1786516208286-oigx",
+    "timestamp": "2026-08-12T06:30:08.286Z",
+    "sessionId": "test-session",
+    "userQuery": "that's wrong where is the deal id",
+    "toolsCalled": [
+      "query_deals"
+    ],
+    "responseLength": 120,
+    "isDissatisfactionSignal": true
+  }
+]

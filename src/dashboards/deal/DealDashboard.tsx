@@ -14,12 +14,13 @@ interface DealDashboardProps {
 }
 
 export const DealDashboard: React.FC<DealDashboardProps> = ({
+  allRecords,
   filteredRecords,
   kpis,
 }) => {
   return (
     <div className="space-y-6 animate-fade-in">
-      <KPICardsGrid kpis={kpis} />
+      <KPICardsGrid kpis={kpis} records={filteredRecords} allRecords={allRecords} />
 
       <ChartsDashboard 
         records={filteredRecords} 

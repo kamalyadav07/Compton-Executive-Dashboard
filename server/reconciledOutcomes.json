@@ -1,0 +1,13 @@
+[
+  {
+    "dealId": "BITRIX-4534",
+    "customer": "Jain food products",
+    "snapshotDate": "2026-08-12",
+    "predictedWinProbPct": 5,
+    "baseWinProbPct": 1,
+    "actualOutcome": 0,
+    "predictedCloseDate": "2026-08-20",
+    "actualCloseDate": "2026-08-12",
+    "daysCloseError": 8
+  }
+]

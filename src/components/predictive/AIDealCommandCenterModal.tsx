@@ -1,4 +1,5 @@
 import React, { useState, useMemo } from 'react';
+import { COMPANY_MONTHLY_TARGET } from '../../config/salesTargets';
 import { 
   Rocket, 
   X, 
@@ -13,10 +14,19 @@ import {
   Layers
 } from 'lucide-react';
 import type { DealRecord } from '../../types/sales';
-import { 
-  globalCommandCenterEngine, 
-  type SimulatorScenario 
+import {
+  globalCommandCenterEngine,
+  type SimulatorScenario,
+  type AIDealAnalysis,
+  type CommandCenterExecutiveSummary,
+  type MultiEngineScores,
+  type OpportunityROIScore,
+  type SimilarDealMatch
 } from '../../engine/aiDealCommandCenter';
+import {
+  runDealIntelligence,
+  buildBenchmarks
+} from '../../engine/dealIntelligenceEngine';
 
 interface AIDealCommandCenterModalProps {
   isOpen: boolean;
@@ -40,7 +50,238 @@ export const AIDealCommandCenterModal: React.FC<AIDealCommandCenterModalProps> =
   const [simExecutiveCall, setSimExecutiveCall] = useState<boolean>(false);
 
   const { analyses, summary } = useMemo(() => {
-    return globalCommandCenterEngine.analyzeAllInProgressDeals(records);
+    // --- Adapter: run real intelligence engine, then map to AIDealAnalysis shape ---
+    const { results, model } = runDealIntelligence(records);
+    const benchmarks = buildBenchmarks(records);
+
+    const wonRecords = records.filter(r => r.type === 'won');
+    const lostRecords = records.filter(r => r.type === 'lost');
+
+    // Lookup maps for customer history & similar deals
+    const customerWonMap: Record<string, DealRecord[]> = {};
+    const customerLostMap: Record<string, DealRecord[]> = {};
+    const repWonMap: Record<string, DealRecord[]> = {};
+
+    records.forEach(r => {
+      const cKey = r.customer.trim().toLowerCase();
+      const repKey = r.salesRep.trim().toLowerCase();
+      if (r.type === 'won') {
+        (customerWonMap[cKey] ||= []).push(r);
+        (repWonMap[repKey] ||= []).push(r);
+      } else if (r.type === 'lost') {
+        (customerLostMap[cKey] ||= []).push(r);
+      }
+    });
+
+    const rawAnalyses: AIDealAnalysis[] = results.map(result => {
+      const deal = result.deal;
+      const cKey = deal.customer.trim().toLowerCase();
+      const repKey = deal.salesRep.trim().toLowerCase();
+
+      const cWon = customerWonMap[cKey] || [];
+      const cLost = customerLostMap[cKey] || [];
+      const repWon = repWonMap[repKey] || [];
+
+      const totalLifetimeRev = cWon.reduce((s, r) => s + r.netRevenue, 0);
+      const cCycles = cWon.map(r => r.salesCycleDays || 30);
+      const avgCycleDays = Math.round(cCycles.reduce((a, b) => a + b, 0) / (cCycles.length || 1));
+
+      const repWinRate = Math.round((benchmarks.repWinRates[repKey] ?? 0.5) * 100);
+      const indKey = deal.industry.trim().toLowerCase();
+      const indWinRate = Math.round((benchmarks.industryWinRates[indKey] ?? 0.5) * 100);
+      const repAvgDealSize = benchmarks.repAvgWonSize[repKey] || 350000;
+      const repClosingDays = repWon.length > 0
+        ? Math.round(repWon.reduce((s, r) => s + (r.salesCycleDays || 30), 0) / repWon.length)
+        : 30;
+
+      // winProbability: from trained logistic regression (REAL)
+      const winProbability = result.winProbabilityPct;
+
+      // confidenceScore: based on training sample size (REAL, sample-size-driven)
+      const confidenceScore = Math.min(96, Math.round(
+        50 + Math.min(30, model.trainedOn * 0.15) + Math.min(16, cWon.length * 4)
+      ));
+
+      // customerHealthScore: heuristic from real customer history (NOT a measured metric)
+      const custHealth = Math.min(100, Math.round(
+        50 + (cWon.length * 15) + (totalLifetimeRev > 500000 ? 20 : 0) - (cLost.length * 10)
+      ));
+
+      // proposalQualityScore: heuristic — no proposal quality data in Bitrix (NOT measurable)
+      let proposalQuality = 75;
+      if (deal.grossRevenue > 1500000) proposalQuality += 10;
+      if (deal.solution) proposalQuality += 5;
+
+      // salespersonAdvantageScore: derived from real rep win rate (real data, heuristic weighting)
+      const salespersonAdvantage = Math.min(100, Math.round(repWinRate * 0.9 + (repWon.length > 5 ? 10 : 0)));
+
+      // similarDeals: deterministic matching on real fields (hand-picked weights)
+      const similarDeals: SimilarDealMatch[] = [...wonRecords, ...lostRecords]
+        .map(h => {
+          let score = 50;
+          if (h.industry.toLowerCase() === deal.industry.toLowerCase()) score += 20;
+          if (h.solution.toLowerCase() === deal.solution.toLowerCase()) score += 15;
+          if (Math.abs(h.grossRevenue - deal.grossRevenue) < 200000) score += 15;
+          return {
+            id: h.id,
+            customer: h.customer,
+            grossRevenue: h.grossRevenue,
+            type: h.type as 'won' | 'lost',
+            winReason: h.type === 'won' ? 'Established trust & technical alignment' : undefined,
+            lostReason: h.type === 'lost' ? (h.lostReason || 'Competitor pricing') : undefined,
+            salesCycleDays: h.salesCycleDays || 30,
+            discountPct: 0, // No discount data in Bitrix — set to 0 instead of random
+            similarityPct: Math.min(98, score)
+          };
+        })
+        .sort((a, b) => b.similarityPct - a.similarityPct)
+        .slice(0, 20);
+
+      const avgSim = similarDeals.length > 0
+        ? Math.round(similarDeals.reduce((s, d) => s + d.similarityPct, 0) / similarDeals.length)
+        : 75;
+
+      // urgencyScore: from REAL days since last update + deal size (never randomized)
+      const daysInStage = result.ageDays;
+      const daysSinceLastUpdate = result.daysSinceLastUpdate;
+      let urgency = 40;
+      if (deal.grossRevenue > 2000000) urgency += 20;
+      if (daysInStage > 14) urgency += 15;
+      if (daysSinceLastUpdate > 5) urgency += 15;
+      if (daysSinceLastUpdate > 10) urgency += 10;
+      const urgencyScore = Math.min(99, urgency);
+
+      // expectedValue: deal value × real win probability
+      const expectedValue = Math.round(deal.grossRevenue * (winProbability / 100));
+
+      // ROI scoring (deterministic, deal-size-based)
+      let estimatedHours = 3;
+      if (deal.grossRevenue > 3000000) estimatedHours = 8;
+      else if (deal.grossRevenue > 1000000) estimatedHours = 4;
+      else estimatedHours = 2;
+
+      const expectedGainPerHour = Math.round(expectedValue / estimatedHours);
+      let roiRank: OpportunityROIScore['roiRank'] = 'Medium';
+      if (expectedGainPerHour > 500000) roiRank = 'Highest';
+      else if (expectedGainPerHour > 250000) roiRank = 'Very High';
+      else if (expectedGainPerHour > 100000) roiRank = 'High';
+      else if (expectedGainPerHour < 30000) roiRank = 'Low';
+
+      // Priority tag: from real urgency + expected value (no randomness)
+      let priority: AIDealAnalysis['priority'] = '🟡 Review';
+      if (urgencyScore > 85 || expectedValue > 2000000) priority = '🔴 Immediate';
+      else if (winProbability >= 80) priority = '🟢 Easy Win';
+      else if (winProbability < 40) priority = '🔵 Low Priority';
+
+      // Action plan (strengths/risks from real data, recommended actions are templates)
+      const strengths: string[] = [];
+      const risks: string[] = [];
+      const recommendedActions: string[] = [];
+
+      if (cWon.length > 0) {
+        strengths.push(`Existing customer with ${cWon.length} previous successful projects`);
+        strengths.push(`Total lifetime revenue of ₹${(totalLifetimeRev/100000).toFixed(1)} Lakhs`);
+      } else {
+        strengths.push('High-potential new customer expansion opportunity');
+      }
+      if (repWinRate > 65) {
+        strengths.push(`Sales rep ${deal.salesRep} has an excellent ${repWinRate}% win rate in ${deal.industry}`);
+      }
+
+      if (deal.grossRevenue > repAvgDealSize * 1.3) {
+        risks.push(`Deal size (₹${(deal.grossRevenue/100000).toFixed(1)}L) is higher than historical average purchase`);
+      }
+      if (daysInStage > 12) {
+        risks.push(`In pipeline for ${daysInStage} days (last updated ${daysSinceLastUpdate} days ago)`);
+      }
+      // Removed: fabricated "Customer has requested competitive price comparison" risk
+
+      recommendedActions.push('Schedule executive follow-up call within 24 hours');
+      recommendedActions.push('Offer 3-5% strategic volume discount or AMC warranty bundle');
+      recommendedActions.push(`Highlight previous successful implementation in ${deal.industry}`);
+
+      const afterActionProbability = Math.min(98, Math.round(winProbability + 13));
+
+      const scores: MultiEngineScores = {
+        winProbability,
+        confidenceScore,
+        customerHealthScore: custHealth,
+        proposalQualityScore: proposalQuality,
+        salespersonAdvantageScore: salespersonAdvantage,
+        similarityScore: avgSim,
+        urgencyScore
+      };
+
+      return {
+        deal,
+        scores,
+        expectedValue,
+        priority,
+        rank: 0,
+        roi: { estimatedHours, expectedGainPerHour, roiRank },
+        actionPlan: { strengths, risks, recommendedActions, currentProbability: winProbability, afterActionProbability },
+        similarDeals,
+        daysInStage,
+        daysSinceLastUpdate,
+        customerHistory: {
+          totalWonCount: cWon.length,
+          totalLostCount: cLost.length,
+          totalLifetimeRevenue: totalLifetimeRev,
+          avgCycleDays,
+          preferredBrand: 'Enterprise Pro', // No brand data in Bitrix — kept as placeholder
+          preferredSolution: deal.solution || 'Cloud Architecture'
+        },
+        salespersonStats: {
+          repWinRate,
+          industryWinRate: indWinRate,
+          avgDealSize: repAvgDealSize,
+          avgClosingDays: repClosingDays
+        }
+      };
+    });
+
+    // Rank by Expected Business Impact
+    const rankedAnalyses = rawAnalyses
+      .sort((a, b) => b.expectedValue - a.expectedValue)
+      .map((item, idx) => ({ ...item, rank: idx + 1 }));
+
+    // Executive Summary (same structure as before)
+    const progressRecords = records.filter(r => r.type === 'in_progress');
+    const totalPipelineValue = progressRecords.reduce((s, r) => s + r.grossRevenue, 0);
+    const expectedRevenue = rankedAnalyses.reduce((s, a) => s + a.expectedValue, 0);
+    const dealsImmediateAttentionCount = rankedAnalyses.filter(a => a.priority === '🔴 Immediate').length;
+    const highProbabilityCount = rankedAnalyses.filter(a => a.scores.winProbability > 80).length;
+    const mediumProbabilityCount = rankedAnalyses.filter(a => a.scores.winProbability >= 50 && a.scores.winProbability <= 80).length;
+    const lowProbabilityCount = rankedAnalyses.filter(a => a.scores.winProbability < 50).length;
+
+    const atRiskDeals = rankedAnalyses.filter(a => a.scores.winProbability < 50 || a.daysInStage > 15);
+    const revenueAtRisk = atRiskDeals.reduce((s, a) => s + a.deal.grossRevenue, 0);
+
+    const monthlyTarget = COMPANY_MONTHLY_TARGET;
+    const expectedMonthlyAchievementPct = Math.round((expectedRevenue / monthlyTarget) * 100);
+    const revenueGap = Math.max(0, monthlyTarget - expectedRevenue);
+
+    const topOpportunities = rankedAnalyses.slice(0, 10);
+    const topRisks = atRiskDeals.slice(0, 10);
+    const stuckDeals = rankedAnalyses.filter(a => a.daysInStage > 15);
+
+    const summary: CommandCenterExecutiveSummary = {
+      totalPipelineValue,
+      expectedRevenue,
+      dealsImmediateAttentionCount,
+      highProbabilityCount,
+      mediumProbabilityCount,
+      lowProbabilityCount,
+      revenueAtRisk,
+      expectedMonthlyAchievementPct,
+      revenueGap,
+      monthlyTarget,
+      topOpportunities,
+      topRisks,
+      stuckDeals
+    };
+
+    return { analyses: rankedAnalyses, summary };
   }, [records]);
 
   // Default selected deal for simulator
@@ -102,7 +343,7 @@ export const AIDealCommandCenterModal: React.FC<AIDealCommandCenterModalProps> =
         </div>
 
         {/* Executive Summary Top Cards (Phase 5) */}
-        <div className="px-6 py-3 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-2 md:grid-cols-6 gap-3 text-xs shrink-0 font-sans">
+        <div className="px-4 md:px-6 py-3 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 md:gap-3 text-xs shrink-0 font-sans">
           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
             <span className="text-[10px] font-bold text-slate-400 uppercase">Pipeline Value</span>
             <div className="text-base font-black text-slate-100 font-mono">₹{(summary.totalPipelineValue / 10000000).toFixed(2)} Cr</div>

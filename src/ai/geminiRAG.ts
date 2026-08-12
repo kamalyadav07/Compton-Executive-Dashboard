@@ -1,4 +1,3 @@
-import { GoogleGenAI } from '@google/genai';
 import type { DealRecord, KPIMetrics, ChatMessage } from '../types/sales';
 import { getStoredBitrixConfig } from '../config/bitrixConfig';
 
@@ -183,136 +182,37 @@ export const processGeminiRAGQuery = async (
   query: string,
   records: DealRecord[],
   kpis: KPIMetrics,
-  apiKeyOverride?: string,
+  _apiKeyOverride?: string,
   attachedFile?: FileAttachmentPayload
 ): Promise<ChatMessage> => {
-  const apiKey = apiKeyOverride || getStoredGeminiKey();
-  const contextText = retrieveRelevantContext(query, records, 55);
-  const liveDealContext = await fetchLiveBitrixDealInfo(query);
+  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
-  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-  const msgId = `msg-${Date.now()}`;
 
-  let fileContext = '';
-  if (attachedFile && attachedFile.content) {
-    if (attachedFile.type === 'image') {
-      fileContext = `\n\n[ATTACHED IMAGE QUOTATION/DOCUMENT: ${attachedFile.name}]`;
-    } else if (attachedFile.type === 'pdf') {
-      fileContext = `\n\n[ATTACHED PDF QUOTATION DOCUMENT: ${attachedFile.name}]`;
-    } else {
-      fileContext = `\n\n=== UPLOADED DOCUMENT CONTENT (${attachedFile.name}) ===\n${attachedFile.content.substring(0, 12000)}\n=== END UPLOADED DOCUMENT ===`;
-    }
-  }
+  try {
+    const res = await fetch(`${API_BASE}/api/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        query,
+        records,
+        kpis,
+        attachedFile
+      })
+    });
 
-  if (apiKey && apiKey.trim().length > 10) {
-    try {
-      const ai = new GoogleGenAI({ apiKey });
-      
-      const systemInstructions = `You are the Senior AI Sales & Strategy Partner for Compton Executive Dashboard.
-You interact directly with Company Directors, Sales Heads, and Senior Executives.
-
-STRICT TONE & FORMAT RULES:
-1. **ABSOLUTELY NO TECHNICAL JARGON**:
-   - NEVER use technical jargon like "Layer 1", "Layer 2", "7-layer model", "weighted score", or "formula".
-   - Sales directors and managers want simple, useful, high-impact business answers.
-
-2. **DEAL DEEP-DIVE FORMAT**:
-   When queried about any deal (e.g. BITRIX-54, BITRIX-4506, 3724, 3796, Panacea, Mr. Lokesh Kumar, Akshay Patra, Sudhir Kamate, etc.), present your answer using clean headers and bullet points:
-
-   ### 📊 Deal Overview: [Customer Name / Deal Title]
-   * **Deal ID:** [ID]
-   * **Customer Name:** [Customer Name]
-   * **Sales Representative:** [Rep Name]
-   * **Net Revenue:** ₹[Amount]
-   * **Pipeline Stage:** [Current Stage]
-   * **Industry & Solution:** [Industry] | [Solution]
-
-   ### ❌ Deal Status & Lost Reason (IF DEAL IS LOST)
-   If the deal status is Lost / Closed Lost, ALWAYS state prominently:
-   * **Deal Status:** ❌ Lost (Closed)
-   * **Reason for Loss:** **"[State the exact Lost Reason recorded in Bitrix field UF_CRM_1742536927863 e.g., 'Customer dropped the idea', 'Lost to AWS', 'Budget issue', 'No response from customer']"**
-   * **Root Cause & Win-Back Strategy:** 2-sentence summary of why it was lost and how to re-engage the customer in future.
-
-   ### 💬 Recorded Comments & Customer Timeline Notes
-   State EVERY recorded comment or timeline note from the deal data (e.g. "Customer dropped the idea", "He will forward quotation"):
-   * 📌 "[Comment Text 1]"
-   * 📌 "[Comment Text 2]"
-
-   ### 🛍️ Quoted Products & Uploaded Quotations
-   - If line-item product rows are recorded, list every item, quantity, and unit price.
-   - If line-item product rows are empty BUT an Uploaded Quotation PDF file, solution spec (e.g. "Video analytics"), or net opportunity amount (e.g. ₹20,00,000) exists, ALWAYS display:
-     * **Quoted Solution / Spec:** [Spec/Title]
-     * **Quoted Total Net Amount:** ₹[Amount]
-     * **Attached Quotation Document File:** Uploaded & present on Bitrix CRM deal record.
-   - NEVER say "No items recorded" if an uploaded quotation PDF file, solution spec, or opportunity amount is present on the deal!
-
-   ### 🎯 Win Probability & Closing Chances
-   * **Closing Chance:** **[X]% Win Probability** (0% if Lost, 100% if Won)
-   * **Executive Justification:** 2-sentence simple explanation.
-
-   ### 🚀 Practical Action Steps / Win-Back Strategy
-   Provide 3-4 clear, actionable steps for the sales rep:
-   1. **[Action Item 1]:** [Specific action, e.g., Re-contact client next quarter with revised SaaS model]
-   2. **[Action Item 2]:** [Specific action, e.g., Offer 1-Year AMC Warranty Bundle]
-
-   ### ⚖️ Decision Scenario Analysis Table
-   Provide a standard markdown table:
-   | Strategy Option | Win Probability (%) | Strategic Impact |
-   |---|---|---|
-   | Current Proposal / Status | [X]% | Base status |
-   | Re-engage in Q3 with SaaS Pricing | [X]% | Future re-engagement opportunity |
-   | Offer AMC Bundle | [X]% | Service package enhancement |
-
-BUSINESS KPI CONTEXT:
-- Total Net Revenue: ₹${kpis.totalNetRevenue.toLocaleString('en-IN')}
-- Total Won Deals: ${kpis.totalWonCount} | Total Lost Deals: ${kpis.totalLostCount} | Win Rate: ${kpis.winRatePct}%
-
-AVAILABLE DEAL & CRM RECORDS:
-${contextText}
-${liveDealContext}
-${fileContext}
-
-USER PROMPT:
-${query}
-
-Respond in clean, executive GitHub Markdown format with headers, bold key figures, bullet points, and tables.`;
-
-      let contents: any = systemInstructions;
-
-      // Multimodal Image and PDF Document support for Gemini 2.5 Flash
-      if (attachedFile && attachedFile.content && (attachedFile.type === 'image' || attachedFile.type === 'pdf')) {
-        const base64Data = attachedFile.content.replace(/^data:[^;]+;base64,/, '');
-        const mimeType = attachedFile.mimeType || (attachedFile.type === 'pdf' ? 'application/pdf' : 'image/png');
-        contents = [
-          systemInstructions,
-          {
-            inlineData: {
-              data: base64Data,
-              mimeType: mimeType
-            }
-          }
-        ];
+    if (res.ok) {
+      const data = await res.json();
+      if (data && data.text) {
+        return data as ChatMessage;
       }
-
-      const response = await ai.models.generateContent({
-        model: 'gemini-2.5-flash',
-        contents: contents,
-      });
-
-      const responseText = response.text || "I couldn't process the requested deal information.";
-      
-      return {
-        id: msgId,
-        sender: 'assistant',
-        timestamp,
-        text: responseText
-      };
-    } catch (err: any) {
-      console.warn("Gemini API call error, falling back to executive engine:", err);
     }
+  } catch (err) {
+    console.warn("Server API chat endpoint error, falling back to local executive engine:", err);
   }
 
   // Executive Local Fallback Engine (No Jargon!)
+  const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
+  const msgId = `msg-${Date.now()}`;
   const execAnalysis = computeExecutiveDealAnalysis(query, records);
 
   const lostSection = execAnalysis.isLost ? `

@@ -1,4 +1,5 @@
 import type { DealRecord } from '../types/sales';
+import { COMPANY_MONTHLY_TARGET } from '../config/salesTargets';
 
 export interface MultiEngineScores {
   winProbability: number;          // 0 - 100%
@@ -326,7 +327,7 @@ export class AIDealCommandCenterEngine {
     const atRiskDeals = rankedAnalyses.filter(a => a.scores.winProbability < 50 || a.daysInStage > 15);
     const revenueAtRisk = atRiskDeals.reduce((s, a) => s + a.deal.grossRevenue, 0);
 
-    const monthlyTarget = 7500000; // ₹75 Lakhs
+    const monthlyTarget = COMPANY_MONTHLY_TARGET; // ₹1.6 Crore
     const expectedMonthlyAchievementPct = Math.round((expectedRevenue / monthlyTarget) * 100);
     const revenueGap = Math.max(0, monthlyTarget - expectedRevenue);
 

@@ -5,7 +5,7 @@ import fs from 'fs';
 import path from 'path';
 
 function sheetsConfigApiPlugin(): Plugin {
-  const configPath = path.resolve(__dirname, 'server/sheets_config.json');
+  const configPath = path.resolve(import.meta.dirname, 'server/sheets_config.json');
 
   return {
     name: 'sheets-config-api-plugin',
@@ -50,9 +50,26 @@ function sheetsConfigApiPlugin(): Plugin {
 
 // https://vite.dev/config/
 export default defineConfig({
+  base: './',
   plugins: [react(), tailwindcss(), sheetsConfigApiPlugin()],
   server: {
     port: 3000,
-    host: true
+    host: true,
+    proxy: {
+      '/api': {
+        target: 'http://localhost:4000',
+        changeOrigin: true,
+        secure: false,
+      }
+    },
+    watch: {
+      ignored: [
+        '**/server/**',
+        '**/scratch/**',
+        '**/*.json',
+        '**/*.log'
+      ]
+    }
   }
 });
+

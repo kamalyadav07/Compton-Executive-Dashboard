@@ -1,5 +1,6 @@
 import type { DealRecord, DealType } from '../types/sales';
 import { getStoredBitrixConfig, type BitrixConfig } from '../config/bitrixConfig';
+import { splitGst, reconcileGst } from '../utils/financeUtils';
 export { getStoredBitrixConfig, type BitrixConfig } from '../config/bitrixConfig';
 
 export interface BitrixLeadRecord {
@@ -169,8 +170,7 @@ export const getStoredBitrixCache = (): BitrixSyncResult | null => {
       const sanitizeRecords = (records: DealRecord[]) => (records || []).map(r => {
         const grossRev = parseFloat(String(r.grossRevenue || r.netRevenue || '0')) || 0;
         const isWonDeal = r.type === 'won';
-        const netRevWithoutGst = isWonDeal ? Math.round((grossRev / 1.18) * 100) / 100 : grossRev;
-        const computedGstVal = isWonDeal ? Math.round((grossRev - netRevWithoutGst) * 100) / 100 : 0;
+        const { netRevenue: netRevWithoutGst, gstAmount: computedGstVal } = splitGst(grossRev, isWonDeal);
         const rawSrc = r.leadSource || r.rawRecord?.SOURCE_ID || '';
         const rawInd = r.rawRecord?.UF_CRM_67E4FF8E84730 || r.industry || '';
         const rawSol = r.rawRecord?.UF_CRM_1744361655612 || r.solution || '';
@@ -483,6 +483,22 @@ export const fetchBitrixDetailsBatch = async (
   return { commentsMap, productsMap };
 };
 
+/**
+ * @deprecated — SUPERSEDED by apiClient.ts + server/dashboard-server.js
+ *
+ * This function is no longer called from any UI component. All deal
+ * fetching now goes through the backend proxy (GET /api/deals) so that
+ * the Bitrix webhook URL is never shipped in the browser bundle.
+ *
+ * Kept in place (not deleted) because:
+ *   1. The normalization helpers above it are still imported by
+ *      ChartsDashboard, SalesDashboard, etc.
+ *   2. The server's syncBitrix() is a 1:1 port of this function's logic,
+ *      so this serves as the authoritative TypeScript reference.
+ *
+ * Do NOT call this from the UI. Use fetchDealsFromServer() from
+ * src/engine/apiClient.ts instead.
+ */
 // High-Speed Parallel Batch Fetcher for Bitrix Deals (< 1.5 Seconds!)
 export const fetchBitrixDeals = async (customConfig?: BitrixConfig): Promise<BitrixSyncResult> => {
   const config = customConfig || getStoredBitrixConfig();
@@ -561,10 +577,8 @@ export const fetchBitrixDeals = async (customConfig?: BitrixConfig): Promise<Bit
 
       const titleParts = parseTitleParts(deal.TITLE);
       const revenue = parseFloat(deal.OPPORTUNITY || '0') || 0;
-      // Strip 18% GST for WON deals to show net revenue without tax
       const isWonDeal = dealType === 'won';
-      const netRevenueWithoutGst = isWonDeal ? Math.round((revenue / 1.18) * 100) / 100 : revenue;
-      const computedGstVal = isWonDeal ? Math.round((revenue - netRevenueWithoutGst) * 100) / 100 : 0;
+      const gstInfo = reconcileGst(revenue, isWonDeal, deal.TAX_VALUE);
 
       const salesRep = mapBitrixAssignedUser(String(deal.ASSIGNED_BY_ID || ''), `${deal.TITLE || ''} ${deal.COMMENTS || ''}`);
       const dateStr = (dealType === 'won' || dealType === 'lost')
@@ -640,8 +654,8 @@ export const fetchBitrixDeals = async (customConfig?: BitrixConfig): Promise<Bit
         id: deal.ID ? `BITRIX-${deal.ID}` : `B24-${idx + 1000}`,
         customer: titleParts.customer,
         grossRevenue: revenue,
-        gstAmount: parseFloat(deal.TAX_VALUE || '0') || computedGstVal,
-        netRevenue: netRevenueWithoutGst,
+        gstAmount: gstInfo.gstAmount,
+        netRevenue: gstInfo.netRevenue,
         salesRep: salesRep,
         industry: industry,
         solution: solutionType,

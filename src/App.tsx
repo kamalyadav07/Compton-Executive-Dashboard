@@ -4,7 +4,8 @@ import { filterRecords, calculateKPIs } from './engine/kpiEngine';
 import { syncProjectsGoogleSheet, type SheetFetchStatus } from './engine/googleSheetsService';
 import { getStoredSheetsConfig, saveSheetsConfig, type GoogleSheetsConfig } from './config/sheetsConfig';
 import { getStoredBitrixConfig, saveBitrixConfig, type BitrixConfig } from './config/bitrixConfig';
-import { fetchBitrixDeals, getStoredBitrixCache, type BitrixSyncResult } from './engine/bitrixService';
+import { getStoredBitrixCache, type BitrixSyncResult } from './engine/bitrixService';
+import { fetchDealsFromServer } from './engine/apiClient';
 import { globalPlatform } from './platform/EventDrivenPlatform';
 
 import { Navbar } from './components/common/Navbar';
@@ -15,6 +16,7 @@ import { SalesDashboard } from './dashboards/sales/SalesDashboard';
 import { ProjectDashboard } from './dashboards/project/ProjectDashboard';
 import { ServiceDashboard } from './dashboards/service/ServiceDashboard';
 import { DataSyncScreen } from './dashboards/dataSync/DataSyncScreen';
+import { DealForecastDashboard } from './dashboards/dealForecast/DealForecastDashboard';
 
 import { AIChatbotDrawer } from './components/chatbot/AIChatbotDrawer';
 import { ExportModal } from './components/export/ExportModal';
@@ -43,7 +45,15 @@ const initialFilters: GlobalFilterState = {
 };
 
 export function App() {
-  const [activeDashboardId, setActiveDashboardId] = useState<string>('deal');
+  const [activeDashboardId, setActiveDashboardIdState] = useState<string>(() => {
+    return localStorage.getItem('compton_active_tab') || 'deal';
+  });
+
+  const setActiveDashboardId = useCallback((id: string) => {
+    localStorage.setItem('compton_active_tab', id);
+    setActiveDashboardIdState(id);
+  }, []);
+
   const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
@@ -110,9 +120,9 @@ export function App() {
   const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
 
   // Sync Bitrix24 Deals & Leads Data in Background (Stale-While-Revalidate)
-  const handleSyncBitrix = useCallback(async (currentConfig = bitrixConfig) => {
+  const handleSyncBitrix = useCallback(async (_currentConfig = bitrixConfig) => {
     try {
-      const res = await fetchBitrixDeals(currentConfig);
+      const res = await fetchDealsFromServer();
       setBitrixSyncResult(res);
 
       if (res.status === 'success' && (res.totalFetchedDeals > 0 || res.won.length > 0)) {
@@ -229,6 +239,10 @@ export function App() {
               filteredRecords={filteredRecords}
               kpis={kpis}
             />
+          )}
+
+          {activeDashboardId === 'deal-forecast' && (
+            <DealForecastDashboard allRecords={allRecords} />
           )}
 
           {activeDashboardId === 'sales' && (
