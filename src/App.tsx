@@ -21,7 +21,6 @@ import { DealForecastDashboard } from './dashboards/dealForecast/DealForecastDas
 import { AIChatbotDrawer } from './components/chatbot/AIChatbotDrawer';
 import { ExportModal } from './components/export/ExportModal';
 import { PlatformControlCenter } from './components/platform/PlatformControlCenter';
-import { AIDealCommandCenterModal } from './components/predictive/AIDealCommandCenterModal';
 
 import type { ProjectFilterState } from './types/project';
 import { INITIAL_SAMPLE_PROJECTS } from './engine/projectSheetsService';
@@ -117,7 +116,6 @@ export function App() {
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
   const [isPlatformOpen, setIsPlatformOpen] = useState(false);
-  const [isCommandCenterOpen, setIsCommandCenterOpen] = useState(false);
 
   // Sync Bitrix24 Deals & Leads Data in Background (Stale-While-Revalidate)
   const handleSyncBitrix = useCallback(async (_currentConfig = bitrixConfig) => {
@@ -224,7 +222,6 @@ export function App() {
           activeDashboardId={activeDashboardId}
           onSelectDashboard={setActiveDashboardId}
           isSyncing={isSyncing}
-          onOpenAIDealAnalysis={() => setIsCommandCenterOpen(true)}
           onOpenExportModal={() => setIsExportModalOpen(true)}
         />
 
@@ -318,12 +315,6 @@ export function App() {
       <PlatformControlCenter
         isOpen={isPlatformOpen}
         onClose={() => setIsPlatformOpen(false)}
-      />
-
-      <AIDealCommandCenterModal
-        isOpen={isCommandCenterOpen}
-        onClose={() => setIsCommandCenterOpen(false)}
-        records={allRecords}
       />
     </div>
   );

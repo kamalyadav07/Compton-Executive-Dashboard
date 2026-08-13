@@ -8,7 +8,6 @@ import {
   ChevronLeft,
   ChevronRight,
   RefreshCw,
-  Rocket,
   ShieldCheck,
   LineChart,
   Trophy
@@ -19,7 +18,6 @@ interface SidebarNavProps {
   activeDashboardId: string;
   onSelectDashboard: (id: string) => void;
   isSyncing?: boolean;
-  onOpenAIDealAnalysis?: () => void;
   onOpenExportModal?: () => void;
 }
 
@@ -50,7 +48,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
   activeDashboardId,
   onSelectDashboard,
   isSyncing = false,
-  onOpenAIDealAnalysis,
   onOpenExportModal
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -167,29 +164,6 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
           )}
 
           <div className="space-y-1.5">
-            {/* AI Deal Analysis Button */}
-            {onOpenAIDealAnalysis && (
-              <button
-                onClick={onOpenAIDealAnalysis}
-                className={`w-full flex items-center transition-all duration-200 text-xs font-semibold group cursor-pointer border border-transparent hover:border-slate-800 text-slate-300 hover:bg-[#131b2e] hover:text-white ${
-                  isCollapsed 
-                    ? 'justify-center h-10 px-0 rounded-xl' 
-                    : 'justify-between px-3 py-2.5 rounded-xl'
-                }`}
-                title="AI Deal Analysis"
-              >
-                <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 overflow-hidden'}`}>
-                  <Rocket className="w-4.5 h-4.5 text-cyan-400 shrink-0 animate-bounce" />
-                  {!isCollapsed && <span className="font-bold text-xs whitespace-nowrap">AI Deal Analysis</span>}
-                </div>
-                {!isCollapsed && (
-                  <span className="px-2 py-0.5 text-[9px] font-mono font-extrabold rounded-md bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 shrink-0 ml-1.5">
-                    AI
-                  </span>
-                )}
-              </button>
-            )}
-
             {/* Reports & Export Item */}
             <button
               onClick={onOpenExportModal}

@@ -559,7 +559,7 @@ function computeSalesProjection(allDeals, scope, targets, asOf = /* @__PURE__ */
       dealId: r.deal.id,
       dealName: dealLabel(r.deal),
       company: r.deal.customer,
-      salesRep: r.deal.salesRep || "Unassigned",
+      salesRep: (r.deal.salesRep && r.deal.salesRep !== "Unassigned") ? r.deal.salesRep : "Jitesh Chander",
       netValue: splitGst(r.deal.grossRevenue, true).netRevenue,
       winProbabilityPct: r.winProbabilityPct,
       closesWithin7DaysPct: r.closesWithin7DaysPct,

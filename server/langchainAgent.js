@@ -497,7 +497,7 @@ function buildTools(cache) {
           id: d.id,
           dealName: cleanDealTitle(d.rawRecord?.TITLE || d.customer),
           customer: d.customer,
-          salesRep: d.salesRep || 'Unassigned',
+          salesRep: (d.salesRep && d.salesRep !== 'Unassigned') ? d.salesRep : 'Jitesh Chander',
           type: d.type,
           stage: d.stage,
           grossRevenue: d.grossRevenue,

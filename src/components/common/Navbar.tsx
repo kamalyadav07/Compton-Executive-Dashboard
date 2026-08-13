@@ -1,7 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
-  Sparkles, 
   Sun, 
   Moon, 
   Key, 
@@ -192,13 +191,12 @@ export const Navbar: React.FC<NavbarProps> = ({
       {/* 3. Right Action Group */}
       <div className="flex items-center space-x-2 md:space-x-3">
         
-        {/* 1st: AI Copilot Button */}
+        {/* 1st: Assistant Button */}
         <button
           onClick={onOpenChatbot}
           className="flex items-center space-x-1.5 px-3.5 py-1.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold text-xs shadow-md shadow-blue-500/20 transition-all active:scale-95 border border-blue-400/30"
         >
-          <Sparkles className="w-3.5 h-3.5 text-cyan-300 animate-pulse" />
-          <span>AI Copilot</span>
+          <span>Your Assistant</span>
         </button>
 
         {/* 2nd: API Key Settings Button */}

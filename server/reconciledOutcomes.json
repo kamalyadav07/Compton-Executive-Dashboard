@@ -9,5 +9,16 @@
     "predictedCloseDate": "2026-08-20",
     "actualCloseDate": "2026-08-12",
     "daysCloseError": 8
+  },
+  {
+    "dealId": "BITRIX-4586",
+    "customer": "Amicus Services",
+    "snapshotDate": "2026-08-12",
+    "predictedWinProbPct": 95,
+    "baseWinProbPct": 99,
+    "actualOutcome": 1,
+    "predictedCloseDate": "2026-08-26",
+    "actualCloseDate": "2026-08-13",
+    "daysCloseError": 13
   }
 ]

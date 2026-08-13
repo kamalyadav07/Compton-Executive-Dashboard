@@ -1,6 +1,7 @@
 import type { OrderRecord } from '../types/orders';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
 import { splitGst } from '../utils/financeUtils';
+import { mapBitrixAssignedUser } from './bitrixService';
 
 export const DEFAULT_ORDERS_SHEET_URL = import.meta.env.VITE_ORDERS_SHEET_URL || '';
 
@@ -158,7 +159,7 @@ export const fetchOrdersSheetData = async (
         sNo: orders.length + 1,
         customerName,
         dealName,
-        salesRep: 'Unassigned',
+        salesRep: mapBitrixAssignedUser('', `${customerName} ${dealName}`),
         amount,
         orderDate: isoCreationDate || '',
         billedDate: isBilled ? (billingDate || 'Billed') : 'Unbilled',

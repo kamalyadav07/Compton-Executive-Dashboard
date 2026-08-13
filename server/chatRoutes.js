@@ -260,7 +260,7 @@ function executeFallbackToolAnswer(userQuery, cache) {
     const topCloses = results
       .filter(r => r.closesWithin15DaysPct >= 50)
       .slice(0, 10);
-    return `### High-Probability Closes (Next 15 Days)\nFound **${topCloses.length} open deals** likely to close within 15 days (≥50% close probability).\n\n| Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${topCloses.map(r => `| ${r.deal.id} | ${r.deal.customer || r.deal.title} | ${r.deal.assignedRep || 'Unassigned'} | ₹${(r.deal.grossRevenue || 0).toLocaleString('en-IN')} | ${r.deal.stage} | ${r.deal.date || 'Near-term'} |`).join('\n')}`;
+    return `### High-Probability Closes (Next 15 Days)\nFound **${topCloses.length} open deals** likely to close within 15 days (≥50% close probability).\n\n| Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${topCloses.map(r => `| ${r.deal.id} | ${r.deal.rawRecord?.TITLE || r.deal.customer || r.deal.title} | ${r.deal.salesRep || 'Unassigned'} | ₹${(r.deal.grossRevenue || 0).toLocaleString('en-IN')} | ${r.deal.stage} | ${r.deal.date || 'Near-term'} |`).join('\n')}`;
   }
 
   // 4. Entity & Stage Query Matching (e.g. "recent capri won deals")
@@ -274,7 +274,8 @@ function executeFallbackToolAnswer(userQuery, cache) {
     const matches = deals.filter(d =>
       (d.customer && d.customer.toLowerCase().includes(term)) ||
       (d.title && d.title.toLowerCase().includes(term)) ||
-      (d.assignedRep && d.assignedRep.toLowerCase().includes(term))
+      (d.rawRecord?.TITLE && d.rawRecord.TITLE.toLowerCase().includes(term)) ||
+      (d.salesRep && d.salesRep.toLowerCase().includes(term))
     );
     if (matches.length > 0) {
       filtered = matches;
@@ -296,7 +297,7 @@ function executeFallbackToolAnswer(userQuery, cache) {
   const titleTerm = companyTerms.length > 0 ? companyTerms[0].toUpperCase() : 'PIPELINE';
   const stageTerm = q.includes('won') ? 'Won' : q.includes('lost') ? 'Lost' : 'Pipeline';
 
-  return `### ${titleTerm} ${stageTerm} Deals Summary\nFound **${filtered.length} matching deals** (totaling **₹${(totalVal / 100000).toFixed(2)} Lakh**).\n\n| Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${displayDeals.map(d => `| ${d.id} | ${d.customer || d.title} | ${d.assignedRep || 'Unassigned'} | ₹${(d.grossRevenue || 0).toLocaleString('en-IN')} | ${d.stage || (d.type === 'won' ? 'Won' : 'In Progress')} | ${d.date || '2026-08-12'} |`).join('\n')}`;
+  return `### ${titleTerm} ${stageTerm} Deals Summary\nFound **${filtered.length} matching deals** (totaling **₹${(totalVal / 100000).toFixed(2)} Lakh**).\n\n| Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${displayDeals.map(d => `| ${d.id} | ${d.rawRecord?.TITLE || d.customer || d.title} | ${d.salesRep || 'Unassigned'} | ₹${(d.grossRevenue || 0).toLocaleString('en-IN')} | ${d.stage || (d.type === 'won' ? 'Won' : 'In Progress')} | ${d.date || '2026-08-12'} |`).join('\n')}`;
 }
 
 module.exports = { registerChatRoutes };

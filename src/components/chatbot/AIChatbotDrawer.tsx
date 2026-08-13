@@ -13,7 +13,8 @@ import {
   FileText,
   Zap,
   Radio,
-  AlertTriangle
+  AlertTriangle,
+  GripVertical
 } from 'lucide-react';
 import type { DealRecord, KPIMetrics } from '../../types/sales';
 import { useStreamingChat } from '../../ai/useStreamingChat';
@@ -85,8 +86,32 @@ const renderTableCell = (headerName: string, cellValue: string, colIndex: number
 };
 
 // Clean Executive Table View Component for Chatbot Messages
-const RichTableOrCardView: React.FC<{ headers: string[]; rows: string[][] }> = ({ headers, rows }) => {
+const RichTableOrCardView: React.FC<{ headers: string[]; rows: string[][]; records?: DealRecord[] }> = ({ headers, rows, records }) => {
   if (rows.length === 0) return null;
+
+  // Enhance row cells by looking up the actual Deal Record by ID if records are available
+  const processedRows = rows.map(r => {
+    const newRow = [...r];
+    const dealIdCell = newRow[0] || '';
+    const rawId = dealIdCell.replace(/\D/g, '');
+
+    const matched = rawId && records ? records.find(d => String(d.id).replace(/\D/g, '') === rawId) : undefined;
+
+    if (matched) {
+      // 1. Column 1: Deal Name & Customer (Show full Bitrix title if available)
+      if (headers[1]) {
+        const fullTitle = matched.rawRecord?.TITLE || (matched.solution ? `${matched.customer} / ${matched.solution}` : matched.customer);
+        if (fullTitle) {
+          newRow[1] = fullTitle;
+        }
+      }
+      // 2. Column 2: Sales Rep (Ensure actual assigned rep name from deal record)
+      if (headers[2] && matched.salesRep) {
+        newRow[2] = matched.salesRep;
+      }
+    }
+    return newRow;
+  });
 
   return (
     <div className="my-3.5 overflow-x-auto rounded-xl border border-slate-700/80 bg-slate-950/95 shadow-2xl backdrop-blur-md">
@@ -99,7 +124,7 @@ const RichTableOrCardView: React.FC<{ headers: string[]; rows: string[][] }> = (
           </tr>
         </thead>
         <tbody className="divide-y divide-slate-800/60">
-          {rows.map((r, rIdx) => (
+          {processedRows.map((r, rIdx) => (
             <tr key={rIdx} className="hover:bg-slate-900/70 transition-all duration-150">
               {r.map((cell, cIdx) => (
                 <td key={cIdx} className="p-3 text-slate-200 font-medium whitespace-nowrap">
@@ -115,7 +140,7 @@ const RichTableOrCardView: React.FC<{ headers: string[]; rows: string[][] }> = (
 };
 
 // Rich Executive Markdown & Table Renderer Component
-const FormattedMarkdownContent: React.FC<{ content: string }> = ({ content }) => {
+const FormattedMarkdownContent: React.FC<{ content: string; records?: DealRecord[] }> = ({ content, records }) => {
   if (!content) return null;
 
   const lines = content.split('\n');
@@ -135,7 +160,7 @@ const FormattedMarkdownContent: React.FC<{ content: string }> = ({ content }) =>
     const rows = dataRows.map(parseCells);
 
     if (headers.length > 0) {
-      elements.push(<RichTableOrCardView key={`table-${keyIndex}`} headers={headers} rows={rows} />);
+      elements.push(<RichTableOrCardView key={`table-${keyIndex}`} headers={headers} rows={rows} records={records} />);
     }
     tableRows = [];
     inTable = false;
@@ -306,6 +331,58 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [attachedFile, setAttachedFile] = useState<{ name: string; extractedText: string } | null>(null);
   const [isUploading, setIsUploading] = useState(false);
+
+  // Dynamic resizable drawer width state with localStorage persistence
+  const [drawerWidth, setDrawerWidth] = useState<number>(() => {
+    try {
+      const saved = localStorage.getItem('chatbot_drawer_width');
+      if (saved) {
+        const parsed = parseInt(saved, 10);
+        if (!isNaN(parsed) && parsed >= 380 && parsed <= 1800) {
+          return parsed;
+        }
+      }
+    } catch (e) {}
+    return 672;
+  });
+
+  const [isResizing, setIsResizing] = useState(false);
+
+  const startResizing = useCallback((mouseDownEvent: React.MouseEvent) => {
+    mouseDownEvent.preventDefault();
+    setIsResizing(true);
+  }, []);
+
+  const stopResizing = useCallback(() => {
+    setIsResizing(false);
+  }, []);
+
+  const resize = useCallback((mouseMoveEvent: MouseEvent) => {
+    if (isResizing) {
+      const newWidth = window.innerWidth - mouseMoveEvent.clientX;
+      const minWidth = 380;
+      const maxWidth = Math.max(minWidth, window.innerWidth - 40);
+      const clampedWidth = Math.min(Math.max(newWidth, minWidth), maxWidth);
+      setDrawerWidth(clampedWidth);
+      try {
+        localStorage.setItem('chatbot_drawer_width', String(clampedWidth));
+      } catch (e) {}
+    }
+  }, [isResizing]);
+
+  useEffect(() => {
+    if (isResizing) {
+      window.addEventListener('mousemove', resize);
+      window.addEventListener('mouseup', stopResizing);
+    } else {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    }
+    return () => {
+      window.removeEventListener('mousemove', resize);
+      window.removeEventListener('mouseup', stopResizing);
+    };
+  }, [isResizing, resize, stopResizing]);
 
   const fileInputRef = useRef<HTMLInputElement>(null);
   const chatEndRef = useRef<HTMLDivElement>(null);
@@ -560,58 +637,76 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
       />
 
       {/* Drawer Container */}
-      <div className="relative z-10 w-full max-w-2xl bg-[#0b0f19] border-l border-slate-700/80 shadow-2xl flex flex-col justify-between h-full overflow-hidden">
+      <div 
+        style={{ width: `${drawerWidth}px`, maxWidth: '100vw' }}
+        className={`relative z-10 bg-[#0b0f19] border-l border-slate-700/80 shadow-2xl flex flex-col justify-between h-full overflow-hidden ${
+          isResizing ? 'select-none transition-none' : 'transition-all duration-75'
+        }`}
+      >
+        {/* Left Resize Drag Handle */}
+        <div
+          onMouseDown={startResizing}
+          className={`absolute left-0 top-0 bottom-0 w-3 z-30 cursor-col-resize group hover:bg-blue-500/30 transition-colors flex items-center justify-center ${
+            isResizing ? 'bg-blue-500/40 border-l-2 border-blue-400' : ''
+          }`}
+          title="Drag left or right to adjust assistant window width"
+        >
+          <div className="w-1.5 h-12 rounded-full bg-slate-600/60 group-hover:bg-blue-400 group-hover:h-16 transition-all flex items-center justify-center">
+            <GripVertical className="w-3 h-3 text-slate-300 opacity-0 group-hover:opacity-100 transition-opacity" />
+          </div>
+        </div>
       {/* Header */}
-      <div className="p-4 border-b border-slate-800 flex items-center justify-between bg-slate-900/90 backdrop-blur-md">
-        <div className="flex items-center space-x-3">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-blue-500/25">
-            <Bot className="w-5 h-5 text-white animate-pulse" />
+      <div className="px-5 py-4 border-b border-slate-800/90 flex items-center justify-between bg-slate-900/95 backdrop-blur-xl">
+        <div className="flex items-center space-x-3.5">
+          <div className="relative">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
+              <Bot className="w-5 h-5 text-white" />
+            </div>
+            <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-3 w-3 bg-emerald-500 ring-2 ring-slate-900"></span>
+            </span>
           </div>
           <div>
-            <div className="flex items-center space-x-2">
-              <h3 className="text-sm font-bold text-slate-100 flex items-center gap-1.5">
-                AI Deal Partner (Hands-Free Voice)
-                <span className="px-1.5 py-0.5 rounded text-[9px] font-extrabold bg-blue-500/20 text-blue-400 border border-blue-500/30">
-                  Gemini 2.5 Flash
-                </span>
-              </h3>
-            </div>
-            <p className="text-[11px] text-slate-400">Speak naturally — auto-submits &amp; responds out loud</p>
+            <h3 className="text-base font-bold text-white tracking-tight">
+              Your Assistant
+            </h3>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2">
+        <div className="flex items-center space-x-2.5">
           {/* Auto Voice Output Toggle */}
           <button
             onClick={() => {
               if (isSpeaking) stopSpeech();
               setAutoSpeak(!autoSpeak);
             }}
-            className={`px-2.5 py-1 rounded-lg text-xs font-semibold border flex items-center space-x-1.5 transition-all ${
+            className={`px-3 py-1.5 rounded-xl text-xs font-semibold border flex items-center space-x-1.5 transition-all shadow-sm ${
               autoSpeak
-                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-sm shadow-purple-500/20'
-                : 'bg-slate-800 text-slate-400 border-slate-700 hover:text-slate-200'
+                ? 'bg-purple-500/20 text-purple-300 border-purple-500/40 shadow-purple-500/20 hover:bg-purple-500/30'
+                : 'bg-slate-800/80 text-slate-400 border-slate-700/80 hover:text-slate-200 hover:bg-slate-800'
             }`}
             title="Auto-speak AI responses out loud"
           >
-            {autoSpeak ? <Volume2 className="w-3.5 h-3.5 text-purple-400 animate-bounce" /> : <VolumeX className="w-3.5 h-3.5" />}
+            {autoSpeak ? <Volume2 className="w-3.5 h-3.5 text-purple-400 animate-bounce" /> : <VolumeX className="w-3.5 h-3.5 text-slate-400" />}
             <span>{autoSpeak ? 'Voice ON' : 'Voice OFF'}</span>
           </button>
 
           {/* Clear Chat */}
           <button
             onClick={handleClearChat}
-            className="px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700 hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/10 flex items-center space-x-1.5 transition-all"
+            className="px-3 py-1.5 rounded-xl text-xs font-semibold bg-slate-800/80 text-slate-400 border border-slate-700/80 hover:text-rose-400 hover:border-rose-500/40 hover:bg-rose-500/10 flex items-center space-x-1.5 transition-all shadow-sm"
             title="Clear Chat"
           >
-            <Trash2 className="w-3.5 h-3.5 text-slate-400 group-hover:text-rose-400" />
+            <Trash2 className="w-3.5 h-3.5 text-slate-400 hover:text-rose-400" />
             <span>Clear Chat</span>
           </button>
 
           {/* Close */}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-lg text-slate-400 hover:text-slate-200 hover:bg-slate-800 transition-colors"
+            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/90 transition-all border border-transparent hover:border-slate-700/60"
+            title="Close Assistant"
           >
             <X className="w-5 h-5" />
           </button>
@@ -637,8 +732,11 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
         {/* Welcome message if no messages yet */}
         {streamMessages.length === 0 && (
           <div className="flex flex-col items-start">
-            <div className="flex items-center space-x-2 mb-1 text-[10px] text-slate-400">
-              <span className="font-semibold text-slate-300">Gemini Sales Partner</span>
+            <div className="flex items-center space-x-1.5 mb-1 text-[10px] text-slate-400">
+              <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                <Bot className="w-2.5 h-2.5" />
+              </div>
+              <span className="font-semibold text-slate-300">Assistant</span>
               <span>•</span>
               <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
@@ -655,9 +753,14 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             key={`${msg.role}-${idx}-${msg.timestamp}`}
             className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
           >
-            <div className="flex items-center space-x-2 mb-1 text-[10px] text-slate-400">
+            <div className="flex items-center space-x-1.5 mb-1 text-[10px] text-slate-400">
+              {msg.role === 'assistant' && (
+                <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-sm shrink-0">
+                  <Bot className="w-2.5 h-2.5" />
+                </div>
+              )}
               <span className="font-semibold text-slate-300">
-                {msg.role === 'user' ? 'Director' : 'Gemini Sales Partner'}
+                {msg.role === 'user' ? 'Director' : 'Assistant'}
               </span>
               <span>•</span>
               <span>{new Date(msg.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
@@ -673,8 +776,14 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
               {/* Formatted Rich Markdown Renderer */}
               {msg.role === 'user' ? (
                 <div className="whitespace-pre-wrap font-sans text-xs">{msg.content}</div>
+              ) : msg.content ? (
+                <FormattedMarkdownContent content={msg.content} records={_records} />
               ) : (
-                <FormattedMarkdownContent content={msg.content} />
+                <div className="flex items-center space-x-2 py-1 px-1">
+                  <div className="w-2 h-2 rounded-full bg-blue-400 animate-bounce" style={{ animationDelay: '0ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-indigo-400 animate-bounce" style={{ animationDelay: '150ms' }} />
+                  <div className="w-2 h-2 rounded-full bg-purple-400 animate-bounce" style={{ animationDelay: '300ms' }} />
+                </div>
               )}
 
               {/* Voice Read Controls on Assistant messages */}
@@ -706,7 +815,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
         {isStreaming && streamMessages.length > 0 && streamMessages[streamMessages.length - 1]?.content === '' && (
           <div className="flex items-center space-x-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 animate-pulse">
             <Sparkles className="w-4 h-4 text-blue-400 animate-spin" />
-            <span>Gemini AI analyzing deal quotes, comments, sales orders &amp; win probability...</span>
+            <span>I am analyzing deal quotes, comments, sales orders &amp; win probability...</span>
           </div>
         )}
 
