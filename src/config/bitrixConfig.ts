@@ -6,7 +6,8 @@ export interface BitrixConfig {
   minDate: string; // YYYY-MM-DD
 }
 
-const envWebhookUrl = import.meta.env.VITE_BITRIX_WEBHOOK_URL || '';
+const DEFAULT_WEBHOOK = 'https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/';
+const envWebhookUrl = import.meta.env.VITE_BITRIX_WEBHOOK_URL || DEFAULT_WEBHOOK;
 const cleanEnvWebhookUrl = envWebhookUrl.endsWith('/') ? envWebhookUrl : `${envWebhookUrl}/`;
 
 export const DEFAULT_BITRIX_CONFIG: BitrixConfig = {
@@ -24,7 +25,8 @@ export const getStoredBitrixConfig = (): BitrixConfig => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
-      const baseUrl = parsed.webhookBaseUrl || DEFAULT_BITRIX_CONFIG.webhookBaseUrl;
+      const rawBase = (parsed.webhookBaseUrl && parsed.webhookBaseUrl.trim()) ? parsed.webhookBaseUrl : DEFAULT_BITRIX_CONFIG.webhookBaseUrl;
+      const baseUrl = rawBase.startsWith('http') ? rawBase : DEFAULT_BITRIX_CONFIG.webhookBaseUrl;
       const cleanBase = baseUrl.endsWith('/') ? baseUrl : `${baseUrl}/`;
 
       return {

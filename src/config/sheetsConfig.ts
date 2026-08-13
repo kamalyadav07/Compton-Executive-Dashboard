@@ -3,8 +3,10 @@ export interface GoogleSheetsConfig {
   autoRefreshSeconds: number;
 }
 
+const DEFAULT_PROJECTS_SHEET_FALLBACK = 'https://docs.google.com/spreadsheets/d/1-iXdZ3bhvsE-xQs5xplb9xG0L-sOVTnMMYNdfXrFJUQ/edit?gid=0#gid=0';
+
 export const DEFAULT_SHEETS_CONFIG: GoogleSheetsConfig = {
-  projectsSheetUrl: import.meta.env.VITE_PROJECTS_SHEET_URL || '',
+  projectsSheetUrl: import.meta.env.VITE_PROJECTS_SHEET_URL || DEFAULT_PROJECTS_SHEET_FALLBACK,
   autoRefreshSeconds: 60
 };
 
@@ -15,8 +17,9 @@ export const getStoredSheetsConfig = (): GoogleSheetsConfig => {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (raw) {
       const parsed = JSON.parse(raw);
+      const url = (parsed.projectsSheetUrl && parsed.projectsSheetUrl.trim()) ? parsed.projectsSheetUrl : DEFAULT_SHEETS_CONFIG.projectsSheetUrl;
       return {
-        projectsSheetUrl: parsed.projectsSheetUrl || DEFAULT_SHEETS_CONFIG.projectsSheetUrl,
+        projectsSheetUrl: url,
         autoRefreshSeconds: parsed.autoRefreshSeconds || 60
       };
     }

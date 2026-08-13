@@ -787,6 +787,44 @@ async function syncBitrix() {
   }
 }
 
+// ── Deal API Endpoints ───────────────────────────────────────────────
+app.get('/api/deals', async (_req, res) => {
+  if (!cachedResult) {
+    if (isSyncing && activeSyncPromise) {
+      console.log('[api/deals] Initial sync in progress, awaiting completion...');
+      await activeSyncPromise;
+    } else {
+      await syncBitrix();
+    }
+  }
+
+  if (!cachedResult) {
+    return res.status(500).json({
+      status: 'error',
+      message: 'No deal data available.',
+      won: [], lost: [], progress: [], leads: []
+    });
+  }
+
+  res.json(cachedResult);
+});
+
+app.post('/api/deals/sync', async (_req, res) => {
+  try {
+    console.log('[api/deals/sync] Explicit re-sync triggered via POST');
+    const result = await syncBitrix();
+    if (result) {
+      writeProjectionSnapshot();
+      ingestDealDocuments(result);
+      return res.json(result);
+    }
+    return res.status(500).json({ status: 'error', message: 'Sync failed to return data.' });
+  } catch (err) {
+    console.error('[api/deals/sync] Sync error:', err);
+    return res.status(500).json({ status: 'error', message: err?.message || 'Failed to sync deals' });
+  }
+});
+
 // =====================================================================
 // 7.  DEAL INTELLIGENCE ENGINE & CHAT ROUTE
 // =====================================================================

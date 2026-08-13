@@ -45,25 +45,44 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     let allDeals: any[] = firstJson.result || [];
     const totalDeals = firstJson.total || 0;
 
-    // Fetch remaining pages sequentially with rate limit delay
+    // Fetch remaining pages in parallel chunks of 5 to avoid Vercel 10s serverless function timeout
     if (totalDeals > 50) {
+      const pageOffsets: number[] = [];
       for (let s = 50; s < totalDeals; s += 50) {
-        await new Promise(r => setTimeout(r, 300));
-        const pageQp = new URLSearchParams();
-        pageQp.append('FILTER[>DATE_CREATE]', '2019-01-01');
-        pageQp.append('SELECT[]', '*');
-        pageQp.append('SELECT[]', 'UF_*');
-        pageQp.append('start', String(s));
+        pageOffsets.push(s);
+      }
 
-        try {
-          const pRes = await fetch(`${cleanBaseUrl}crm.deal.list.json?${pageQp.toString()}`);
-          if (pRes.ok) {
-            const pJson: any = await pRes.json();
-            if (pJson.result && Array.isArray(pJson.result)) {
-              allDeals = allDeals.concat(pJson.result);
-            }
+      const CHUNK_SIZE = 5;
+      for (let i = 0; i < pageOffsets.length; i += CHUNK_SIZE) {
+        const chunk = pageOffsets.slice(i, i + CHUNK_SIZE);
+        const pageResults = await Promise.all(
+          chunk.map(async (s) => {
+            const pageQp = new URLSearchParams();
+            pageQp.append('FILTER[>DATE_CREATE]', '2019-01-01');
+            pageQp.append('SELECT[]', '*');
+            pageQp.append('SELECT[]', 'UF_*');
+            pageQp.append('start', String(s));
+
+            try {
+              const pRes = await fetch(`${cleanBaseUrl}crm.deal.list.json?${pageQp.toString()}`);
+              if (pRes.ok) {
+                const pJson: any = await pRes.json();
+                return pJson.result || [];
+              }
+            } catch (_) {}
+            return [];
+          })
+        );
+
+        pageResults.forEach((arr) => {
+          if (Array.isArray(arr)) {
+            allDeals = allDeals.concat(arr);
           }
-        } catch (_) {}
+        });
+
+        if (i + CHUNK_SIZE < pageOffsets.length) {
+          await new Promise(r => setTimeout(r, 100));
+        }
       }
     }
 

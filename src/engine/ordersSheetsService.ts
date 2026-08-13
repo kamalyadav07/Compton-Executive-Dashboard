@@ -3,14 +3,15 @@ import { convertToCsvExportUrl } from '../config/sheetsConfig';
 import { splitGst } from '../utils/financeUtils';
 import { mapBitrixAssignedUser } from './bitrixService';
 
-export const DEFAULT_ORDERS_SHEET_URL = import.meta.env.VITE_ORDERS_SHEET_URL || '';
+const DEFAULT_ORDERS_SHEET_FALLBACK = 'https://docs.google.com/spreadsheets/d/1HUkXoXIBgEBghfoVvazgunX-Cq66YTEHd96ke1scugo/edit?gid=1388928136#gid=1388928136';
+export const DEFAULT_ORDERS_SHEET_URL = import.meta.env.VITE_ORDERS_SHEET_URL || DEFAULT_ORDERS_SHEET_FALLBACK;
 
 const STORAGE_KEY = 'sales_dashboard_orders_sheet_url';
 
 export const getStoredOrdersSheetUrl = (): string => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored || stored.includes('1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU')) {
+    if (!stored || stored.trim() === '' || stored.includes('1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU')) {
       localStorage.setItem(STORAGE_KEY, DEFAULT_ORDERS_SHEET_URL);
       return DEFAULT_ORDERS_SHEET_URL;
     }
