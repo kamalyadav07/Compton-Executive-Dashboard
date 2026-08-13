@@ -25,10 +25,16 @@ import { PlatformControlCenter } from './components/platform/PlatformControlCent
 import type { ProjectFilterState } from './types/project';
 import { INITIAL_SAMPLE_PROJECTS } from './engine/projectSheetsService';
 
+const getCurrentMonthStr = (): string => {
+  const now = new Date();
+  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${shortMonthNames[now.getMonth()]} ${now.getFullYear()}`;
+};
+
 const initialFilters: GlobalFilterState = {
   startDate: '',
   endDate: '',
-  selectedMonth: 'All',
+  selectedMonth: getCurrentMonthStr(),
   selectedQuarter: 'All',
   selectedYear: 'All',
   salesRep: 'All',

@@ -1,12 +1,14 @@
 /**
  * src/ai/useStreamingChat.ts
  * -----------------------------------------------------------------------
- * Robust hook for existing chatbot drawer. Handles session id, streaming
- * token-by-token rendering, error boundaries, client-side timeouts,
- * and retry affordances.
+ * Robust hook for chatbot drawer. Handles session id, streaming
+ * token-by-token rendering, client fallback engine for Vercel,
+ * client-side timeouts, and retry affordances.
  */
 
 import { useCallback, useRef, useState } from 'react';
+import type { DealRecord } from '../types/sales';
+import { executeClientFallbackAnswer } from './clientFallbackEngine';
 
 export interface ChatMessage {
   role: 'user' | 'assistant';
@@ -17,24 +19,60 @@ export interface ChatMessage {
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
-export function useStreamingChat() {
+export function useStreamingChat(records?: DealRecord[]) {
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [isStreaming, setIsStreaming] = useState(false);
   const [errorState, setErrorState] = useState<string | null>(null);
+  const lastUserTextRef = useRef<string>('');
+  const lastAttachedFileRef = useRef<{ name: string; extractedText: string } | undefined>(undefined);
   const sessionIdRef = useRef<string>(
-    typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now())
+    `session-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`
   );
+
+  const streamFallbackResponse = useCallback(async (text: string) => {
+    const fallbackText = executeClientFallbackAnswer(text, records || []);
+    let currentLen = 0;
+    const chunkSize = 14;
+
+    await new Promise<void>((resolve) => {
+      const interval = setInterval(() => {
+        currentLen += chunkSize;
+        const chunk = fallbackText.slice(0, currentLen);
+
+        setMessages(prev => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.role === 'assistant') {
+            next[next.length - 1] = {
+              ...last,
+              content: chunk
+            };
+          }
+          return next;
+        });
+
+        if (currentLen >= fallbackText.length) {
+          clearInterval(interval);
+          resolve();
+        }
+      }, 16);
+    });
+  }, [records]);
 
   const sendMessage = useCallback(async (text: string, attachedFile?: { name: string; extractedText: string }) => {
     if (isStreaming) return;
 
     setErrorState(null);
+    lastUserTextRef.current = text;
+    lastAttachedFileRef.current = attachedFile;
+
     const userMsg: ChatMessage = { role: 'user', content: text, timestamp: new Date().toISOString() };
     setMessages(prev => [...prev, userMsg, { role: 'assistant', content: '', timestamp: new Date().toISOString() }]);
     setIsStreaming(true);
 
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), 45000); // 45s client-side timeout
+    let receivedTokens = false;
 
     try {
       const res = await fetch(`${API_BASE}/api/chat/stream`, {
@@ -44,16 +82,12 @@ export function useStreamingChat() {
         signal: controller.signal
       });
 
-      if (!res.ok) {
-        let errText = 'Failed to connect to server.';
-        try {
-          const errJson = await res.json();
-          if (errJson.error) errText = errJson.error;
-        } catch (_) {}
-        throw new Error(errText);
+      const contentType = res.headers.get('content-type') || '';
+      if (!res.ok || contentType.includes('text/html')) {
+        throw new Error('SERVER_UNAVAILABLE');
       }
 
-      if (!res.body) throw new Error('No stream response body');
+      if (!res.body) throw new Error('SERVER_UNAVAILABLE');
 
       const reader = res.body.getReader();
       const decoder = new TextDecoder();
@@ -78,6 +112,7 @@ export function useStreamingChat() {
               throw new Error(parsed.error);
             }
             if (parsed.token) {
+              receivedTokens = true;
               setMessages(prev => {
                 const next = [...prev];
                 const last = next[next.length - 1];
@@ -97,77 +132,73 @@ export function useStreamingChat() {
           }
         }
       }
-    } catch (err: any) {
-      let errorMsg = err.name === 'AbortError'
-        ? 'Request timed out after 45 seconds. Please try again.'
-        : (err.message || 'Something went wrong answering that — try again.');
 
-      if (
-        errorMsg.includes('429') ||
-        errorMsg.includes('Quota exceeded') ||
-        errorMsg.includes('Too Many Requests') ||
-        errorMsg.includes('rate_limit')
-      ) {
-        errorMsg = '⚠️ **Gemini API Rate Limit Reached**: The free-tier API request quota (20 requests/minute) was temporarily reached. Please wait ~15-20 seconds before resubmitting your question.';
+      if (!receivedTokens) {
+        throw new Error('SERVER_UNAVAILABLE');
       }
+    } catch (err: any) {
+      if (
+        err.message === 'SERVER_UNAVAILABLE' ||
+        err.name === 'TypeError' ||
+        err.message?.includes('fetch') ||
+        err.message?.includes('Failed to fetch')
+      ) {
+        console.log('[useStreamingChat] Server endpoint unavailable or HTML returned. Executing high-availability client fallback.');
+        await streamFallbackResponse(text);
+      } else {
+        let errorMsg = err.name === 'AbortError'
+          ? 'Request timed out after 45 seconds. Please try again.'
+          : (err.message || 'Something went wrong answering that — try again.');
 
-      setErrorState(errorMsg);
-      setMessages(prev => {
-        const next = [...prev];
-        const last = next[next.length - 1];
-        if (last && last.role === 'assistant' && !last.content) {
-          next[next.length - 1] = {
-            ...last,
-            content: errorMsg,
-            isError: true
-          };
-        } else if (last && last.role === 'assistant') {
-          next.push({
-            role: 'assistant',
-            content: errorMsg,
-            timestamp: new Date().toISOString(),
-            isError: true
-          });
-        }
-        return next;
-      });
-      console.error('[useStreamingChat] error', err);
+        setErrorState(errorMsg);
+        setMessages(prev => {
+          const next = [...prev];
+          const last = next[next.length - 1];
+          if (last && last.role === 'assistant' && !last.content) {
+            next[next.length - 1] = {
+              ...last,
+              content: errorMsg,
+              isError: true
+            };
+          }
+          return next;
+        });
+      }
     } finally {
       clearTimeout(timeoutId);
       setIsStreaming(false);
     }
-  }, [isStreaming]);
+  }, [isStreaming, streamFallbackResponse]);
 
-  const retryLastMessage = useCallback(async () => {
-    if (isStreaming) return;
-    const lastUserMsg = [...messages].reverse().find(m => m.role === 'user');
-    if (!lastUserMsg) return;
-
-    // Prune the failed assistant message before retrying
-    setMessages(prev => {
-      const last = prev[prev.length - 1];
-      if (last && last.role === 'assistant' && (last.isError || !last.content)) {
-        return prev.slice(0, -2); // Remove user and broken assistant message
-      }
-      return prev;
-    });
-
-    await sendMessage(lastUserMsg.content);
-  }, [messages, isStreaming, sendMessage]);
-
-  const clearChat = useCallback(async () => {
-    try {
-      await fetch(`${API_BASE}/api/chat/clear`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ sessionId: sessionIdRef.current })
+  const retryLastMessage = useCallback(() => {
+    if (lastUserTextRef.current && !isStreaming) {
+      // Remove last failed assistant message if empty or error
+      setMessages(prev => {
+        const next = [...prev];
+        if (next.length > 0 && next[next.length - 1].role === 'assistant') {
+          next.pop();
+        }
+        if (next.length > 0 && next[next.length - 1].role === 'user') {
+          next.pop();
+        }
+        return next;
       });
-    } catch (e) {
-      console.warn('[useStreamingChat] Clear history notice:', e);
+      sendMessage(lastUserTextRef.current, lastAttachedFileRef.current);
     }
+  }, [isStreaming, sendMessage]);
+
+  const clearChat = useCallback(() => {
     setMessages([]);
     setErrorState(null);
+    sessionIdRef.current = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : String(Date.now());
   }, []);
 
-  return { messages, sendMessage, retryLastMessage, clearChat, isStreaming, errorState };
+  return {
+    messages,
+    sendMessage,
+    retryLastMessage,
+    clearChat,
+    isStreaming,
+    errorState
+  };
 }

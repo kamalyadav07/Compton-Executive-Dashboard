@@ -390,7 +390,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
   const prevIsStreamingRef = useRef(false);
 
   // ── Use the streaming chat hook ───────────────────────────────────
-  const { messages: streamMessages, sendMessage, retryLastMessage, clearChat, isStreaming, errorState } = useStreamingChat();
+  const { messages: streamMessages, sendMessage, retryLastMessage, clearChat, isStreaming, errorState } = useStreamingChat(_records);
 
   // Scroll to bottom when messages change
   useEffect(() => {
