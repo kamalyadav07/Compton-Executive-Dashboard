@@ -176,8 +176,8 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
             <GaugeArc percentage={fyMetrics.achievementPct} colorClass="text-indigo-400" />
           </div>
 
-          {/* Sub-cards Grid: Yearly Target | Yearly Achievement | Remaining Target */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Sub-cards Grid: Yearly Target | Remaining Target */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Yearly Target */}
             <div 
               onClick={() => openCardModal('yearlyTarget', 'Yearly Target', 'Annual Revenue Target Breakdown', <Target className="w-5 h-5 text-indigo-400" />)}
@@ -186,16 +186,6 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-indigo-300">Target</span>
               <div className="text-sm font-black text-white font-mono mt-1">{formatCurrency(fyMetrics.target)}</div>
               <div className="text-[10px] text-indigo-400/90 font-medium mt-0.5 truncate">Annual Goal</div>
-            </div>
-
-            {/* Yearly Achievement */}
-            <div 
-              onClick={() => openCardModal('yearlyAchievement', 'Yearly Achievement %', 'Financial Year Won Revenue Deals', <Award className="w-5 h-5 text-amber-400" />)}
-              className="bg-[#172033]/90 p-3 rounded-xl border border-amber-500/30 cursor-pointer hover:border-amber-400 transition-all group"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-amber-300">Achievement</span>
-              <div className="text-sm font-black text-white font-mono mt-1">{formatCurrency(fyMetrics.achievementValue)}</div>
-              <div className="text-[10px] text-amber-400/90 font-medium mt-0.5 truncate">{fyMetrics.achievementPct}% Achieved</div>
             </div>
 
             {/* Remaining Target */}
@@ -250,8 +240,8 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
             <GaugeArc percentage={kpis.targetAchievementPct} colorClass={kpis.targetAchievementPct >= 80 ? "text-emerald-400" : "text-rose-400"} />
           </div>
 
-          {/* Sub-cards Grid: Monthly Target | Monthly Achievement | Remaining Target */}
-          <div className="grid grid-cols-3 gap-3">
+          {/* Sub-cards Grid: Monthly Target | Remaining Target */}
+          <div className="grid grid-cols-2 gap-3">
             {/* Monthly Target */}
             <div 
               onClick={() => openCardModal('monthlyTarget', 'Monthly Target', 'Monthly Target Configuration & Breakdown', <Target className="w-5 h-5 text-purple-400" />)}
@@ -260,16 +250,6 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
               <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-purple-300">Target</span>
               <div className="text-sm font-black text-white font-mono mt-1">{formatCurrency(kpis.monthlyTarget)}</div>
               <div className="text-[10px] text-purple-400/90 font-medium mt-0.5 truncate">Monthly Goal</div>
-            </div>
-
-            {/* Monthly Achievement */}
-            <div 
-              onClick={() => openCardModal('monthlyAchievement', 'Monthly Achievement %', 'Period Won Revenue Deals', <PieChart className="w-5 h-5 text-emerald-400" />)}
-              className="bg-[#172033]/90 p-3 rounded-xl border border-emerald-500/30 cursor-pointer hover:border-emerald-400 transition-all group"
-            >
-              <span className="text-[10px] font-bold uppercase tracking-wider text-slate-400 group-hover:text-emerald-300">Achievement</span>
-              <div className="text-sm font-black text-white font-mono mt-1">{formatCurrency(kpis.totalNetRevenue || kpis.totalGrossRevenue)}</div>
-              <div className="text-[10px] text-emerald-400/90 font-medium mt-0.5 truncate">{kpis.targetAchievementPct}% Achieved</div>
             </div>
 
             {/* Remaining Target */}
