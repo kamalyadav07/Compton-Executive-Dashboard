@@ -75,6 +75,12 @@ const MONTH_INFO: { name: string; short: string; num: string }[] = [
   { name: 'december', short: 'dec', num: '12' },
 ];
 
+const getCurrentMonthStr = (): string => {
+  const now = new Date();
+  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${shortMonthNames[now.getMonth()]} ${now.getFullYear()}`;
+};
+
 function matchesDateFilter(dateStr: string | undefined | null, filterVal: string | undefined | null): boolean {
   if (!filterVal || filterVal === 'All Dates' || filterVal === 'Custom Range') return true;
   if (!dateStr || dateStr === 'N/A' || dateStr === 'Unbilled') return false;
@@ -174,7 +180,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   const [localTableFilter, _setLocalTableFilter] = useState<'All' | 'Billed' | 'Unbilled'>('All');
   const [localSearchQuery, _setLocalSearchQuery] = useState<string>('');
-  const [localDateFilter, _setLocalDateFilter] = useState<string>('All Dates');
+  const [localDateFilter, _setLocalDateFilter] = useState<string>(() => getCurrentMonthStr());
   const [localStartDate, _setLocalStartDate] = useState<string>('');
   const [localEndDate, _setLocalEndDate] = useState<string>('');
   const [localRepFilter, _setLocalRepFilter] = useState<string>('All');
@@ -238,13 +244,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const projectKpis = useMemo(() => {
     return calculateProjectKPIs(projectRecords, true);
   }, [projectRecords]);
-
-  const formatProjectCurrency = (amount: number): string => {
-    if (Math.abs(amount) >= 100000) {
-      return `₹${(amount / 100000).toFixed(2)} L`;
-    }
-    return `₹${amount.toLocaleString('en-IN')}`;
-  };
 
   // Fast Deal Map lookup by clean numeric dealId
   const bitrixMap = useMemo(() => {
@@ -665,14 +664,48 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const leadSourceChartOption = useMemo(() => {
     const sourceMap: Record<string, number> = {};
 
+    const matchLeadRep = (l: any) => {
+      if (repFilter !== 'All' && l.salesRep !== repFilter) return false;
+      return true;
+    };
+
+    const matchLeadDate = (l: any) => {
+      if (!matchLeadRep(l)) return false;
+      const stageChangeDate = l.dateClosed || l.dateModify || l.dateCreate || l.date || '';
+      if (startDate && endDate) {
+        if (stageChangeDate && (stageChangeDate < startDate || stageChangeDate > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        if (!matchesDateFilter(stageChangeDate, dateFilter)) return false;
+      }
+      return true;
+    };
+
+    const matchDealDate = (d: DealRecord) => {
+      if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
+      if (companyFilter !== 'All' && (d.customer || '').toLowerCase() !== companyFilter.toLowerCase()) return false;
+      if (startDate && endDate) {
+        const dDateStr = d.date || d.monthYear || '';
+        if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
+        if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
+      }
+      return true;
+    };
+
     if (bitrixData?.leads && bitrixData.leads.length > 0) {
-      bitrixData.leads.forEach(l => {
+      const activeLeads = [
+        ...bitrixData.leads.filter((l: any) => l.statusType === 'qualified' && matchLeadDate(l)),
+        ...bitrixData.leads.filter((l: any) => l.statusType === 'disqualified' && matchLeadDate(l)),
+        ...bitrixData.leads.filter((l: any) => (l.statusType === 'in_progress' || !l.statusType) && matchLeadRep(l))
+      ];
+      activeLeads.forEach(l => {
         const rawSrc = l.sourceId || l.rawRecord?.SOURCE_ID || l.rawRecord?.UTM_SOURCE || '';
         const srcName = normalizeBitrixSource(rawSrc);
         sourceMap[srcName] = (sourceMap[srcName] || 0) + 1;
       });
     } else if (bitrixData) {
-      const allDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress];
+      const allDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress].filter(matchDealDate);
       allDeals.forEach(d => {
         const rawSrc = d.leadSource || d.rawRecord?.SOURCE_ID || d.rawRecord?.UTM_SOURCE || '';
         const srcName = normalizeBitrixSource(rawSrc);
@@ -680,7 +713,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       });
     }
 
-    if (Object.keys(sourceMap).length === 0) {
+    if (Object.keys(sourceMap).length === 0 && (!dateFilter || dateFilter === 'All Dates')) {
       sourceMap['India Mart'] = 195;
       sourceMap['Google Ads'] = 148;
       sourceMap['Reference'] = 112;
@@ -740,7 +773,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         }
       ]
     };
-  }, [bitrixData]);
+  }, [bitrixData, dateFilter, startDate, endDate, repFilter, companyFilter]);
 
   // Won deals filtered by active Date Filter, Rep Filter, Source Filter, Company Filter & Search Query
   const filteredWonDeals = useMemo(() => {
@@ -915,119 +948,105 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       {/* 1. 10 CORE METRICS GRID (Exact list matching user image) */}
       <div className="space-y-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
+          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
             <Layers className="w-4 h-4 text-emerald-400" />
-            <span>Operational Health Metrics</span>
+            <span>Operational Dashboard</span>
           </h2>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4">
+        {/* Row 1: Orders & Leads Overview */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           
           {/* 1. TOTAL ORDERS Executive Summary Box */}
-          <div className="lg:col-span-5 bg-[#0f172a]/95 backdrop-blur-md p-4 rounded-2xl border border-blue-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-            
+          <div className="lg:col-span-5 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800/80">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-                  <Package className="w-4.5 h-4.5" />
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                  <Package className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">TOTAL ORDERS</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">Sales orders created</p>
-                </div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">TOTAL ORDERS</h3>
               </div>
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
-                  {kpis.salesOrdersCreatedCount} Total
+              <div className="flex items-center gap-2">
+                <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
+                  {kpis.dealsWonCount} Total
                 </span>
-                <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  {formatLakhs(kpis.salesOrdersCreatedValue)}
+                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                  {formatLakhs(kpis.dealsWonValue)}
                 </span>
               </div>
             </div>
 
-            {/* Sub-cards Grid: Billed vs Unbilled */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Billed Sub-Card */}
-              <div className="bg-[#172033]/90 p-3 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Billed</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+            {/* Flat Column Breakdown: Billed vs Unbilled */}
+            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
+              {/* Billed Column */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Billed</span>
                 </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-white font-mono">{kpis.ordersBilledCount}</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-white font-mono">{kpis.ordersBilledCount}</span>
                   <span className="text-xs font-bold text-emerald-400 font-mono">{formatLakhs(kpis.ordersBilledValue)}</span>
                 </div>
-                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Confirmed Invoiced</div>
               </div>
 
-              {/* Unbilled Sub-Card */}
-              <div className="bg-[#172033]/90 p-3 rounded-xl border border-amber-500/30 relative overflow-hidden group hover:border-amber-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Unbilled</span>
-                  <Clock className="w-3.5 h-3.5 text-amber-400" />
+              {/* Unbilled Column */}
+              <div className="pl-4 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>Unbilled</span>
                 </div>
-                <div className="flex items-baseline justify-between">
-                  <span className="text-2xl font-black text-amber-400 font-mono">{kpis.unbilledOrdersCount}</span>
+                <div className="flex items-baseline gap-2">
+                  <span className="text-3xl font-black text-amber-400 font-mono">{kpis.unbilledOrdersCount}</span>
                   <span className="text-xs font-bold text-amber-400 font-mono">{formatLakhs(kpis.unbilledOrdersValue)}</span>
                 </div>
-                <div className="text-[10px] text-amber-400/90 font-medium mt-1 truncate">Pending Invoice</div>
               </div>
             </div>
           </div>
 
           {/* 2. TOTAL LEADS GENERATED Executive Summary Box */}
-          <div className="lg:col-span-7 bg-[#0f172a]/95 backdrop-blur-md p-4 rounded-2xl border border-purple-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-purple-500/10 rounded-full blur-2xl pointer-events-none" />
-            
+          <div className="lg:col-span-7 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
-            <div className="flex items-center justify-between pb-2.5 mb-3 border-b border-slate-800/80">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/20 text-purple-400 flex items-center justify-center border border-purple-500/30">
-                  <Users className="w-4.5 h-4.5" />
+                <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
+                  <Users className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">TOTAL LEADS GENERATED</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">Lead breakdown & qualification</p>
-                </div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">TOTAL LEADS GENERATED</h3>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-purple-500/20 text-purple-300 border border-purple-500/30">
+              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20">
                 {kpis.totalLeadsGeneratedCount} Total Leads
               </span>
             </div>
 
-            {/* Sub-cards Grid: Qualified vs Disqualified vs In Progress */}
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {/* Qualified Sub-Card */}
-              <div className="bg-[#172033]/90 p-3 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Qualified</span>
-                  <TrendingUp className="w-3.5 h-3.5 text-emerald-400" />
+            {/* Flat Column Breakdown: Qualified vs Disqualified vs In Progress */}
+            <div className="grid grid-cols-3 gap-4 divide-x divide-slate-800/80 pt-1">
+              {/* Qualified */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Qualified</span>
                 </div>
-                <div className="text-2xl font-black text-white font-mono">{kpis.leadsQualifiedCount}</div>
-                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Converted Leads</div>
+                <div className="text-3xl font-black text-white font-mono">{kpis.leadsQualifiedCount}</div>
               </div>
 
-              {/* Disqualified Sub-Card */}
-              <div className="bg-[#172033]/90 p-3 rounded-xl border border-rose-500/30 relative overflow-hidden group hover:border-rose-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300">Disqualified</span>
-                  <AlertCircle className="w-3.5 h-3.5 text-rose-400" />
+              {/* Disqualified */}
+              <div className="pl-4 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                  <AlertCircle className="w-3.5 h-3.5" />
+                  <span>Disqualified</span>
                 </div>
-                <div className="text-2xl font-black text-rose-400 font-mono">{kpis.leadsDisqualifiedCount}</div>
-                <div className="text-[10px] text-rose-400/90 font-medium mt-1 truncate">Unqualified / Junk</div>
+                <div className="text-3xl font-black text-rose-400 font-mono">{kpis.leadsDisqualifiedCount}</div>
               </div>
 
-              {/* In Progress Sub-Card */}
-              <div className="bg-[#172033]/90 p-3 rounded-xl border border-purple-500/30 relative overflow-hidden group hover:border-purple-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-purple-300">In Progress</span>
-                  <RefreshCw className="w-3.5 h-3.5 text-purple-400" />
+              {/* In Progress */}
+              <div className="pl-4 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-400">
+                  <RefreshCw className="w-3.5 h-3.5" />
+                  <span>In Progress</span>
                 </div>
-                <div className="text-2xl font-black text-purple-300 font-mono">{kpis.leadsInProgressCount}</div>
-                <div className="text-[10px] text-purple-400/90 font-medium mt-1 truncate">Active Pipeline</div>
+                <div className="text-3xl font-black text-purple-300 font-mono">{kpis.leadsInProgressCount}</div>
               </div>
             </div>
           </div>
@@ -1035,176 +1054,168 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         </div>
 
         {/* Row 2: Deals Pipeline Overview KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 pt-1">
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
           {/* Deals Won Till Date */}
-          <div className="glass-panel p-4 rounded-xl border border-teal-500/30 bg-slate-900/90 shadow-lg relative overflow-hidden group hover:border-teal-400/50 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold text-teal-300 uppercase tracking-wider">Deals Won Till Date</span>
-              <TrendingUp className="w-4 h-4 text-teal-400" />
+          <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-all">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
+                <TrendingUp className="w-4 h-4 text-emerald-400" />
+                Deals Won Till Date
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
+                Won
+              </span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-white font-mono">{kpis.dealsWonCount} <span className="text-xs text-slate-400 font-normal">Won</span></span>
-              <span className="text-xs font-bold text-teal-400 font-mono">{formatLakhs(kpis.dealsWonValue)}</span>
+            <div className="flex items-baseline justify-between pt-1">
+              <span className="text-3xl font-black text-white font-mono">{kpis.dealsWonCount}</span>
+              <span className="text-sm font-bold text-emerald-400 font-mono">{formatLakhs(kpis.dealsWonValue)}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">Main Pipeline Won Deals</p>
           </div>
 
           {/* Deals Lost Till Date */}
-          <div className="glass-panel p-4 rounded-xl border border-rose-500/30 bg-slate-900/90 shadow-lg relative overflow-hidden group hover:border-rose-400/50 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold text-rose-300 uppercase tracking-wider">Deals Lost Till Date</span>
-              <AlertCircle className="w-4 h-4 text-rose-400" />
+          <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-all">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <span className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-2">
+                <AlertCircle className="w-4 h-4 text-rose-400" />
+                Deals Lost Till Date
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
+                Lost
+              </span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-rose-400 font-mono">{kpis.dealsLostCount} <span className="text-xs text-slate-400 font-normal">Lost</span></span>
-              <span className="text-xs font-bold text-rose-400 font-mono">{formatLakhs(kpis.dealsLostValue)}</span>
+            <div className="flex items-baseline justify-between pt-1">
+              <span className="text-3xl font-black text-rose-400 font-mono">{kpis.dealsLostCount}</span>
+              <span className="text-sm font-bold text-rose-400 font-mono">{formatLakhs(kpis.dealsLostValue)}</span>
             </div>
-            <p className="text-[10px] text-slate-400 mt-1">Closed Unsuccessful Deals</p>
           </div>
 
           {/* Deals In progress Till Date */}
-          <div className="glass-panel p-4 rounded-xl border border-cyan-500/30 bg-slate-900/90 shadow-lg relative overflow-hidden group hover:border-cyan-400/50 transition-all">
-            <div className="flex items-center justify-between">
-              <span className="text-[11px] font-extrabold text-cyan-300 uppercase tracking-wider">Deals In progress Till Date</span>
-              <RefreshCw className="w-4 h-4 text-cyan-400 animate-spin-slow" />
+          <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-all">
+            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
+              <span className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
+                <RefreshCw className="w-4 h-4 text-amber-400 animate-spin-slow" />
+                Deals In Progress
+              </span>
+              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
+                Active
+              </span>
             </div>
-            <div className="mt-2 flex items-baseline justify-between">
-              <span className="text-2xl font-black text-white font-mono">{kpis.dealsInProgressCount} <span className="text-xs text-slate-400 font-normal">Deals</span></span>
-              <span className="text-xs font-bold text-cyan-400 font-mono">{formatLakhs(kpis.dealsInProgressValue)}</span>
+            <div className="flex items-baseline justify-between pt-1">
+              <span className="text-3xl font-black text-white font-mono">{kpis.dealsInProgressCount}</span>
+              <span className="text-sm font-bold text-amber-400 font-mono">{formatLakhs(kpis.dealsInProgressValue)}</span>
             </div>
           </div>
         </div>
 
-        {/* Row 3: Project Execution & Portfolio Health KPI Cards (Matching Row 2 gap) */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 pt-1">
+        {/* Row 3: Project Execution & Portfolio Health KPI Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* GROUP 1: TOTAL PROJECT SUMMARY CARD (Running | Completed) */}
-          <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-blue-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-            
+          <div className="lg:col-span-4 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-                  <FolderKanban className="w-4.5 h-4.5" />
+                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                  <FolderKanban className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">TOTAL PROJECT</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">Portfolio status</p>
-                </div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">TOTAL PROJECT</h3>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
                 {projectKpis.totalProjects} Total
               </span>
             </div>
 
-            {/* Sub-cards Grid: Running vs Completed */}
-            <div className="grid grid-cols-2 gap-3">
-              {/* Running Sub-Card */}
-              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-cyan-500/30 relative overflow-hidden group hover:border-cyan-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">RUNNING</span>
-                  <PlayCircle className="w-3.5 h-3.5 text-cyan-400 animate-spin-slow" />
+            {/* Flat Column Breakdown: Running vs Completed */}
+            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
+              {/* Running */}
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400">
+                  <PlayCircle className="w-3.5 h-3.5 animate-spin-slow" />
+                  <span>Running</span>
                 </div>
-                <div className="text-2xl font-black text-white font-mono">{projectKpis.projectsRunning}</div>
-                <div className="text-[10px] text-cyan-400/90 font-medium mt-1 truncate">Active execution</div>
+                <div className="text-3xl font-black text-white font-mono">{projectKpis.projectsRunning}</div>
               </div>
 
-              {/* Completed Sub-Card */}
-              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">COMPLETED</span>
-                  <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
+              {/* Completed */}
+              <div className="pl-4 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <CheckCircle2 className="w-3.5 h-3.5" />
+                  <span>Completed</span>
                 </div>
-                <div className="text-2xl font-black text-white font-mono">{projectKpis.totalProjects - projectKpis.projectsRunning}</div>
-                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Delivered</div>
+                <div className="text-3xl font-black text-white font-mono">{projectKpis.totalProjects - projectKpis.projectsRunning}</div>
               </div>
             </div>
           </div>
 
           {/* GROUP 2: RUNNING PROJECTS SCHEDULE CARD (Delayed | Ontime) */}
-          <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-cyan-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-            
+          <div className="lg:col-span-4 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
-                  <PlayCircle className="w-4.5 h-4.5" />
+                <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
+                  <PlayCircle className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">RUNNING PROJECTS</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">Timeline schedule</p>
-                </div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">RUNNING PROJECTS</h3>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
+              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
                 {projectKpis.projectsRunning} Running
               </span>
             </div>
 
-            {/* Breakdown Cards Grid: Delayed vs Ontime */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Flat Column Breakdown: Delayed vs Ontime */}
+            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
               {/* Delayed */}
-              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-rose-500/30 relative overflow-hidden group hover:border-rose-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300">DELAYED</span>
-                  <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                  <AlertTriangle className="w-3.5 h-3.5" />
+                  <span>Delayed</span>
                 </div>
-                <div className="text-2xl font-black text-rose-400 font-mono">{projectKpis.delayedProjects}</div>
-                <div className="text-[10px] text-rose-400/90 font-medium mt-1 truncate">Intervention needed</div>
+                <div className="text-3xl font-black text-rose-400 font-mono">{projectKpis.delayedProjects}</div>
               </div>
 
               {/* On Time */}
-              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">ONTIME</span>
-                  <Clock className="w-3.5 h-3.5 text-emerald-400" />
+              <div className="pl-4 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <Clock className="w-3.5 h-3.5" />
+                  <span>On-Time</span>
                 </div>
-                <div className="text-2xl font-black text-white font-mono">{projectKpis.onTimeProjects}</div>
-                <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">{projectKpis.onTimeRatePct}% Compliance</div>
+                <div className="text-3xl font-black text-white font-mono">{projectKpis.onTimeProjects}</div>
               </div>
             </div>
           </div>
 
           {/* GROUP 3: BUDGET STATUS CARD (Under Budget | Over Budget) */}
-          <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-teal-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-            <div className="absolute top-0 right-0 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-            
+          <div className="lg:col-span-4 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
-                  <TrendingDown className="w-4.5 h-4.5" />
+                <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center border border-teal-500/20">
+                  <TrendingDown className="w-4 h-4" />
                 </div>
-                <div>
-                  <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">BUDGET STATUS</h3>
-                  <p className="text-[10px] text-slate-400 font-mono">Cost health analysis</p>
-                </div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">BUDGET STATUS</h3>
               </div>
-              <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-teal-500/10 text-teal-300 border border-teal-500/20">
                 Budget Health
               </span>
             </div>
 
-            {/* Breakdown Cards Grid: Under Budget vs Over Budget */}
-            <div className="grid grid-cols-2 gap-3">
+            {/* Flat Column Breakdown: Under Budget vs Over Budget */}
+            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
               {/* Under Budget */}
-              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-teal-500/30 relative overflow-hidden group hover:border-teal-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-teal-300">UNDER BUDGET</span>
-                  <TrendingDown className="w-3.5 h-3.5 text-teal-400" />
+              <div className="space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <TrendingDown className="w-3.5 h-3.5" />
+                  <span>Under Budget</span>
                 </div>
-                <div className="text-2xl font-black text-white font-mono">{projectKpis.underBudgetProjects}</div>
-                <div className="text-[10px] text-teal-400/90 font-medium mt-1 truncate">{projectKpis.underBudgetRatePct}% Cost Saving</div>
+                <div className="text-3xl font-black text-white font-mono">{projectKpis.underBudgetProjects}</div>
               </div>
 
               {/* Over Budget */}
-              <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-amber-500/30 relative overflow-hidden group hover:border-amber-400/60 transition-all shadow-inner">
-                <div className="flex items-center justify-between mb-1">
-                  <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">OVER BUDGET</span>
-                  <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
+              <div className="pl-4 space-y-1.5">
+                <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                  <TrendingUp className="w-3.5 h-3.5" />
+                  <span>Over Budget</span>
                 </div>
-                <div className="text-2xl font-black text-amber-400 font-mono">{projectKpis.overBudgetProjects}</div>
-                <div className="text-[10px] text-amber-400/90 font-medium mt-1 truncate">Variance: {formatProjectCurrency(projectKpis.netBudgetVariance)}</div>
+                <div className="text-3xl font-black text-rose-400 font-mono">{projectKpis.overBudgetProjects}</div>
               </div>
             </div>
           </div>
@@ -1213,16 +1224,16 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       </div>
 
       {/* 3. SYMMETRICAL 6-CHART OPERATIONAL VISUAL ANALYTICS GRID */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
         
         {/* Chart 1: Orders Billed vs Unbilled Value */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
               <span>Billing Operations (Billed vs Unbilled Revenue)</span>
             </h3>
-            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+            <span className="text-[11px] font-mono text-blue-300 px-2.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20">
               Orders Volume
             </span>
           </div>
@@ -1232,13 +1243,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         </div>
 
         {/* Chart 2: Bitrix Deals Pipeline Throughput */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
               <BarChart3 className="w-4 h-4 text-cyan-400" />
               <span>Deals Pipeline Stage Volume</span>
             </h3>
-            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+            <span className="text-[11px] font-mono text-cyan-300 px-2.5 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20">
               Bitrix Deals
             </span>
           </div>
@@ -1248,13 +1259,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         </div>
 
         {/* Chart 3: Lead Qualification Conversion Funnel */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
               <PieChart className="w-4 h-4 text-purple-400" />
               <span>Lead Qualification & Conversion Ratio</span>
             </h3>
-            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+            <span className="text-[11px] font-mono text-purple-300 px-2.5 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">
               Lead Health
             </span>
           </div>
@@ -1264,13 +1275,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         </div>
 
         {/* Chart 4: Lead Source Acquisition Breakdown */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
               <Share2 className="w-4 h-4 text-sky-400" />
               <span>Lead Source Acquisition Breakdown</span>
             </h3>
-            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+            <span className="text-[11px] font-mono text-sky-300 px-2.5 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20">
               Lead Channels
             </span>
           </div>
@@ -1280,13 +1291,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         </div>
 
         {/* Chart 5: Sales Rep Revenue Leaderboard */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
               <span>Sales Rep Revenue Performance Leaderboard</span>
             </h3>
-            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+            <span className="text-[11px] font-mono text-amber-300 px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
               Team Performance
             </span>
           </div>
@@ -1296,13 +1307,13 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         </div>
 
         {/* Chart 6: Customer Revenue Concentration (Top Accounts) */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-3 flex flex-col justify-between">
+        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-sm font-bold text-white flex items-center space-x-2">
+            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
               <Building2 className="w-4 h-4 text-indigo-400" />
               <span>Top Account Revenue Concentration</span>
             </h3>
-            <span className="text-[11px] font-mono text-slate-400 px-2.5 py-0.5 rounded-full bg-slate-800 border border-slate-700">
+            <span className="text-[11px] font-mono text-indigo-300 px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20">
               Key Accounts
             </span>
           </div>
@@ -1317,12 +1328,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       <div className="glass-panel rounded-2xl border border-[var(--border-color)] bg-[#0f172a]/90 p-6 shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div>
-            <div className="flex items-center space-x-2">
-              <h3 className="text-lg font-bold text-white tracking-tight">Orders Master Registry (Billed vs Unbilled)</h3>
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md">
-                Rule: Missing Billed Date = Unbilled
-              </span>
-            </div>
+            <h3 className="text-lg font-bold text-white tracking-tight">Billed & Unbilled</h3>
             <p className="text-xs text-slate-400 mt-0.5">
               {sheetStatusMessage || `Displaying ${filteredOrdersTable.length} order records.`}
             </p>

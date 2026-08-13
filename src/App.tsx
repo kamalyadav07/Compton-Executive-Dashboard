@@ -51,7 +51,7 @@ const initialFilters: GlobalFilterState = {
 
 export function App() {
   const [activeDashboardId, setActiveDashboardIdState] = useState<string>(() => {
-    return localStorage.getItem('compton_active_tab') || 'deal';
+    return localStorage.getItem('compton_active_tab') || 'sales';
   });
 
   const setActiveDashboardId = useCallback((id: string) => {
@@ -84,7 +84,7 @@ export function App() {
 
   // Operational Dashboard Filters State (passed to Navbar header and SalesDashboard)
   const [opSearchQuery, setOpSearchQuery] = useState<string>('');
-  const [opDateFilter, setOpDateFilter] = useState<string>('All Dates');
+  const [opDateFilter, setOpDateFilter] = useState<string>(() => getCurrentMonthStr());
   const [opStartDate, setOpStartDate] = useState<string>('');
   const [opEndDate, setOpEndDate] = useState<string>('');
   const [opTableFilter, setOpTableFilter] = useState<'All' | 'Billed' | 'Unbilled'>('All');
@@ -94,7 +94,7 @@ export function App() {
 
   const handleResetOpFilters = useCallback(() => {
     setOpSearchQuery('');
-    setOpDateFilter('All Dates');
+    setOpDateFilter(getCurrentMonthStr());
     setOpStartDate('');
     setOpEndDate('');
     setOpTableFilter('All');

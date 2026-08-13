@@ -26,6 +26,15 @@ interface LeaderboardProps {
   kpis: KPIMetrics;
 }
 
+const formatVal = (val: number): string => {
+  if (val >= 10000000) {
+    return `₹${(val / 10000000).toFixed(2)} Cr`;
+  } else if (val >= 100000) {
+    return `₹${(val / 100000).toFixed(2)} L`;
+  }
+  return `₹${val.toLocaleString('en-IN')}`;
+};
+
 export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
   const wonDeals = records.filter(r => r.type === 'won');
   const lostDeals = records.filter(r => r.type === 'lost');
@@ -155,7 +164,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
         'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
         'Company / Client': r.customer,
         'Responsible Person': r.salesRep,
-        'Deal Name / Opportunity': r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Deal Name / Opportunity': r.rawRecord?.TITLE || r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
         'Lead Source': r.leadSource,
         'Gross Revenue (₹)': grossRev,
         'GST 18% (₹)': gstVal,
@@ -200,7 +209,6 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
               <th className="p-3">Active Pipeline</th>
               <th className="p-3">Avg Deal Size</th>
               <th className="p-3">Largest Deal</th>
-              <th className="p-3">Target %</th>
               <th className="p-3">Action</th>
             </tr>
           </thead>
@@ -249,7 +257,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                 </td>
 
                 <td className="p-3 font-extrabold text-emerald-400 font-mono text-sm">
-                  ₹{(rep.netRevenue / 100000).toFixed(2)} L
+                  {formatVal(rep.netRevenue)}
                 </td>
 
                 <td className="p-3">
@@ -269,29 +277,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                 </td>
 
                 <td className="p-3 text-blue-400 font-mono font-semibold">
-                  ₹{(rep.pipelineValue / 100000).toFixed(2)} L
+                  {formatVal(rep.pipelineValue)}
                 </td>
 
                 <td className="p-3 font-mono text-slate-300">
-                  ₹{(rep.avgDealSize / 100000).toFixed(2)} L
+                  {formatVal(rep.avgDealSize)}
                 </td>
 
                 <td className="p-3 font-mono text-amber-400 font-bold">
-                  ₹{(rep.largestDeal / 100000).toFixed(2)} L
-                </td>
-
-                <td className="p-3 min-w-[120px]">
-                  <div className="flex items-center justify-between text-[10px] mb-1">
-                    <span className="font-bold text-slate-200">{rep.targetPct}%</span>
-                  </div>
-                  <div className="w-full h-1.5 rounded-full bg-slate-800 overflow-hidden">
-                    <div
-                      className={`h-full rounded-full ${
-                        rep.targetPct >= 100 ? 'bg-emerald-500' : 'bg-blue-500'
-                      }`}
-                      style={{ width: `${Math.min(100, rep.targetPct)}%` }}
-                    />
-                  </div>
+                  {formatVal(rep.largestDeal)}
                 </td>
 
                 <td className="p-3">
@@ -335,9 +329,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 flex flex-wrap items-center gap-3 mt-1">
-                    <span>Won Revenue: <strong className="text-emerald-400 font-mono">₹{(selectedRep.netRevenue / 100000).toFixed(2)} Lakhs</strong></span>
+                    <span>Won Revenue: <strong className="text-emerald-400 font-mono">{formatVal(selectedRep.netRevenue)}</strong></span>
                     <span>•</span>
-                    <span>Pipeline: <strong className="text-blue-400 font-mono">₹{(selectedRep.pipelineValue / 100000).toFixed(2)} L</strong></span>
+                    <span>Pipeline: <strong className="text-blue-400 font-mono">{formatVal(selectedRep.pipelineValue)}</strong></span>
                     <span>•</span>
                     <span>Win Rate: <strong className="text-amber-400">{selectedRep.winRatePct}%</strong></span>
                   </p>
@@ -537,7 +531,7 @@ const topPerformerBanner = (topRep?: SalesRepMetric) => {
       </span>
       <span className="text-slate-600">•</span>
       <span className="font-mono text-emerald-400 font-extrabold">
-        ₹{(topRep.netRevenue / 100000).toFixed(1)} Lakhs
+        {formatVal(topRep.netRevenue)}
       </span>
     </div>
   );

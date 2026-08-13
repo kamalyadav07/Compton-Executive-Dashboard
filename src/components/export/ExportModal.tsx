@@ -217,10 +217,32 @@ Net Variance: ${varianceNet > 0 ? `+₹${varianceNet.toLocaleString('en-IN')} (O
   // -----------------------------------------------------------------
   // Sales & Deals Export Handlers
   // -----------------------------------------------------------------
+  const formatDealRow = (r: any) => {
+    const isWon = r.type === 'won';
+    const grossRev = r.grossRevenue || r.netRevenue;
+    const gstVal = isWon ? Math.round((grossRev - r.netRevenue) * 100) / 100 : 0;
+    return {
+      'Deal ID': r.id,
+      'Deal Stage': r.stage,
+      'Status Type': isWon ? 'WON' : r.type === 'lost' ? 'LOST' : 'IN PIPELINE',
+      'Company / Client': r.customer,
+      'Responsible Person': r.salesRep,
+      'Deal Name / Opportunity': r.rawRecord?.TITLE || r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+      'Lead Source': r.leadSource,
+      'Gross Revenue (₹)': grossRev,
+      'GST 18% (₹)': gstVal,
+      'Net Revenue (₹)': r.netRevenue,
+      'Industry': r.industry,
+      'Solution Type': r.solution,
+      'Created Date': r.rawRecord?.['Created'] || r.date,
+      'Lost Reason': r.lostReason || 'N/A'
+    };
+  };
+
   const exportSalesToExcel = () => {
-    const wsWon = XLSX.utils.json_to_sheet(records.filter(r => r.type === 'won'));
-    const wsLost = XLSX.utils.json_to_sheet(records.filter(r => r.type === 'lost'));
-    const wsProgress = XLSX.utils.json_to_sheet(records.filter(r => r.type === 'in_progress'));
+    const wsWon = XLSX.utils.json_to_sheet(records.filter(r => r.type === 'won').map(formatDealRow));
+    const wsLost = XLSX.utils.json_to_sheet(records.filter(r => r.type === 'lost').map(formatDealRow));
+    const wsProgress = XLSX.utils.json_to_sheet(records.filter(r => r.type === 'in_progress').map(formatDealRow));
 
     const wb = XLSX.utils.book_new();
     XLSX.utils.book_append_sheet(wb, wsWon, "Won Deals");

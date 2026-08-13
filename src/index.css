@@ -54,17 +54,24 @@
     --shadow-lg: 0 12px 32px rgba(15, 23, 42, 0.09);
   }
 
+  *, ::before, ::after {
+    font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
+  }
+
   body {
     background-color: var(--bg-primary);
     color: var(--text-primary);
     font-family: 'Plus Jakarta Sans', 'Inter', system-ui, -apple-system, sans-serif;
     min-height: 100vh;
     overflow-x: hidden;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
     transition: background-color 0.25s ease, color 0.25s ease;
   }
 
-  .font-mono {
-    font-family: 'JetBrains Mono', monospace;
+  code, kbd, samp, pre, .font-mono {
+    font-family: 'JetBrains Mono', monospace !important;
   }
 }
 

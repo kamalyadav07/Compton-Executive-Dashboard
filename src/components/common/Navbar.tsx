@@ -1,15 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { createPortal } from 'react-dom';
 import { 
-  Sun, 
-  Moon, 
-  Key, 
-  CheckCircle2, 
-  X,
   Maximize,
   Minimize
 } from 'lucide-react';
-import { getStoredGeminiKey, setStoredGeminiKey } from '../../ai/geminiRAG';
 import type { GlobalFilterState, DealRecord } from '../../types/sales';
 import { ExecutiveHeaderSearchBar } from './ExecutiveHeaderSearchBar';
 import { OperationalHeaderSearchBar } from './OperationalHeaderSearchBar';
@@ -50,8 +43,8 @@ interface NavbarProps {
 }
 
 export const Navbar: React.FC<NavbarProps> = ({
-  isDarkMode,
-  onToggleTheme,
+  isDarkMode: _isDarkMode,
+  onToggleTheme: _onToggleTheme,
   onOpenChatbot,
   activeDashboardId,
   filters,
@@ -80,22 +73,6 @@ export const Navbar: React.FC<NavbarProps> = ({
   onResetProjectFilters,
   allProjects = []
 }) => {
-  const [showKeyModal, setShowKeyModal] = useState(false);
-  const [apiKeyInput, setApiKeyInput] = useState('');
-  const [keySavedMessage, setKeySavedMessage] = useState(false);
-
-  useEffect(() => {
-    if (showKeyModal) {
-      document.body.style.overflow = 'hidden';
-      setApiKeyInput(getStoredGeminiKey());
-    } else {
-      document.body.style.overflow = '';
-    }
-    return () => {
-      document.body.style.overflow = '';
-    };
-  }, [showKeyModal]);
-
   const [isFullscreen, setIsFullscreen] = useState(false);
 
   useEffect(() => {
@@ -116,15 +93,6 @@ export const Navbar: React.FC<NavbarProps> = ({
         document.exitFullscreen();
       }
     }
-  };
-
-  const handleSaveKey = () => {
-    setStoredGeminiKey(apiKeyInput.trim());
-    setKeySavedMessage(true);
-    setTimeout(() => {
-      setKeySavedMessage(false);
-      setShowKeyModal(false);
-    }, 1200);
   };
 
   return (
@@ -199,25 +167,9 @@ export const Navbar: React.FC<NavbarProps> = ({
           <span>Your Assistant</span>
         </button>
 
-        {/* 2nd: API Key Settings Button */}
-        <button
-          onClick={() => setShowKeyModal(true)}
-          className="p-2 rounded-xl bg-[#151c2e] hover:bg-[#1f2d4a] text-amber-400 hover:text-amber-300 border border-amber-500/30 transition-all shadow-sm"
-          title="Configure Gemini API Key"
-        >
-          <Key className="w-4 h-4 text-amber-400" />
-        </button>
 
-        {/* 3rd: Theme Toggle Button */}
-        <button
-          onClick={onToggleTheme}
-          className="p-2 rounded-xl bg-[#151c2e] hover:bg-[#1f2d4a] text-slate-300 hover:text-white border border-[#222d46] transition-all"
-          title={isDarkMode ? "Switch to Light Theme" : "Switch to Dark Theme"}
-        >
-          {isDarkMode ? <Sun className="w-4 h-4 text-amber-400" /> : <Moon className="w-4 h-4 text-slate-400" />}
-        </button>
 
-        {/* 4th: Full Screen Toggle Button */}
+        {/* 3rd: Full Screen Toggle Button */}
         <button
           onClick={toggleFullscreen}
           className="p-2 rounded-xl bg-[#151c2e] hover:bg-[#1f2d4a] text-slate-300 hover:text-white border border-[#222d46] relative transition-all"
@@ -230,66 +182,6 @@ export const Navbar: React.FC<NavbarProps> = ({
           )}
         </button>
       </div>
-
-      {/* Gemini Key Config Modal */}
-      {showKeyModal && createPortal(
-        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-4 overflow-hidden">
-          <div className="glass-panel p-6 rounded-2xl max-w-md w-full border border-slate-700 shadow-2xl relative bg-slate-900/95 my-auto animate-scale-in">
-            <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800">
-              <div className="flex items-center space-x-3">
-                <div className="w-9 h-9 rounded-xl bg-amber-500/20 text-amber-400 flex items-center justify-center shrink-0 border border-amber-500/30">
-                  <Key className="w-5 h-5" />
-                </div>
-                <div>
-                  <h3 className="text-base font-extrabold text-slate-100">Google Gemini API Key</h3>
-                  <p className="text-xs text-slate-400">Enable AI conversational insights</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowKeyModal(false)}
-                className="p-1.5 rounded-xl text-slate-400 hover:text-white bg-slate-800/80 hover:bg-slate-700 border border-slate-700 transition-all"
-              >
-                <X className="w-4 h-4" />
-              </button>
-            </div>
-
-            <p className="text-xs text-slate-300 mb-4 leading-relaxed">
-              Enter your Gemini API key to ask questions directly about your uploaded sales dataset.
-            </p>
-
-            <input
-              type="password"
-              value={apiKeyInput}
-              onChange={(e) => setApiKeyInput(e.target.value)}
-              placeholder="AIzaSy..."
-              className="w-full px-3.5 py-2.5 rounded-xl bg-slate-950 border border-slate-700 text-slate-100 text-xs focus:outline-none focus:border-blue-500 mb-4 font-mono font-medium"
-            />
-
-            {keySavedMessage && (
-              <div className="flex items-center space-x-2 text-xs text-emerald-400 font-semibold mb-4">
-                <CheckCircle2 className="w-4 h-4" />
-                <span>API Key saved!</span>
-              </div>
-            )}
-
-            <div className="flex items-center justify-end space-x-3 pt-3 border-t border-slate-800">
-              <button
-                onClick={() => setShowKeyModal(false)}
-                className="px-4 py-2.5 rounded-xl text-xs font-semibold text-slate-400 hover:text-slate-200"
-              >
-                Close
-              </button>
-              <button
-                onClick={handleSaveKey}
-                className="px-4 py-2.5 rounded-xl text-xs font-bold bg-blue-600 hover:bg-blue-500 text-white shadow-lg shadow-blue-500/20 active:scale-95 transition-all"
-              >
-                Save Key
-              </button>
-            </div>
-          </div>
-        </div>,
-        document.body
-      )}
 
     </header>
   );

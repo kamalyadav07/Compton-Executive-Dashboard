@@ -5,8 +5,7 @@ import {
   Search, 
   Building2, 
   Calendar, 
-  FileSpreadsheet,
-  Target
+  FileSpreadsheet
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { DealRecord, KPIMetrics } from '../../types/sales';
@@ -32,27 +31,42 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
   title,
   subtitle,
   icon,
-  kpis,
+  kpis: _kpis,
   records,
   allRecords = []
 }) => {
   const [searchTerm, setSearchTerm] = useState<string>('');
   const [activeSubTab, setActiveSubTab] = useState<'all' | 'won' | 'lost' | 'in_progress'>('all');
+  const [sortField, setSortField] = useState<'salesRep' | 'none'>('salesRep');
+  const [sortDirection, setSortDirection] = useState<'asc' | 'desc'>('asc');
 
   useEffect(() => {
     if (isOpen) {
       document.body.style.overflow = 'hidden';
       setSearchTerm('');
-      setActiveSubTab('all');
+      setActiveSubTab(metricKey === 'winRate' ? 'won' : metricKey === 'lossRate' ? 'lost' : 'all');
+      setSortField('salesRep');
+      setSortDirection('asc');
     } else {
       document.body.style.overflow = '';
     }
     return () => {
       document.body.style.overflow = '';
     };
-  }, [isOpen]);
+  }, [isOpen, metricKey]);
 
   if (!isOpen) return null;
+
+  const toggleSalesSort = () => {
+    if (sortField !== 'salesRep') {
+      setSortField('salesRep');
+      setSortDirection('asc');
+    } else if (sortDirection === 'asc') {
+      setSortDirection('desc');
+    } else {
+      setSortField('none');
+    }
+  };
 
   // Filter records according to the clicked metric card
   const getUnderlyingDeals = (): { primaryDeals: DealRecord[]; comparisonDeals?: DealRecord[]; isTargetCard?: boolean } => {
@@ -123,18 +137,41 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
     );
   });
 
-  const totalNetRevenueSum = searchFilteredDeals.reduce((sum, r) => sum + r.netRevenue, 0);
+  // Apply sorting by Sales Rep
+  const finalDeals = [...searchFilteredDeals].sort((a, b) => {
+    if (sortField === 'salesRep') {
+      const repA = (a.salesRep || '').toLowerCase();
+      const repB = (b.salesRep || '').toLowerCase();
+      const cmp = repA.localeCompare(repB);
+      return sortDirection === 'asc' ? cmp : -cmp;
+    }
+    return 0;
+  });
+
+  const totalNetRevenueSum = finalDeals.reduce((sum, r) => sum + r.netRevenue, 0);
 
   // Excel Export Handler
   const handleExportToExcel = () => {
     if (isTargetCard) return;
 
-    const exportRows = searchFilteredDeals.map(d => ({
+    let dealsToExport = finalDeals;
+
+    if (metricKey === 'winRate') {
+      if (activeSubTab === 'lost') {
+        dealsToExport = finalDeals.filter(d => d.type === 'lost');
+      } else {
+        dealsToExport = finalDeals.filter(d => d.type === 'won');
+      }
+    } else if (metricKey === 'lossRate') {
+      dealsToExport = finalDeals.filter(d => d.type === 'lost');
+    }
+
+    const exportRows = dealsToExport.map(d => ({
       'Deal ID': d.id,
       'Type / Status': d.type === 'won' ? 'Won' : d.type === 'lost' ? 'Lost' : 'In Progress',
       'Stage': d.stage,
       'Customer / Client': d.customer,
-      'Deal Name': d.rawRecord?.['Deal Name'] || `${d.customer} - ${d.solution}`,
+      'Deal Name': d.rawRecord?.TITLE || d.rawRecord?.['Deal Name'] || `${d.customer} - ${d.solution}`,
       'Net Revenue (₹)': d.netRevenue,
       'Gross Revenue (₹)': d.grossRevenue,
       'Sales Rep': d.salesRep,
@@ -196,15 +233,7 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
         {/* Target Info View (For Target cards) */}
         {isTargetCard ? (
           <div className="space-y-4 py-4 overflow-y-auto">
-            <div className="p-4 rounded-2xl bg-indigo-500/10 border border-indigo-500/30 text-indigo-200 space-y-2">
-              <h4 className="text-sm font-bold flex items-center gap-2">
-                <Target className="w-4 h-4 text-indigo-400" />
-                <span>Target & Sales Goal Configuration</span>
-              </h4>
-              <p className="text-xs text-slate-300 leading-relaxed">
-                Targets in the Compton Dashboard represent fixed strategic benchmarks (configured in <code className="bg-slate-900 px-1.5 py-0.5 rounded text-indigo-300 font-mono">salesTargets.ts</code>) against which actual deal revenues are measured. They are not calculated from deal lists, but set company-wide and per individual sales representative.
-              </p>
-            </div>
+
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="glass-panel p-4 rounded-xl border border-slate-800 bg-slate-950/60 space-y-3">
@@ -237,10 +266,10 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
         ) : (
           <>
             {/* Top Summary Cards */}
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 shrink-0">
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 shrink-0">
               <div className="glass-panel p-3 rounded-xl border border-slate-800 bg-slate-950/60">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Deals</span>
-                <span className="text-lg font-extrabold text-slate-100 font-mono">{searchFilteredDeals.length}</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Deals Count</span>
+                <span className="text-lg font-extrabold text-blue-400 font-mono">{searchFilteredDeals.length} Deals</span>
               </div>
               <div className="glass-panel p-3 rounded-xl border border-slate-800 bg-slate-950/60">
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Net Revenue / Value</span>
@@ -250,18 +279,6 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
                 <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg Deal Net Value</span>
                 <span className="text-lg font-extrabold text-indigo-400 font-mono">
                   ₹{searchFilteredDeals.length > 0 ? Math.round(totalNetRevenueSum / searchFilteredDeals.length).toLocaleString('en-IN') : 0}
-                </span>
-              </div>
-              <div className="glass-panel p-3 rounded-xl border border-slate-800 bg-slate-950/60">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Metric Value</span>
-                <span className="text-lg font-extrabold text-amber-400 font-mono">
-                  {metricKey === 'winRate' ? `${kpis.winRatePct}%` : 
-                   metricKey === 'lossRate' ? `${kpis.lossRatePct}%` :
-                   metricKey === 'avgSalesCycle' ? `${kpis.avgSalesCycleDays} Days` :
-                   metricKey === 'revenueGrowth' ? `${kpis.revenueGrowthPct}%` :
-                   metricKey === 'yearlyAchievement' ? `${kpis.yearlyAchievementPct}%` :
-                   metricKey === 'monthlyAchievement' ? `${kpis.targetAchievementPct}%` :
-                   `₹${(totalNetRevenueSum / 100000).toFixed(1)} L`}
                 </span>
               </div>
             </div>
@@ -323,7 +340,18 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
                     <th className="p-3 whitespace-nowrap min-w-[180px]">Customer / Client</th>
                     <th className="p-3 min-w-[260px]">Opportunity Title</th>
                     <th className="p-3 whitespace-nowrap min-w-[130px]">Net Value (₹)</th>
-                    <th className="p-3 whitespace-nowrap min-w-[140px]">Sales Rep</th>
+                    <th 
+                      onClick={toggleSalesSort}
+                      className="p-3 whitespace-nowrap min-w-[150px] cursor-pointer hover:bg-slate-800/80 transition-colors group select-none"
+                      title="Click to sort by Sales Rep"
+                    >
+                      <div className="flex items-center gap-1.5 text-slate-300 group-hover:text-blue-400 font-bold">
+                        <span>Sales Rep</span>
+                        <span className="text-[10px] font-mono text-blue-400 font-black bg-blue-500/20 px-1.5 py-0.5 rounded border border-blue-500/30">
+                          {sortField === 'salesRep' ? (sortDirection === 'asc' ? '▲ A-Z' : '▼ Z-A') : '↕'}
+                        </span>
+                      </div>
+                    </th>
                     <th className="p-3 whitespace-nowrap min-w-[120px]">Lead Source</th>
                     <th className="p-3 whitespace-nowrap min-w-[140px]">Solution</th>
                     <th className="p-3 whitespace-nowrap min-w-[110px]">Close Date</th>
@@ -331,8 +359,8 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-800/70 font-medium">
-                  {searchFilteredDeals.length > 0 ? (
-                    searchFilteredDeals.map((deal) => {
+                  {finalDeals.length > 0 ? (
+                    finalDeals.map((deal) => {
                       const fullDealName = deal.rawRecord?.['Deal Name'] || `${deal.customer} - ${deal.solution}`;
                       return (
                         <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">

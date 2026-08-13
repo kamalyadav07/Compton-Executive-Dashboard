@@ -2,6 +2,16 @@ import type { DashboardConfig } from './types';
 
 export const DASHBOARDS: DashboardConfig[] = [
   {
+    id: 'sales',
+    name: 'Operational Dashboard',
+    shortName: 'Operational Dashboard',
+    iconName: 'TrendingUp',
+    description: 'Operational team metrics, daily execution & workflow performance',
+    status: 'active',
+    badge: 'LIVE',
+    category: 'core'
+  },
+  {
     id: 'deal',
     name: 'Deals Dashboard',
     shortName: 'Deals Dashboard',
@@ -17,17 +27,6 @@ export const DASHBOARDS: DashboardConfig[] = [
     shortName: 'Forecast',
     iconName: 'LineChart',
     description: 'AI-powered deal win probability and close-date forecasting',
-    status: 'active',
-    badge: 'LIVE',
-    category: 'core'
-  },
-
-  {
-    id: 'sales',
-    name: 'Operational Dashboard',
-    shortName: 'Operational Dashboard',
-    iconName: 'TrendingUp',
-    description: 'Operational team metrics, daily execution & workflow performance',
     status: 'active',
     badge: 'LIVE',
     category: 'core'

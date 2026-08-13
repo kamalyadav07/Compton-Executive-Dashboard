@@ -24,6 +24,7 @@ export const DealDashboard: React.FC<DealDashboardProps> = ({
 
       <ChartsDashboard 
         records={filteredRecords} 
+        allRecords={allRecords}
         kpis={kpis} 
       />
 

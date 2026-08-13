@@ -656,11 +656,11 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
           </div>
         </div>
       {/* Header */}
-      <div className="px-5 py-4 border-b border-slate-800/90 flex items-center justify-between bg-slate-900/95 backdrop-blur-xl">
+      <div className="px-5 py-4 border-b border-slate-800/90 flex items-center justify-between bg-[#0d1322]/95 backdrop-blur-2xl">
         <div className="flex items-center space-x-3.5">
           <div className="relative">
             <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center shadow-lg shadow-indigo-500/30 ring-1 ring-white/20">
-              <Bot className="w-5 h-5 text-white" />
+              <Bot className="w-5.5 h-5.5 text-white" />
             </div>
             <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3">
               <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
@@ -668,13 +668,19 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             </span>
           </div>
           <div>
-            <h3 className="text-base font-bold text-white tracking-tight">
-              Your Assistant
-            </h3>
+            <div className="flex items-center gap-2">
+              <h3 className="text-base font-bold text-white tracking-tight">
+                Your Assistant
+              </h3>
+              <span className="text-[10px] font-extrabold uppercase px-2 py-0.5 rounded-full bg-indigo-500/15 text-indigo-300 border border-indigo-500/30 tracking-wider">
+                AI Engine
+              </span>
+            </div>
+            <p className="text-[11px] text-slate-400 font-medium mt-0.5">Real-time Sales & Deal Intelligence</p>
           </div>
         </div>
 
-        <div className="flex items-center space-x-2.5">
+        <div className="flex items-center space-x-2">
           {/* Auto Voice Output Toggle */}
           <button
             onClick={() => {
@@ -705,7 +711,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
           {/* Close */}
           <button
             onClick={onClose}
-            className="p-1.5 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/90 transition-all border border-transparent hover:border-slate-700/60"
+            className="p-2 rounded-xl text-slate-400 hover:text-white hover:bg-slate-800/90 transition-all border border-transparent hover:border-slate-700/60"
             title="Close Assistant"
           >
             <X className="w-5 h-5" />
@@ -714,24 +720,24 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
       </div>
 
       {/* Quick Action Chips Bar */}
-      <div className="p-3 bg-slate-950/60 border-b border-slate-800/80 overflow-x-auto flex space-x-2 scrollbar-none">
+      <div className="p-3 bg-[#080d1a]/80 border-b border-slate-800/80 overflow-x-auto flex space-x-2.5 scrollbar-none backdrop-blur-md">
         {dynamicQuickQuestions.map((q, idx) => (
           <button
             key={idx}
             onClick={() => handleSend(q)}
-            className="px-3 py-1 rounded-full bg-slate-800/90 hover:bg-blue-600/30 hover:border-blue-500/50 text-slate-300 hover:text-blue-300 text-[11px] font-medium whitespace-nowrap border border-slate-700/60 transition-all active:scale-95 shrink-0 flex items-center space-x-1"
+            className="px-3.5 py-1.5 rounded-xl bg-slate-900/90 hover:bg-indigo-600/20 hover:border-indigo-500/50 text-slate-300 hover:text-indigo-200 text-[11px] font-semibold whitespace-nowrap border border-slate-800 transition-all active:scale-95 shrink-0 flex items-center space-x-1.5 shadow-sm"
           >
-            <Zap className="w-3 h-3 text-amber-400" />
+            <Zap className="w-3 h-3 text-amber-400 shrink-0" />
             <span>{q}</span>
           </button>
         ))}
       </div>
 
       {/* Chat Messages Body */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <div className="flex-1 overflow-y-auto p-4 space-y-4 bg-[#070b14]/60">
         {/* Welcome message if no messages yet */}
         {streamMessages.length === 0 && (
-          <div className="flex flex-col items-start">
+          <div className="flex flex-col items-start animate-fade-in">
             <div className="flex items-center space-x-1.5 mb-1 text-[10px] text-slate-400">
               <div className="w-4 h-4 rounded-full bg-gradient-to-tr from-blue-600 via-indigo-600 to-purple-600 flex items-center justify-center text-white shadow-sm shrink-0">
                 <Bot className="w-2.5 h-2.5" />
@@ -740,8 +746,8 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
               <span>•</span>
               <span>{new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}</span>
             </div>
-            <div className="p-4 rounded-2xl max-w-[95%] text-xs leading-relaxed glass-panel border border-slate-800 text-slate-200 rounded-tl-none bg-slate-900/95 shadow-xl font-sans">
-              <p className="text-xs text-slate-200 leading-relaxed">
+            <div className="p-4 rounded-2xl max-w-[95%] text-xs leading-relaxed border border-slate-800/80 text-slate-200 rounded-tl-sm bg-[#111827]/90 shadow-2xl shadow-slate-950/50 font-sans">
+              <p className="text-xs text-slate-200 leading-relaxed font-medium">
                 Hello Director! How can I assist you with your sales &amp; deals today?
               </p>
             </div>
@@ -751,7 +757,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
         {streamMessages.map((msg, idx) => (
           <div
             key={`${msg.role}-${idx}-${msg.timestamp}`}
-            className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'}`}
+            className={`flex flex-col ${msg.role === 'user' ? 'items-end' : 'items-start'} animate-fade-in`}
           >
             <div className="flex items-center space-x-1.5 mb-1 text-[10px] text-slate-400">
               {msg.role === 'assistant' && (
@@ -767,10 +773,10 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             </div>
 
             <div
-              className={`p-4 rounded-2xl max-w-[95%] text-xs leading-relaxed ${
+              className={`p-4.5 rounded-2xl max-w-[95%] text-xs leading-relaxed ${
                 msg.role === 'user'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-tr-none shadow-md shadow-blue-600/20'
-                  : 'glass-panel border border-slate-800 text-slate-200 rounded-tl-none bg-slate-900/95 shadow-xl font-sans'
+                  ? 'bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 text-white rounded-tr-sm shadow-lg shadow-indigo-600/25 font-medium'
+                  : 'border border-slate-800/80 text-slate-200 rounded-tl-sm bg-[#111827]/90 shadow-2xl shadow-slate-950/50 font-sans'
               }`}
             >
               {/* Formatted Rich Markdown Renderer */}
@@ -788,10 +794,10 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
 
               {/* Voice Read Controls on Assistant messages */}
               {msg.role === 'assistant' && msg.content && (
-                <div className="mt-3 pt-2 border-t border-slate-800/60 flex items-center justify-between">
+                <div className="mt-3 pt-2.5 border-t border-slate-800/60 flex items-center justify-between">
                   <button
                     onClick={() => speakText(msg.content)}
-                    className="flex items-center space-x-1.5 px-2.5 py-1 rounded-md bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-400 border border-indigo-500/20 text-[10px] font-bold transition-all active:scale-95"
+                    className="flex items-center space-x-1.5 px-3 py-1 rounded-lg bg-indigo-500/10 hover:bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 text-[10px] font-bold transition-all active:scale-95 shadow-sm"
                   >
                     <Volume2 className="w-3.5 h-3.5" />
                     <span>{isSpeaking ? 'Replay Voice' : '🔊 Speak Response'}</span>
@@ -800,7 +806,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
                   {isSpeaking && (
                     <button
                       onClick={stopSpeech}
-                      className="flex items-center space-x-1 px-2 py-0.5 rounded bg-rose-500/20 text-rose-400 border border-rose-500/30 text-[10px] font-bold"
+                      className="flex items-center space-x-1 px-2.5 py-1 rounded-lg bg-rose-500/20 text-rose-300 border border-rose-500/30 text-[10px] font-bold shadow-sm"
                     >
                       <VolumeX className="w-3 h-3" />
                       <span>Stop Speech</span>
@@ -813,14 +819,14 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
         ))}
 
         {isStreaming && streamMessages.length > 0 && streamMessages[streamMessages.length - 1]?.content === '' && (
-          <div className="flex items-center space-x-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 animate-pulse">
+          <div className="flex items-center space-x-2 text-xs text-blue-400 bg-blue-500/10 border border-blue-500/20 rounded-xl p-3.5 animate-pulse shadow-md">
             <Sparkles className="w-4 h-4 text-blue-400 animate-spin" />
             <span>I am analyzing deal quotes, comments, sales orders &amp; win probability...</span>
           </div>
         )}
 
         {errorState && (
-          <div className="flex items-center justify-between gap-2 text-xs text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3 shadow-lg my-2">
+          <div className="flex items-center justify-between gap-2 text-xs text-rose-300 bg-rose-500/15 border border-rose-500/30 rounded-xl p-3.5 shadow-lg my-2">
             <div className="flex items-center gap-2">
               <AlertTriangle className="w-4 h-4 text-rose-400 shrink-0" />
               <span>{errorState}</span>
@@ -838,18 +844,16 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
         <div ref={chatEndRef} />
       </div>
 
-
-
       {/* Input Bar with File Upload & Microphone */}
-      <div className="p-4 border-t border-slate-800 bg-slate-900/95">
+      <div className="p-4 border-t border-slate-800/90 bg-[#0d1322]/95 backdrop-blur-xl">
 
         {/* File Attachment Chip Badge (if file attached) */}
         {attachedFile && (
-          <div className="mb-2.5 px-3 py-1.5 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-between text-xs text-blue-200">
+          <div className="mb-2.5 px-3.5 py-2 rounded-xl bg-blue-500/15 border border-blue-500/30 flex items-center justify-between text-xs text-blue-200 shadow-lg">
             <div className="flex items-center space-x-2 truncate">
               <FileText className="w-4 h-4 text-blue-400 shrink-0" />
               <span className="font-semibold truncate">{attachedFile.name}</span>
-              <span className="text-[10px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-300 uppercase font-bold">
+              <span className="text-[10px] px-2 py-0.5 rounded bg-blue-500/25 text-blue-300 uppercase font-bold">
                 {attachedFile.name.split('.').pop()}
               </span>
             </div>
@@ -879,7 +883,8 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
           </div>
         )}
 
-        <div className="flex items-center space-x-2">
+        {/* Input Controls Bar */}
+        <div className="flex items-center gap-2 bg-[#070b14] p-1.5 rounded-2xl border border-slate-800/90 focus-within:border-indigo-500/80 focus-within:ring-2 focus-within:ring-indigo-500/20 transition-all shadow-inner">
           {/* File Upload Button */}
           <input
             type="file"
@@ -892,7 +897,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             type="button"
             onClick={() => fileInputRef.current?.click()}
             disabled={isUploading}
-            className="p-2.5 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-300 border border-slate-700/80 transition-all hover:scale-105 disabled:opacity-50"
+            className="p-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-slate-300 border border-slate-800 transition-all hover:scale-105 active:scale-95 disabled:opacity-50"
             title="Upload Quote, PDF, Excel, or Word Document"
           >
             <Paperclip className="w-4 h-4 text-indigo-400" />
@@ -905,7 +910,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             className={`p-2.5 rounded-xl border transition-all ${
               isListening
                 ? 'bg-rose-500/30 text-rose-300 border-rose-500 animate-pulse shadow-lg shadow-rose-500/20 ring-2 ring-rose-500/50'
-                : 'bg-slate-800 text-slate-300 border-slate-700/80 hover:bg-slate-700'
+                : 'bg-slate-900 text-slate-300 border-slate-800 hover:bg-slate-800'
             }`}
             title="Hands-Free Voice Input (Speak and auto-submit)"
           >
@@ -919,7 +924,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             onChange={(e) => setInputQuery(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && handleSend()}
             placeholder={attachedFile ? "Ask a question about the attached quote/document..." : "Tap mic & speak, or type deal ID (e.g. 3742)..."}
-            className="flex-1 px-3.5 py-2.5 rounded-xl bg-slate-950/90 border border-slate-700/80 text-slate-100 text-xs focus:outline-none focus:border-blue-500 transition-all placeholder:text-slate-500"
+            className="flex-1 px-3 py-2 bg-transparent text-white text-xs placeholder:text-slate-500 focus:outline-none font-sans"
           />
 
           {/* Send Button */}
@@ -927,7 +932,7 @@ export const AIChatbotDrawer: React.FC<AIChatbotDrawerProps> = ({
             type="button"
             onClick={() => handleSend()}
             disabled={(!inputQuery.trim() && !attachedFile) || isStreaming}
-            className="p-2.5 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white font-bold transition-all shadow-lg shadow-blue-600/20 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="p-2.5 rounded-xl bg-gradient-to-r from-blue-600 via-indigo-600 to-purple-600 hover:from-blue-500 hover:to-purple-500 text-white font-bold transition-all shadow-lg shadow-indigo-600/30 active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed shrink-0"
           >
             <Send className="w-4 h-4" />
           </button>
