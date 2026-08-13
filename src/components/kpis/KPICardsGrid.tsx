@@ -162,15 +162,15 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
             </span>
           </div>
 
-          {/* Hero Row: Achievement % + Arc Gauge */}
+          {/* Hero Row: Achievement Value + Arc Gauge */}
           <div className="flex items-center justify-between px-2">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">YEARLY ACHIEVEMENT</span>
               <div className="text-3xl font-black text-white font-mono mt-1">
-                {fyMetrics.achievementPct}%
+                {formatCurrency(fyMetrics.achievementValue)}
               </div>
-              <p className="text-[11px] text-indigo-400 font-medium mt-1">
-                {formatCurrency(fyMetrics.achievementValue)} achieved of {formatCurrency(fyMetrics.target)}
+              <p className="text-[11px] text-amber-400 font-bold mt-1">
+                {fyMetrics.achievementPct}% Achieved
               </p>
             </div>
             <GaugeArc percentage={fyMetrics.achievementPct} colorClass="text-indigo-400" />
@@ -236,15 +236,15 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
             </span>
           </div>
 
-          {/* Hero Row: Achievement % + Arc Gauge */}
+          {/* Hero Row: Achievement Value + Arc Gauge */}
           <div className="flex items-center justify-between px-2">
             <div>
               <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">MONTHLY ACHIEVEMENT</span>
               <div className="text-3xl font-black text-white font-mono mt-1">
-                {kpis.targetAchievementPct}%
+                {formatCurrency(kpis.totalNetRevenue || kpis.totalGrossRevenue)}
               </div>
-              <p className="text-[11px] text-purple-400 font-medium mt-1">
-                {formatCurrency(kpis.totalNetRevenue || kpis.totalGrossRevenue)} achieved of {formatCurrency(kpis.monthlyTarget)}
+              <p className="text-[11px] text-amber-400 font-bold mt-1">
+                {kpis.targetAchievementPct}% Achieved
               </p>
             </div>
             <GaugeArc percentage={kpis.targetAchievementPct} colorClass={kpis.targetAchievementPct >= 80 ? "text-emerald-400" : "text-rose-400"} />
