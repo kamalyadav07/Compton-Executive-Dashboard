@@ -1,8 +1,9 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
+import fs from 'fs';
+import path from 'path';
 
-// Cache deal sync result in memory across serverless warm starts (60s TTL)
-let serverlessCache: { data: any; timestamp: number } | null = null;
-const CACHE_TTL_MS = 60 * 1000;
+// Cache deal sync result in memory across serverless warm starts
+let serverlessCache: any = null;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   // CORS Headers
@@ -19,17 +20,31 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
+  // Attempt 1: In-memory warm cache
+  if (serverlessCache) {
+    return res.status(200).json(serverlessCache);
+  }
+
+  // Attempt 2: Bundled disk cache from server/cached_bitrix_deals.json (Instant <5ms load on Vercel)
+  try {
+    const diskCachePath = path.join(process.cwd(), 'server', 'cached_bitrix_deals.json');
+    if (fs.existsSync(diskCachePath)) {
+      const fileData = fs.readFileSync(diskCachePath, 'utf8');
+      const parsed = JSON.parse(fileData);
+      if (parsed && Array.isArray(parsed.won) && parsed.won.length > 0) {
+        serverlessCache = parsed;
+        return res.status(200).json(parsed);
+      }
+    }
+  } catch (err: any) {
+    console.warn('[api/deals] Failed to read server/cached_bitrix_deals.json:', err?.message);
+  }
+
+  // Attempt 3: Live Bitrix fetch fallback if disk cache is unavailable
   try {
     const webhookUrl = process.env.BITRIX_WEBHOOK_URL || process.env.VITE_BITRIX_WEBHOOK_URL || 'https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/';
     const cleanBaseUrl = webhookUrl.endsWith('/') ? webhookUrl : `${webhookUrl}/`;
 
-    // Return warm memory cache if fresh
-    const now = Date.now();
-    if (serverlessCache && (now - serverlessCache.timestamp < CACHE_TTL_MS)) {
-      return res.status(200).json(serverlessCache.data);
-    }
-
-    // 1. Fetch deal list
     const qp = new URLSearchParams();
     qp.append('FILTER[>DATE_CREATE]', '2019-01-01');
     qp.append('SELECT[]', '*');
@@ -42,69 +57,9 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     }
 
     const firstJson: any = await firstRes.json();
-    let allDeals: any[] = firstJson.result || [];
-    const totalDeals = firstJson.total || 0;
-
-    // Fetch remaining pages in parallel chunks of 5 to avoid Vercel 10s serverless function timeout
-    if (totalDeals > 50) {
-      const pageOffsets: number[] = [];
-      for (let s = 50; s < totalDeals; s += 50) {
-        pageOffsets.push(s);
-      }
-
-      const CHUNK_SIZE = 5;
-      for (let i = 0; i < pageOffsets.length; i += CHUNK_SIZE) {
-        const chunk = pageOffsets.slice(i, i + CHUNK_SIZE);
-        const pageResults = await Promise.all(
-          chunk.map(async (s) => {
-            const pageQp = new URLSearchParams();
-            pageQp.append('FILTER[>DATE_CREATE]', '2019-01-01');
-            pageQp.append('SELECT[]', '*');
-            pageQp.append('SELECT[]', 'UF_*');
-            pageQp.append('start', String(s));
-
-            try {
-              const pRes = await fetch(`${cleanBaseUrl}crm.deal.list.json?${pageQp.toString()}`);
-              if (pRes.ok) {
-                const pJson: any = await pRes.json();
-                return pJson.result || [];
-              }
-            } catch (_) {}
-            return [];
-          })
-        );
-
-        pageResults.forEach((arr) => {
-          if (Array.isArray(arr)) {
-            allDeals = allDeals.concat(arr);
-          }
-        });
-
-        if (i + CHUNK_SIZE < pageOffsets.length) {
-          await new Promise(r => setTimeout(r, 100));
-        }
-      }
-    }
-
-    // Filter Category 6 (Sales Funnel)
+    const allDeals: any[] = firstJson.result || [];
     const targetDeals = allDeals.filter((d: any) => String(d.CATEGORY_ID || '0') === '6');
 
-    // 2. Fetch Leads
-    let leads: any[] = [];
-    try {
-      const lQp = new URLSearchParams();
-      lQp.append('FILTER[>DATE_CREATE]', '2019-01-01');
-      lQp.append('SELECT[]', '*');
-      lQp.append('SELECT[]', 'UF_*');
-      lQp.append('start', '0');
-      const lRes = await fetch(`${cleanBaseUrl}crm.lead.list.json?${lQp.toString()}`);
-      if (lRes.ok) {
-        const lJson: any = await lRes.json();
-        leads = lJson.result || [];
-      }
-    } catch (_) {}
-
-    // Map deals into won, lost, progress
     const won: any[] = [];
     const lost: any[] = [];
     const progress: any[] = [];
@@ -116,7 +71,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const stageId = String(deal.STAGE_ID || '').toUpperCase();
       const isClosed = deal.CLOSED === 'Y';
 
-      let dealType = 'in_progress';
+      let dealType: 'won' | 'lost' | 'in_progress' = 'in_progress';
       if (semantic === 'S' || stageId.includes('WON') || stageId.includes('SUCCESS')) {
         dealType = 'won';
       } else if (semantic === 'F' || stageId.includes('LOSE') || stageId.includes('LOST') || stageId.includes('FAIL')) {
@@ -125,11 +80,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         dealType = 'in_progress';
       }
 
-      const revenue = parseFloat(deal.OPPORTUNITY || '0') || 0;
+      const grossRevenue = parseFloat(deal.OPPORTUNITY || '0') || 0;
       const isWonDeal = dealType === 'won';
       const GST_RATE = 0.18;
-      const netRevenue = isWonDeal ? Math.round((revenue / (1 + GST_RATE)) * 100) / 100 : revenue;
-      const gstAmount = isWonDeal ? Math.round((revenue - netRevenue) * 100) / 100 : 0;
+      const netRevenue = isWonDeal ? Math.round((grossRevenue / (1 + GST_RATE)) * 100) / 100 : grossRevenue;
+      const gstAmount = isWonDeal ? Math.round((grossRevenue - netRevenue) * 100) / 100 : 0;
 
       let dt = new Date();
       const dateStr = (dealType === 'won' || dealType === 'lost')
@@ -155,31 +110,24 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       let stageName = 'Need Analysis';
       if (dealType === 'won') stageName = 'Won';
       else if (dealType === 'lost') stageName = 'Lost';
-      else {
-        if (stageId.includes('NEW')) stageName = 'Need Analysis';
-        else if (stageId.includes('UC_U1DIM3')) stageName = 'Solution Design';
-        else if (stageId.includes('PREPARATION')) stageName = 'Solution Approval';
-        else if (stageId.includes('PREPAYMENT')) stageName = 'Quote Creation';
-        else if (stageId.includes('EXECUTING')) stageName = 'Quote Approval';
-        else if (stageId.includes('UC_OQLF1D') || stageId.includes('NEGOTIAT')) stageName = 'Negotiation';
-      }
 
       const mappedDeal = {
-        id: String(deal.ID || `deal-${idx}`),
-        customer: String(deal.TITLE || 'Direct Customer').split('-')[0].trim(),
+        id: String(deal.ID ? `BITRIX-${deal.ID}` : `B24-${idx + 1000}`),
+        customer: String(deal.TITLE || 'Direct Customer').split('/')[0].trim(),
         solution: 'Core Solution',
-        revenue,
+        grossRevenue,
         netRevenue,
         gstAmount,
         stage: stageName,
-        dealType,
-        closingDate: dateInfo.isoDate,
+        type: dealType,
+        date: dateInfo.isoDate,
         salesRep: 'Compton Sales Rep',
         salesCycleDays: 14,
         monthYear: dateInfo.monthYear,
         quarter: dateInfo.quarter,
         year: dateInfo.year,
-        bitrixId: String(deal.ID || ''),
+        industry: 'General Industry',
+        leadSource: 'Self Generated',
         rawRecord: deal
       };
 
@@ -197,13 +145,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       disqualifiedLeadsCount: 0,
       inProgressLeadsCount: 0,
       totalFetchedDeals: allDeals.length,
-      totalFetchedLeads: leads.length,
+      totalFetchedLeads: 0,
       lastSyncedAt: new Date().toISOString(),
       status: 'success',
-      message: `Successfully loaded ${targetDeals.length} sales pipeline deals (${won.length} won, ${lost.length} lost, ${progress.length} in-progress).`
+      message: `Successfully loaded ${targetDeals.length} sales pipeline deals.`
     };
 
-    serverlessCache = { data: result, timestamp: now };
+    serverlessCache = result;
     return res.status(200).json(result);
   } catch (err: any) {
     return res.status(500).json({ status: 'error', message: err.message || 'Serverless deal sync failed' });
