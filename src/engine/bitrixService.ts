@@ -1,7 +1,11 @@
 import type { DealRecord, DealType } from '../types/sales';
 import { getStoredBitrixConfig, type BitrixConfig } from '../config/bitrixConfig';
 import { splitGst, reconcileGst } from '../utils/financeUtils';
+import { RateLimitedQueue, fetchAllPagesReliable } from './bitrixFetchQueue';
 export { getStoredBitrixConfig, type BitrixConfig } from '../config/bitrixConfig';
+
+const bitrixQueue = new RateLimitedQueue({ concurrency: 3, minIntervalMs: 300, maxRetries: 4 });
+
 
 export interface BitrixLeadRecord {
   id: string;
@@ -343,51 +347,22 @@ const normalizeBitrixDate = (dateStr?: string): { isoDate: string; monthYear: st
   return { isoDate, monthYear, year, quarter };
 };
 
-// Fast Parallel Fetcher for Bitrix Leads
+// Fast Parallel Rate-Limited Fetcher for Bitrix Leads
 export const fetchBitrixLeads = async (customConfig?: BitrixConfig): Promise<BitrixLeadRecord[]> => {
   const config = customConfig || getStoredBitrixConfig();
   const baseUrl = config.webhookBaseUrl.endsWith('/') ? config.webhookBaseUrl : `${config.webhookBaseUrl}/`;
 
   try {
-    const queryParams = new URLSearchParams();
-    queryParams.append('FILTER[>DATE_CREATE]', config.minDate || '2019-01-01');
-    queryParams.append('SELECT[]', '*');
-    queryParams.append('SELECT[]', 'UF_*');
-    queryParams.append('start', '0');
+    const buildUrl = (start: number) => {
+      const qp = new URLSearchParams();
+      qp.append('FILTER[>DATE_CREATE]', config.minDate || '2019-01-01');
+      qp.append('SELECT[]', '*');
+      qp.append('SELECT[]', 'UF_*');
+      qp.append('start', String(start));
+      return `${baseUrl}crm.lead.list.json?${qp.toString()}`;
+    };
 
-    const firstUrl = `${baseUrl}crm.lead.list.json?${queryParams.toString()}`;
-    const res1 = await fetch(firstUrl);
-    if (!res1.ok) return [];
-
-    const json1 = await res1.json();
-    if (!json1.result) return [];
-
-    let allRawLeads = json1.result;
-    const total = json1.total || 0;
-
-    // Parallel fetch remaining lead pages
-    if (total > 50) {
-      const offsets: number[] = [];
-      for (let s = 50; s < total; s += 50) offsets.push(s);
-
-      const BATCH_SIZE = 10;
-      for (let i = 0; i < offsets.length; i += BATCH_SIZE) {
-        const batch = offsets.slice(i, i + BATCH_SIZE);
-        const promises = batch.map(start => {
-          const qp = new URLSearchParams();
-          qp.append('FILTER[>DATE_CREATE]', config.minDate || '2019-01-01');
-          qp.append('SELECT[]', '*');
-          qp.append('SELECT[]', 'UF_*');
-          qp.append('start', String(start));
-          return fetch(`${baseUrl}crm.lead.list.json?${qp.toString()}`)
-            .then(r => r.json())
-            .then(j => j.result || [])
-            .catch(() => []);
-        });
-        const results = await Promise.all(promises);
-        results.forEach(arr => { allRawLeads = allRawLeads.concat(arr); });
-      }
-    }
+    const { items: allRawLeads } = await fetchAllPagesReliable(buildUrl, 50, bitrixQueue);
 
     return allRawLeads.map((lead: any) => {
       const sem = String(lead.STATUS_SEMANTIC_ID || '').toUpperCase();
@@ -421,7 +396,7 @@ export const fetchBitrixLeads = async (customConfig?: BitrixConfig): Promise<Bit
   }
 };
 
-// Ultra High-Speed Parallel Batch Fetcher for Bitrix CRM Timeline Comments & Quoted Product Rows
+// Ultra High-Speed Parallel Rate-Limited Batch Fetcher for Bitrix CRM Timeline Comments & Quoted Product Rows
 export const fetchBitrixDetailsBatch = async (
   baseUrl: string,
   dealIds: string[]
@@ -437,7 +412,7 @@ export const fetchBitrixDetailsBatch = async (
     chunks.push(dealIds.slice(i, i + BATCH_SIZE));
   }
 
-  // Execute ALL batch chunks concurrently in parallel with Promise.all
+  // Execute batch chunks with rate-limiting and retry handling
   const batchPromises = chunks.map(chunk => {
     const bodyParams = new URLSearchParams();
     chunk.forEach(id => {
@@ -445,13 +420,16 @@ export const fetchBitrixDetailsBatch = async (
       bodyParams.append(`cmd[p_${id}]`, `crm.deal.productrows.get?id=${id}`);
     });
 
-    return fetch(`${baseUrl}batch.json`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-      body: bodyParams.toString()
-    })
-      .then(res => res.ok ? res.json() : null)
-      .catch(() => null);
+    return bitrixQueue.run(() =>
+      fetch(`${baseUrl}batch.json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: bodyParams.toString()
+      })
+        .then(res => res.ok ? res.json() : null)
+        .catch(() => null),
+      `batchDetails-${chunk.join(',')}`
+    ).catch(() => null);
   });
 
   const batchResultsList = await Promise.all(batchPromises);
@@ -484,70 +462,27 @@ export const fetchBitrixDetailsBatch = async (
 };
 
 /**
- * @deprecated — SUPERSEDED by apiClient.ts + server/dashboard-server.js
- *
- * This function is no longer called from any UI component. All deal
- * fetching now goes through the backend proxy (GET /api/deals) so that
- * the Bitrix webhook URL is never shipped in the browser bundle.
- *
- * Kept in place (not deleted) because:
- *   1. The normalization helpers above it are still imported by
- *      ChartsDashboard, SalesDashboard, etc.
- *   2. The server's syncBitrix() is a 1:1 port of this function's logic,
- *      so this serves as the authoritative TypeScript reference.
- *
- * Do NOT call this from the UI. Use fetchDealsFromServer() from
- * src/engine/apiClient.ts instead.
+ * Client-Side Bitrix Deal Fetcher with RateLimitedQueue & Retry Handling
  */
-// High-Speed Parallel Batch Fetcher for Bitrix Deals (< 1.5 Seconds!)
 export const fetchBitrixDeals = async (customConfig?: BitrixConfig): Promise<BitrixSyncResult> => {
   const config = customConfig || getStoredBitrixConfig();
   const baseUrl = config.webhookBaseUrl.endsWith('/') ? config.webhookBaseUrl : `${config.webhookBaseUrl}/`;
 
   try {
-    const queryParams = new URLSearchParams();
-    queryParams.append('FILTER[>DATE_CREATE]', config.minDate || '2019-01-01');
-    queryParams.append('SELECT[]', '*');
-    queryParams.append('SELECT[]', 'UF_*');
-    queryParams.append('start', '0');
+    const buildUrl = (start: number) => {
+      const qp = new URLSearchParams();
+      qp.append('FILTER[>DATE_CREATE]', config.minDate || '2019-01-01');
+      qp.append('SELECT[]', '*');
+      qp.append('SELECT[]', 'UF_*');
+      qp.append('start', String(start));
+      return `${baseUrl}crm.deal.list.json?${qp.toString()}`;
+    };
 
-    // Start Deals fetch and Leads fetch concurrently!
-    const dealsPromise = fetch(`${baseUrl}crm.deal.list.json?${queryParams.toString()}`);
+    // Start Deals fetch and Leads fetch concurrently via rate-limited queue!
+    const dealsPromise = fetchAllPagesReliable(buildUrl, 50, bitrixQueue);
     const leadsPromise = fetchBitrixLeads(config);
 
-    const [dealsRes, leads] = await Promise.all([dealsPromise, leadsPromise]);
-
-    if (!dealsRes.ok) {
-      throw new Error(`Bitrix24 API error HTTP ${dealsRes.status}`);
-    }
-
-    const json1 = await dealsRes.json();
-    if (!json1.result) {
-      throw new Error("Invalid response from Bitrix24 API");
-    }
-
-    let allDeals = json1.result;
-    const totalDeals = json1.total || 0;
-
-    // Execute all remaining deal pages concurrently in parallel with Promise.all
-    if (totalDeals > 50) {
-      const offsets: number[] = [];
-      for (let s = 50; s < totalDeals; s += 50) offsets.push(s);
-
-      const promises = offsets.map(start => {
-        const qp = new URLSearchParams();
-        qp.append('FILTER[>DATE_CREATE]', config.minDate || '2019-01-01');
-        qp.append('SELECT[]', '*');
-        qp.append('SELECT[]', 'UF_*');
-        qp.append('start', String(start));
-        return fetch(`${baseUrl}crm.deal.list.json?${qp.toString()}`)
-          .then(r => r.json())
-          .then(j => j.result || [])
-          .catch(() => []);
-      });
-      const batchResults = await Promise.all(promises);
-      batchResults.forEach(arr => { allDeals = allDeals.concat(arr); });
-    }
+    const [{ items: allDeals }, leads] = await Promise.all([dealsPromise, leadsPromise]);
 
     // Filter deals for Category 6 ("Sales Funnel" in Bitrix UI)
     const targetDeals = allDeals.filter((d: any) => String(d.CATEGORY_ID || '0') === '6');
