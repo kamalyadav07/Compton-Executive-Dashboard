@@ -222,7 +222,6 @@ export const ALLOWED_BITRIX_REPS = [
   'Sandeep Vahi',
   'Rohit Yadav',
   'Taniya Negi',
-  'Tausif Ahmad',
   'Ashok Kumar'
 ] as const;
 

@@ -9,7 +9,6 @@ import {
   AlertCircle, 
   Search,
   Package,
-  Layers,
   DollarSign,
   PieChart,
   BarChart3,
@@ -17,10 +16,14 @@ import {
   Building2,
   Share2,
   FolderKanban,
-  PlayCircle,
-  AlertTriangle,
-  TrendingDown
+  TrendingDown,
+  Target
 } from 'lucide-react';
+import { 
+  COMPANY_MONTHLY_TARGET, 
+  COMPANY_YEARLY_TARGET, 
+  INDIVIDUAL_REP_MONTHLY_TARGETS 
+} from '../../config/salesTargets';
 import type { OrderRecord, OperationalKPIMetrics } from '../../types/orders';
 import type { DealRecord } from '../../types/sales';
 import { getStoredBitrixCache, normalizeBitrixSource, type BitrixSyncResult } from '../../engine/bitrixService';
@@ -79,6 +82,64 @@ const getCurrentMonthStr = (): string => {
   const now = new Date();
   const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
   return `${shortMonthNames[now.getMonth()]} ${now.getFullYear()}`;
+};
+
+const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({ 
+  percentage, 
+  label = "billed"
+}) => {
+  const clamped = Math.min(100, Math.max(0, percentage));
+  const radius = 44;
+  const strokeWidth = 8.5;
+  const arcLength = Math.PI * radius; // ~138.23
+  const strokeDashoffset = arcLength - (arcLength * clamped) / 100;
+  const glowColor = clamped >= 75 ? 'rgba(16,185,129,0.35)' : clamped >= 25 ? 'rgba(6,182,212,0.35)' : 'rgba(16,185,129,0.35)';
+
+  return (
+    <div className="flex flex-col items-center justify-center relative select-none w-36 px-1">
+      <div className="relative w-36 h-20 flex items-end justify-center overflow-visible">
+        <svg className="w-full h-full overflow-visible" viewBox="0 0 108 58">
+          <defs>
+            <linearGradient id="halfGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+              <stop offset="0%" stopColor="#06b6d4" />
+              <stop offset="50%" stopColor="#10b981" />
+              <stop offset="100%" stopColor="#34d399" />
+            </linearGradient>
+          </defs>
+          {/* Background Track Arc */}
+          <path
+            d="M 10 50 A 44 44 0 0 1 98 50"
+            fill="none"
+            stroke="#1e293b"
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+          />
+          {/* Filled Progress Arc */}
+          <path
+            d="M 10 50 A 44 44 0 0 1 98 50"
+            fill="none"
+            stroke="url(#halfGaugeGrad)"
+            strokeWidth={strokeWidth}
+            strokeDasharray={arcLength}
+            strokeDashoffset={strokeDashoffset}
+            strokeLinecap="round"
+            className="transition-all duration-1000 ease-out"
+            style={{ filter: `drop-shadow(0 0 8px ${glowColor})` }}
+          />
+        </svg>
+
+        {/* Centered Metric inside arch */}
+        <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 text-center">
+          <span className="text-2xl font-black text-white font-mono tracking-tight leading-none drop-shadow-md">
+            {clamped.toFixed(0)}%
+          </span>
+          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+            {label}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
 };
 
 function matchesDateFilter(dateStr: string | undefined | null, filterVal: string | undefined | null): boolean {
@@ -374,9 +435,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     const unbilledOrdersCount = unbilledList.length;
     const unbilledOrdersValue = unbilledList.reduce((s, o) => s + o.amount, 0);
 
-    const salesOrdersCreatedCount = activeOrders.length;
-    const salesOrdersCreatedValue = activeOrders.reduce((s, o) => s + o.amount, 0);
-
     // 2. Filtered Bitrix Deals
     const matchDealFilterBase = (d: DealRecord) => {
       if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
@@ -398,16 +456,47 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     const matchDealFilterWithDate = (d: DealRecord) => {
       if (!matchDealFilterBase(d)) return false;
 
+      const dDateStr = d.date || '';
+
       if (startDate && endDate) {
-        const dDateStr = d.date || d.monthYear || '';
-        if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
+        const dIso = dDateStr.split(/[\sT]+/)[0];
+        if (dIso && (dIso < startDate || dIso > endDate)) return false;
       } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
-        const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
-        if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
+        if (!matchesDateFilter(dDateStr, dateFilter)) return false;
       }
 
       return true;
     };
+
+    // Bitrix Deals Created strictly in the filtered Date Period
+    const getDealCreationDate = (d: DealRecord): string => {
+      if (d.rawRecord?.DATE_CREATE) return String(d.rawRecord.DATE_CREATE);
+      if (d.rawRecord?.dateCreate) return String(d.rawRecord.dateCreate);
+      if (d.type === 'in_progress' && d.date) return String(d.date);
+      return d.date || '';
+    };
+
+    const matchBitrixCreatedWithDate = (d: DealRecord) => {
+      if (!matchDealFilterBase(d)) return false;
+      const creationDateStr = getDealCreationDate(d);
+      if (!creationDateStr) return false;
+
+      if (startDate && endDate) {
+        const dIso = creationDateStr.split(/[\sT]+/)[0];
+        if (dIso && (dIso < startDate || dIso > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        if (!matchesDateFilter(creationDateStr, dateFilter)) return false;
+      }
+      return true;
+    };
+
+    const allBitrixDealsList = bitrixData ? [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress] : (allRecords || []);
+    const bitrixCreatedDeals = allBitrixDealsList.filter(matchBitrixCreatedWithDate);
+
+    const salesOrdersCreatedCount = bitrixData ? bitrixCreatedDeals.length : activeOrders.length;
+    const salesOrdersCreatedValue = bitrixData 
+      ? bitrixCreatedDeals.reduce((s, d) => s + (d.netRevenue || (d.grossRevenue ? splitGst(d.grossRevenue, true).netRevenue : 0)), 0)
+      : activeOrders.reduce((s, o) => s + o.amount, 0);
 
     const wonList = bitrixData ? bitrixData.won.filter(matchDealFilterWithDate) : [];
     const lostList = bitrixData ? bitrixData.lost.filter(matchDealFilterWithDate) : [];
@@ -514,6 +603,50 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     }
     return `₹${val.toLocaleString('en-IN')}`;
   };
+
+  const totalOrdersValue = kpis.dealsWonValue;
+  const totalOrdersCount = kpis.dealsWonCount;
+  const billedPct = totalOrdersValue > 0 ? Math.min(100, Math.round((kpis.ordersBilledValue / totalOrdersValue) * 100)) : 0;
+
+  // Deal Target & Performance Achievement Metrics
+  const isMonthFilter = Boolean(dateFilter && dateFilter !== 'All Dates' && dateFilter !== 'Custom Range');
+  const targetValue = useMemo(() => {
+    if (repFilter !== 'All') {
+      const repMonthly = INDIVIDUAL_REP_MONTHLY_TARGETS[repFilter] || 4000000;
+      return isMonthFilter ? repMonthly : repMonthly * 12;
+    }
+    return isMonthFilter ? COMPANY_MONTHLY_TARGET : COMPANY_YEARLY_TARGET;
+  }, [repFilter, isMonthFilter]);
+
+  const dealAchievementPct = targetValue > 0 ? Math.min(100, Math.round((kpis.dealsWonValue / targetValue) * 100)) : 0;
+
+  // Project KPIs & Metrics
+  const runningProjectsValue = useMemo(() => {
+    return projectRecords
+      .filter(r => r.status === 'Running' || r.status.toLowerCase() === 'in progress')
+      .reduce((sum, r) => sum + (r.plannedBudget || r.actualCost || 0), 0);
+  }, [projectRecords]);
+
+  // Top Lead Source calculation
+  const topLeadSource = useMemo(() => {
+    const srcMap: Record<string, number> = {};
+    if (bitrixData?.leads && bitrixData.leads.length > 0) {
+      bitrixData.leads.forEach((l: any) => {
+        const rawSrc = l.sourceId || l.rawRecord?.SOURCE_ID || l.rawRecord?.UTM_SOURCE || '';
+        const srcName = normalizeBitrixSource(rawSrc);
+        srcMap[srcName] = (srcMap[srcName] || 0) + 1;
+      });
+    } else if (bitrixData) {
+      const allDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress];
+      allDeals.forEach(d => {
+        const rawSrc = d.leadSource || d.rawRecord?.SOURCE_ID || d.rawRecord?.UTM_SOURCE || '';
+        const srcName = normalizeBitrixSource(rawSrc);
+        srcMap[srcName] = (srcMap[srcName] || 0) + 1;
+      });
+    }
+    const sorted = Object.entries(srcMap).sort((a, b) => b[1] - a[1]);
+    return sorted.length > 0 ? sorted[0][0] : 'India Mart';
+  }, [bitrixData]);
 
   // -------------------------------------------------------------
   // Executive Operational Visual Analytics Configurations
@@ -947,279 +1080,265 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     <div className="space-y-6 animate-fade-in max-w-[1600px] mx-auto py-2">
       {/* 1. 10 CORE METRICS GRID (Exact list matching user image) */}
       <div className="space-y-3">
-        <div className="flex items-center justify-between">
-          <h2 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-            <Layers className="w-4 h-4 text-emerald-400" />
-            <span>Operational Dashboard</span>
-          </h2>
-        </div>
-
-        {/* Row 1: Orders & Leads Overview */}
+        {/* Row 1: Finance Health & Deal Performance Compound KPI Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           
-          {/* 1. TOTAL ORDERS Executive Summary Box */}
-          <div className="lg:col-span-5 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+          {/* 1. Finance Health Executive Compound Card */}
+          <div className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
                 <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
                   <Package className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">TOTAL ORDERS</h3>
-              </div>
-              <div className="flex items-center gap-2">
-                <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                  {kpis.dealsWonCount} Total
-                </span>
-                <span className="text-[11px] font-mono font-bold px-2.5 py-0.5 rounded-md bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                  {formatLakhs(kpis.dealsWonValue)}
-                </span>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Finance Health</h3>
               </div>
             </div>
 
-            {/* Flat Column Breakdown: Billed vs Unbilled */}
-            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
-              {/* Billed Column */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Billed</span>
-                </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-white font-mono">{kpis.ordersBilledCount}</span>
-                  <span className="text-xs font-bold text-emerald-400 font-mono">{formatLakhs(kpis.ordersBilledValue)}</span>
+            {/* Top Section: Hero Metric (Left) + Half Gauge Arc (Right) */}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL SALES ORDERS CREATED</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-extrabold text-white tracking-tight">{formatLakhs(totalOrdersValue)}</span>
+                  <span className="text-lg font-medium text-slate-500">/</span>
+                  <span className="text-xl font-bold text-slate-300">{totalOrdersCount}</span>
                 </div>
               </div>
 
-              {/* Unbilled Column */}
-              <div className="pl-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>Unbilled</span>
+              {/* Right: Half Gauge Arc Graph */}
+              <div className="flex flex-col items-center justify-center pl-4 shrink-0">
+                <HalfGaugeArc percentage={billedPct} label="billed" />
+              </div>
+            </div>
+
+            {/* Bottom Section: Full Width Sub-Cards Grid (Billed & Unbilled) */}
+            <div className="grid grid-cols-2 gap-3.5 pt-1">
+              {/* Billed Sub-Card */}
+              <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-emerald-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 truncate">
+                    <CheckCircle2 className="w-4 h-4 shrink-0" />
+                    <span>Billed</span>
+                  </div>
+                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0">
+                    {kpis.ordersBilledCount}
+                  </span>
                 </div>
-                <div className="flex items-baseline gap-2">
-                  <span className="text-3xl font-black text-amber-400 font-mono">{kpis.unbilledOrdersCount}</span>
-                  <span className="text-xs font-bold text-amber-400 font-mono">{formatLakhs(kpis.unbilledOrdersValue)}</span>
+                <div className="text-xl font-bold text-emerald-400 tracking-tight">
+                  {formatLakhs(kpis.ordersBilledValue)}
+                </div>
+              </div>
+
+              {/* Unbilled Sub-Card */}
+              <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-amber-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 truncate">
+                    <Clock className="w-4 h-4 shrink-0" />
+                    <span>Unbilled</span>
+                  </div>
+                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
+                    {kpis.unbilledOrdersCount}
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-amber-400 tracking-tight">
+                  {formatLakhs(kpis.unbilledOrdersValue)}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* 2. TOTAL LEADS GENERATED Executive Summary Box */}
-          <div className="lg:col-span-7 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+          {/* 2. SALES DEAL HEALTH Executive Compound Card */}
+          <div className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+            {/* Card Header */}
+            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
+              <div className="flex items-center space-x-2.5">
+                <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
+                  <Target className="w-4 h-4" />
+                </div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Sales Deal Health</h3>
+              </div>
+            </div>
+
+            {/* Top Section: Hero Metric (Left) + Half Gauge Arc (Right) */}
+            <div className="flex items-center justify-between gap-4">
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL DEAL CLOSURE</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-extrabold text-white tracking-tight">{formatLakhs(kpis.dealsWonValue)}</span>
+                  <span className="text-lg font-medium text-slate-500">/</span>
+                  <span className="text-xl font-bold text-slate-300">{kpis.dealsWonCount}</span>
+                </div>
+              </div>
+
+              {/* Right: Half Gauge Arc Graph for Target Achievement */}
+              <div className="flex flex-col items-center justify-center pl-4 shrink-0">
+                <HalfGaugeArc percentage={dealAchievementPct} label="achieved" />
+              </div>
+            </div>
+
+            {/* Bottom Section: Full Width Sub-Cards Grid (In Progress & Lost Deals) */}
+            <div className="grid grid-cols-2 gap-3.5 pt-1">
+              {/* In Progress Sub-Card */}
+              <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-cyan-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400 truncate">
+                    <RefreshCw className="w-4 h-4 shrink-0" />
+                    <span>In Progress</span>
+                  </div>
+                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shrink-0">
+                    {kpis.dealsInProgressCount}
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-cyan-400 tracking-tight">
+                  {formatLakhs(kpis.dealsInProgressValue)}
+                </div>
+              </div>
+
+              {/* Lost Deals Sub-Card */}
+              <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-rose-500/40 transition-all">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400 truncate">
+                    <AlertCircle className="w-4 h-4 shrink-0" />
+                    <span>Lost Deals</span>
+                  </div>
+                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 shrink-0">
+                    {kpis.dealsLostCount}
+                  </span>
+                </div>
+                <div className="text-xl font-bold text-rose-400 tracking-tight">
+                  {formatLakhs(kpis.dealsLostValue)}
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Row 2: Sales Lead Health & Project Health Compound KPI Cards */}
+        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
+          {/* 1. SALES LEAD HEALTH Executive Compound Card */}
+          <div className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
                 <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
                   <Users className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">TOTAL LEADS GENERATED</h3>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Sales Lead Health</h3>
               </div>
-              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-purple-500/10 text-purple-300 border border-purple-500/20">
-                {kpis.totalLeadsGeneratedCount} Total Leads
-              </span>
             </div>
 
-            {/* Flat Column Breakdown: Qualified vs Disqualified vs In Progress */}
-            <div className="grid grid-cols-3 gap-4 divide-x divide-slate-800/80 pt-1">
-              {/* Qualified */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>Qualified</span>
+            {/* Main Content Layout: Left Stack */}
+            <div className="space-y-3">
+              {/* Top: Total Leads Health Count */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL LEADS HEALTH</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-extrabold text-white tracking-tight">{kpis.leadsQualifiedCount}</span>
+                  <span className="text-lg font-medium text-slate-500">/</span>
+                  <span className="text-xl font-bold text-slate-300">{kpis.totalLeadsGeneratedCount}</span>
                 </div>
-                <div className="text-3xl font-black text-white font-mono">{kpis.leadsQualifiedCount}</div>
               </div>
 
-              {/* Disqualified */}
-              <div className="pl-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
-                  <AlertCircle className="w-3.5 h-3.5" />
-                  <span>Disqualified</span>
+              {/* Sub-cards Grid: In Progress, Disqualified, Top Source */}
+              <div className="grid grid-cols-3 gap-3 pt-1">
+                {/* In Progress */}
+                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-purple-500/40 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-400">
+                    <RefreshCw className="w-3.5 h-3.5" />
+                    <span>In Progress</span>
+                  </div>
+                  <div className="text-2xl font-bold text-white tracking-tight">
+                    {kpis.leadsInProgressCount}
+                  </div>
                 </div>
-                <div className="text-3xl font-black text-rose-400 font-mono">{kpis.leadsDisqualifiedCount}</div>
-              </div>
 
-              {/* In Progress */}
-              <div className="pl-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-400">
-                  <RefreshCw className="w-3.5 h-3.5" />
-                  <span>In Progress</span>
+                {/* Disqualified */}
+                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-rose-500/40 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                    <AlertCircle className="w-3.5 h-3.5" />
+                    <span>Disqualified</span>
+                  </div>
+                  <div className="text-2xl font-bold text-rose-400 tracking-tight">
+                    {kpis.leadsDisqualifiedCount}
+                  </div>
                 </div>
-                <div className="text-3xl font-black text-purple-300 font-mono">{kpis.leadsInProgressCount}</div>
+
+                {/* Top Source */}
+                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-amber-500/40 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                    <Share2 className="w-3.5 h-3.5" />
+                    <span>Top Source</span>
+                  </div>
+                  <div className="text-sm font-bold text-amber-300 truncate tracking-tight pt-0.5">
+                    {topLeadSource}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
-        </div>
-
-        {/* Row 2: Deals Pipeline Overview KPI Cards */}
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-5">
-          {/* Deals Won Till Date */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-all">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-              <span className="text-xs font-bold text-emerald-300 uppercase tracking-wider flex items-center gap-2">
-                <TrendingUp className="w-4 h-4 text-emerald-400" />
-                Deals Won Till Date
-              </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-                Won
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-black text-white font-mono">{kpis.dealsWonCount}</span>
-              <span className="text-sm font-bold text-emerald-400 font-mono">{formatLakhs(kpis.dealsWonValue)}</span>
-            </div>
-          </div>
-
-          {/* Deals Lost Till Date */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-all">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-              <span className="text-xs font-bold text-rose-300 uppercase tracking-wider flex items-center gap-2">
-                <AlertCircle className="w-4 h-4 text-rose-400" />
-                Deals Lost Till Date
-              </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-rose-500/10 text-rose-400 border border-rose-500/20">
-                Lost
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-black text-rose-400 font-mono">{kpis.dealsLostCount}</span>
-              <span className="text-sm font-bold text-rose-400 font-mono">{formatLakhs(kpis.dealsLostValue)}</span>
-            </div>
-          </div>
-
-          {/* Deals In progress Till Date */}
-          <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-3 hover:border-slate-700/80 transition-all">
-            <div className="flex items-center justify-between border-b border-slate-800/80 pb-2.5">
-              <span className="text-xs font-bold text-amber-300 uppercase tracking-wider flex items-center gap-2">
-                <RefreshCw className="w-4 h-4 text-amber-400 animate-spin-slow" />
-                Deals In Progress
-              </span>
-              <span className="text-[10px] font-mono font-bold px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 border border-amber-500/20">
-                Active
-              </span>
-            </div>
-            <div className="flex items-baseline justify-between pt-1">
-              <span className="text-3xl font-black text-white font-mono">{kpis.dealsInProgressCount}</span>
-              <span className="text-sm font-bold text-amber-400 font-mono">{formatLakhs(kpis.dealsInProgressValue)}</span>
-            </div>
-          </div>
-        </div>
-
-        {/* Row 3: Project Execution & Portfolio Health KPI Cards */}
-        <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          {/* GROUP 1: TOTAL PROJECT SUMMARY CARD (Running | Completed) */}
-          <div className="lg:col-span-4 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
-            {/* Card Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
-                  <FolderKanban className="w-4 h-4" />
-                </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">TOTAL PROJECT</h3>
-              </div>
-              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-blue-500/10 text-blue-300 border border-blue-500/20">
-                {projectKpis.totalProjects} Total
-              </span>
-            </div>
-
-            {/* Flat Column Breakdown: Running vs Completed */}
-            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
-              {/* Running */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400">
-                  <PlayCircle className="w-3.5 h-3.5 animate-spin-slow" />
-                  <span>Running</span>
-                </div>
-                <div className="text-3xl font-black text-white font-mono">{projectKpis.projectsRunning}</div>
-              </div>
-
-              {/* Completed */}
-              <div className="pl-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <CheckCircle2 className="w-3.5 h-3.5" />
-                  <span>Completed</span>
-                </div>
-                <div className="text-3xl font-black text-white font-mono">{projectKpis.totalProjects - projectKpis.projectsRunning}</div>
-              </div>
-            </div>
-          </div>
-
-          {/* GROUP 2: RUNNING PROJECTS SCHEDULE CARD (Delayed | Ontime) */}
-          <div className="lg:col-span-4 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+          {/* 2. PROJECT HEALTH Executive Compound Card */}
+          <div className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
                 <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
-                  <PlayCircle className="w-4 h-4" />
+                  <FolderKanban className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">RUNNING PROJECTS</h3>
-              </div>
-              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
-                {projectKpis.projectsRunning} Running
-              </span>
-            </div>
-
-            {/* Flat Column Breakdown: Delayed vs Ontime */}
-            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
-              {/* Delayed */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
-                  <AlertTriangle className="w-3.5 h-3.5" />
-                  <span>Delayed</span>
-                </div>
-                <div className="text-3xl font-black text-rose-400 font-mono">{projectKpis.delayedProjects}</div>
-              </div>
-
-              {/* On Time */}
-              <div className="pl-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <Clock className="w-3.5 h-3.5" />
-                  <span>On-Time</span>
-                </div>
-                <div className="text-3xl font-black text-white font-mono">{projectKpis.onTimeProjects}</div>
+                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Project Health</h3>
               </div>
             </div>
-          </div>
 
-          {/* GROUP 3: BUDGET STATUS CARD (Under Budget | Over Budget) */}
-          <div className="lg:col-span-4 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
-            {/* Card Header */}
-            <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
-              <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center border border-teal-500/20">
-                  <TrendingDown className="w-4 h-4" />
+            {/* Main Content Layout: Left Stack */}
+            <div className="space-y-3">
+              {/* Top: Running Projects Value & Count */}
+              <div>
+                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">RUNNING PROJECTS</span>
+                <div className="flex items-baseline gap-2 mt-1">
+                  <span className="text-3xl font-extrabold text-white tracking-tight">{formatLakhs(runningProjectsValue)}</span>
+                  <span className="text-lg font-medium text-slate-500">/</span>
+                  <span className="text-xl font-bold text-slate-300">{projectKpis.projectsRunning}</span>
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">BUDGET STATUS</h3>
-              </div>
-              <span className="text-[11px] font-mono font-semibold px-2.5 py-0.5 rounded-md bg-teal-500/10 text-teal-300 border border-teal-500/20">
-                Budget Health
-              </span>
-            </div>
-
-            {/* Flat Column Breakdown: Under Budget vs Over Budget */}
-            <div className="grid grid-cols-2 gap-4 divide-x divide-slate-800/80 pt-1">
-              {/* Under Budget */}
-              <div className="space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
-                  <TrendingDown className="w-3.5 h-3.5" />
-                  <span>Under Budget</span>
-                </div>
-                <div className="text-3xl font-black text-white font-mono">{projectKpis.underBudgetProjects}</div>
               </div>
 
-              {/* Over Budget */}
-              <div className="pl-4 space-y-1.5">
-                <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
-                  <TrendingUp className="w-3.5 h-3.5" />
-                  <span>Over Budget</span>
+              {/* Sub-cards Grid: On-Time, Under Budget, Over Budget */}
+              <div className="grid grid-cols-3 gap-3 pt-1">
+                {/* On-Time */}
+                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-emerald-500/40 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                    <Clock className="w-3.5 h-3.5" />
+                    <span>On-Time</span>
+                  </div>
+                  <div className="text-2xl font-bold text-white tracking-tight">
+                    {projectKpis.onTimeProjects}
+                  </div>
                 </div>
-                <div className="text-3xl font-black text-rose-400 font-mono">{projectKpis.overBudgetProjects}</div>
+
+                {/* Under Budget */}
+                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-cyan-500/40 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400">
+                    <TrendingDown className="w-3.5 h-3.5" />
+                    <span>Under Budget</span>
+                  </div>
+                  <div className="text-2xl font-bold text-cyan-400 tracking-tight">
+                    {projectKpis.underBudgetProjects}
+                  </div>
+                </div>
+
+                {/* Over Budget */}
+                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-rose-500/40 transition-all">
+                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                    <TrendingUp className="w-3.5 h-3.5" />
+                    <span>Over Budget</span>
+                  </div>
+                  <div className="text-2xl font-bold text-rose-400 tracking-tight">
+                    {projectKpis.overBudgetProjects}
+                  </div>
+                </div>
               </div>
             </div>
           </div>
-
         </div>
       </div>
 

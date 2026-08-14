@@ -172,7 +172,7 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
       'Stage': d.stage,
       'Customer / Client': d.customer,
       'Deal Name': d.rawRecord?.TITLE || d.rawRecord?.['Deal Name'] || `${d.customer} - ${d.solution}`,
-      'Net Revenue (₹)': d.netRevenue,
+      'Total Value (₹)': d.netRevenue,
       'Gross Revenue (₹)': d.grossRevenue,
       'Sales Rep': d.salesRep,
       'Industry': d.industry,
@@ -272,11 +272,11 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
                 <span className="text-lg font-extrabold text-blue-400 font-mono">{searchFilteredDeals.length} Deals</span>
               </div>
               <div className="glass-panel p-3 rounded-xl border border-slate-800 bg-slate-950/60">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Net Revenue / Value</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Total Value</span>
                 <span className="text-lg font-extrabold text-emerald-400 font-mono">₹{totalNetRevenueSum.toLocaleString('en-IN')}</span>
               </div>
               <div className="glass-panel p-3 rounded-xl border border-slate-800 bg-slate-950/60">
-                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg Deal Net Value</span>
+                <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Avg Deal Value</span>
                 <span className="text-lg font-extrabold text-indigo-400 font-mono">
                   ₹{searchFilteredDeals.length > 0 ? Math.round(totalNetRevenueSum / searchFilteredDeals.length).toLocaleString('en-IN') : 0}
                 </span>
@@ -339,7 +339,7 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
                     <th className="p-3 whitespace-nowrap min-w-[120px]">Status / Stage</th>
                     <th className="p-3 whitespace-nowrap min-w-[180px]">Customer / Client</th>
                     <th className="p-3 min-w-[260px]">Opportunity Title</th>
-                    <th className="p-3 whitespace-nowrap min-w-[130px]">Net Value (₹)</th>
+                    <th className="p-3 whitespace-nowrap min-w-[130px]">Total Value (₹)</th>
                     <th 
                       onClick={toggleSalesSort}
                       className="p-3 whitespace-nowrap min-w-[150px] cursor-pointer hover:bg-slate-800/80 transition-colors group select-none"
@@ -437,7 +437,7 @@ export const KPICardDetailModal: React.FC<KPICardDetailModalProps> = ({
             <div className="flex items-center justify-between pt-2 border-t border-slate-800 text-xs shrink-0">
               <div className="flex items-center gap-4 text-slate-400">
                 <span>Showing: <strong className="text-slate-100">{searchFilteredDeals.length}</strong> deals</span>
-                <span>Total Net Revenue: <strong className="text-emerald-400 font-mono font-bold">₹{totalNetRevenueSum.toLocaleString('en-IN')}</strong></span>
+                <span>Total Value: <strong className="text-emerald-400 font-mono font-bold">₹{totalNetRevenueSum.toLocaleString('en-IN')}</strong></span>
               </div>
               <button
                 onClick={onClose}

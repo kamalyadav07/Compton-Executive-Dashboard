@@ -49,7 +49,7 @@ export const ExecutiveHeaderSearchBar: React.FC<ExecutiveHeaderSearchBarProps> =
   }, []);
 
   // Filter options lists
-  const ALLOWED_REPS = ['Ashok Kumar', 'Jitesh Chander', 'Rohit Yadav', 'Sandeep Vahi', 'Taniya Negi', 'Tausif Ahmad'];
+  const ALLOWED_REPS = ['Ashok Kumar', 'Jitesh Chander', 'Rohit Yadav', 'Sandeep Vahi', 'Taniya Negi'];
   const salesReps = useMemo(() => {
     const set = new Set(allRecords.map(r => r.salesRep));
     return ALLOWED_REPS.filter(r => set.has(r) || true);

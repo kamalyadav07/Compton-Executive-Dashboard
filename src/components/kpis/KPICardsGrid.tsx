@@ -2,14 +2,15 @@ import React, { useState, useMemo } from 'react';
 import {
   Target,
   PieChart,
-  Activity,
   CheckCircle,
   ShieldAlert,
   Clock,
-  Zap,
   BarChart3,
   Layers,
-  Trophy
+  Trophy,
+  Crown,
+  Medal,
+  Award
 } from 'lucide-react';
 import type { KPIMetrics, DealRecord } from '../../types/sales';
 import { KPICardDetailModal } from './KPICardDetailModal';
@@ -96,7 +97,7 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
       return closeDate >= fyBounds.start && closeDate <= fyBounds.end;
     });
 
-    const achievementValue = fyWonList.reduce((acc, r) => acc + (r.grossRevenue || r.netRevenue || 0), 0);
+    const achievementValue = fyWonList.reduce((acc, r) => acc + (r.netRevenue ?? r.grossRevenue ?? 0), 0);
     const target = kpis.yearlyTarget || 200000000;
     const achievementPct = target > 0 ? Math.round((achievementValue / target) * 1000) / 10 : 0;
     const remainingTarget = Math.max(0, target - achievementValue);
@@ -113,14 +114,14 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
   const wonDealsValue = useMemo(() => {
     const wonList = activeRecordsList.filter(r => r.type === 'won' || r.stage?.toLowerCase().includes('won'));
     if (wonList.length > 0) {
-      return wonList.reduce((acc, r) => acc + (r.grossRevenue || r.netRevenue || 0), 0);
+      return wonList.reduce((acc, r) => acc + (r.netRevenue ?? r.grossRevenue ?? 0), 0);
     }
-    return kpis.totalGrossRevenue;
-  }, [activeRecordsList, kpis.totalGrossRevenue]);
+    return kpis.totalNetRevenue;
+  }, [activeRecordsList, kpis.totalNetRevenue]);
 
   const lostDealsValue = useMemo(() => {
     const lostList = activeRecordsList.filter(r => r.type === 'lost' || r.stage?.toLowerCase().includes('lost'));
-    return lostList.reduce((acc, r) => acc + (r.grossRevenue || r.netRevenue || 0), 0);
+    return lostList.reduce((acc, r) => acc + (r.netRevenue ?? r.grossRevenue ?? 0), 0);
   }, [activeRecordsList]);
 
   // 3. Mini Target Achievement Leaderboard for 4 Key Reps (Ranked by % Descending)
@@ -157,12 +158,7 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
 
   return (
     <div className="w-full mb-8 space-y-5">
-      <div className="flex items-center justify-between">
-        <h3 className="text-xs font-extrabold uppercase tracking-wider text-slate-400 flex items-center gap-2">
-          <Zap className="w-4 h-4 text-amber-400" />
-          <span>Deal Dashboard</span>
-        </h3>
-      </div>
+
 
       {/* 4 Sales Persons Mini Target Achievement Leaderboard */}
       <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl space-y-4">
@@ -189,10 +185,16 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
               'from-cyan-500/10 via-cyan-500/5 to-transparent border-slate-800 hover:border-cyan-500/40'
             ];
             const badgeStyles = [
-              'bg-gradient-to-r from-amber-500 to-yellow-500 text-slate-950 font-black shadow-lg shadow-amber-500/20',
-              'bg-slate-300 text-slate-950 font-black',
-              'bg-amber-700 text-white font-black',
-              'bg-slate-800 text-slate-300 border border-slate-700'
+              'bg-amber-500/15 text-amber-300 border border-amber-500/40 shadow-sm shadow-amber-500/10 backdrop-blur-md font-bold',
+              'bg-slate-400/15 text-slate-200 border border-slate-400/30 backdrop-blur-md font-bold',
+              'bg-amber-700/15 text-amber-400 border border-amber-700/40 backdrop-blur-md font-bold',
+              'bg-slate-800/60 text-slate-400 border border-slate-700/60 backdrop-blur-md font-medium'
+            ];
+            const rankIcons = [
+              <Crown key="1" className="w-3.5 h-3.5 text-amber-400 shrink-0" />,
+              <Medal key="2" className="w-3.5 h-3.5 text-slate-300 shrink-0" />,
+              <Award key="3" className="w-3.5 h-3.5 text-amber-500 shrink-0" />,
+              <Award key="4" className="w-3.5 h-3.5 text-slate-400 shrink-0" />
             ];
 
             return (
@@ -204,17 +206,15 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
                   <span className="text-xs font-bold text-white truncate group-hover:text-amber-300 transition-colors">
                     {rep.name}
                   </span>
-                  <span className={`text-[10px] px-2 py-0.5 rounded-full font-mono ${badgeStyles[index] || badgeStyles[3]}`}>
-                    #{index + 1}
+                  <span className={`text-[10px] px-2.5 py-1 rounded-full font-mono flex items-center gap-1.5 ${badgeStyles[index] || badgeStyles[3]}`}>
+                    {rankIcons[index] || rankIcons[3]}
+                    <span>#{index + 1}</span>
                   </span>
                 </div>
 
                 <div className="space-y-1.5">
                   <div className={`text-2xl font-black font-mono tracking-tight ${rep.pct >= 100 ? 'text-emerald-400' : index === 0 ? 'text-amber-400' : 'text-cyan-400'}`}>
                     {rep.pct.toFixed(1)}%
-                  </div>
-                  <div className="text-[10px] font-medium text-slate-400 uppercase tracking-wider">
-                    Target Achievement
                   </div>
                   
                   {/* Subtle Progress Bar */}
@@ -258,9 +258,12 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
           </div>
 
           {/* Hero Row: Achievement Value + Arc Gauge */}
-          <div className="flex items-center justify-between px-1">
+          <div
+            onClick={() => openCardModal('yearlyAchievement', 'Yearly Deal Closure Value', 'Annual Closed Won Deals Breakdown', <Target className="w-5 h-5 text-blue-400" />)}
+            className="flex items-center justify-between px-1 cursor-pointer group"
+          >
             <div>
-              <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">YEARLY SALES ACHIEVEMENT</span>
+              <span className="text-[10px] uppercase font-semibold text-slate-400 group-hover:text-blue-400 transition-colors tracking-wider">YEARLY DEAL CLOSURE VALUE</span>
               <div className="text-3xl font-black text-white font-mono mt-1">
                 {formatCurrency(fyMetrics.achievementValue)}
               </div>
@@ -278,16 +281,13 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
               onClick={() => openCardModal('yearlyTarget', 'Yearly Target', 'Annual Revenue Target Breakdown', <Target className="w-5 h-5 text-blue-400" />)}
               className="space-y-1 cursor-pointer group"
             >
-              <span className="text-xs font-semibold text-slate-400 group-hover:text-blue-400 transition-colors">Target</span>
+              <span className="text-xs font-semibold text-slate-400 group-hover:text-blue-400 transition-colors">Target Value</span>
               <div className="text-xl font-black text-white font-mono">{formatCurrency(fyMetrics.target)}</div>
             </div>
 
             {/* Remaining Column */}
-            <div
-              onClick={() => openCardModal('revenueRemaining', 'Revenue Remaining', 'Revenue Achieved & Goal Gap Analysis', <Activity className="w-5 h-5 text-rose-400" />)}
-              className="pl-4 space-y-1 cursor-pointer group"
-            >
-              <span className="text-xs font-semibold text-rose-400 group-hover:text-rose-300 transition-colors">Remaining</span>
+            <div className="pl-4 space-y-1">
+              <span className="text-xs font-semibold text-rose-400">Remaining Value</span>
               <div className="text-xl font-black text-rose-400 font-mono">{formatCurrency(fyMetrics.remainingTarget)}</div>
             </div>
           </div>
@@ -301,7 +301,7 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
               <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
                 <PieChart className="w-4 h-4" />
               </div>
-              <h4 className="text-xs font-bold text-white tracking-wide uppercase">THIS MONTH DEAL PERFORMANCE</h4>
+              <h4 className="text-xs font-bold text-white tracking-wide uppercase">MONTHLY DEAL PERFORMANCE</h4>
             </div>
             <span className={`text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-md border ${kpis.targetAchievementPct >= 80
                 ? 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20'
@@ -312,9 +312,12 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
           </div>
 
           {/* Hero Row: Achievement Value + Arc Gauge */}
-          <div className="flex items-center justify-between px-1">
+          <div
+            onClick={() => openCardModal('monthlyAchievement', 'Monthly Deal Closure Value', 'Monthly Closed Won Deals Breakdown', <PieChart className="w-5 h-5 text-cyan-400" />)}
+            className="flex items-center justify-between px-1 cursor-pointer group"
+          >
             <div>
-              <span className="text-[10px] uppercase font-semibold text-slate-400 tracking-wider">MONTHLY SALES ACHIEVEMENT</span>
+              <span className="text-[10px] uppercase font-semibold text-slate-400 group-hover:text-cyan-400 transition-colors tracking-wider">MONTHLY DEAL CLOSURE VALUE</span>
               <div className="text-3xl font-black text-white font-mono mt-1">
                 {formatCurrency(kpis.totalNetRevenue || kpis.totalGrossRevenue)}
               </div>
@@ -332,16 +335,13 @@ export const KPICardsGrid: React.FC<KPICardsGridProps> = ({ kpis, records = [], 
               onClick={() => openCardModal('monthlyTarget', 'Monthly Target', 'Monthly Target Configuration & Breakdown', <Target className="w-5 h-5 text-purple-400" />)}
               className="space-y-1 cursor-pointer group"
             >
-              <span className="text-xs font-semibold text-slate-400 group-hover:text-purple-400 transition-colors">Target</span>
+              <span className="text-xs font-semibold text-slate-400 group-hover:text-purple-400 transition-colors">Target Value</span>
               <div className="text-xl font-black text-white font-mono">{formatCurrency(kpis.monthlyTarget)}</div>
             </div>
 
             {/* Remaining Column */}
-            <div
-              onClick={() => openCardModal('revenueRemaining', 'Revenue Remaining', 'Revenue Achieved & Goal Gap Analysis', <Activity className="w-5 h-5 text-rose-400" />)}
-              className="pl-4 space-y-1 cursor-pointer group"
-            >
-              <span className="text-xs font-semibold text-rose-400 group-hover:text-rose-300 transition-colors">Remaining</span>
+            <div className="pl-4 space-y-1">
+              <span className="text-xs font-semibold text-rose-400">Remaining Value</span>
               <div className="text-xl font-black text-rose-400 font-mono">{formatCurrency(kpis.revenueRemaining)}</div>
             </div>
           </div>

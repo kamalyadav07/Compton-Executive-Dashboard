@@ -55,7 +55,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
     };
   }, [selectedRep]);
 
-  const repNames = Array.from(new Set(records.map(r => r.salesRep))).filter(Boolean);
+  const repNames = Array.from(new Set(records.map(r => r.salesRep)))
+    .filter(name => Boolean(name) && name !== 'Tausif Ahmad' && name.toLowerCase() !== 'tausif ahmad');
 
   const defaultAvatars: Record<string, string> = {
     'Vikram Mehta': 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150',
@@ -168,7 +169,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
         'Lead Source': r.leadSource,
         'Gross Revenue (₹)': grossRev,
         'GST 18% (₹)': gstVal,
-        'Net Revenue (₹)': r.netRevenue,
+        'Total Value (₹)': r.netRevenue,
         'Industry': r.industry,
         'Solution Type': r.solution,
         'Created Date': r.rawRecord?.['Created'] || r.date,
@@ -203,7 +204,7 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
             <tr>
               <th className="p-3">Rank</th>
               <th className="p-3">Sales Representative</th>
-              <th className="p-3">Total Revenue (Income)</th>
+              <th className="p-3">Won Deal Value</th>
               <th className="p-3">Won / Lost</th>
               <th className="p-3">Win Rate %</th>
               <th className="p-3">Active Pipeline</th>
@@ -242,17 +243,12 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                 </td>
 
                 <td className="p-3">
-                  <div className="flex items-center space-x-3">
-                    <div className="w-8 h-8 rounded-lg bg-slate-800 border border-slate-700/80 flex items-center justify-center text-cyan-300 font-bold text-xs font-mono shrink-0 shadow-inner group-hover:border-blue-500 transition-colors">
-                      {rep.name.split(' ').map(n => n[0]).join('')}
-                    </div>
-                    <div>
-                      <span className="font-bold text-slate-100 group-hover:text-blue-400 transition-colors flex items-center gap-1">
-                        {rep.name}
-                        <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-blue-400" />
-                      </span>
-                      <span className="text-[10px] text-slate-400 font-mono">Click to view deals</span>
-                    </div>
+                  <div>
+                    <span className="font-bold text-slate-100 group-hover:text-blue-400 transition-colors flex items-center gap-1">
+                      {rep.name}
+                      <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-blue-400" />
+                    </span>
+                    <span className="text-[10px] text-slate-400 font-mono">Click to view deals</span>
                   </div>
                 </td>
 

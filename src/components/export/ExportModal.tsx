@@ -231,7 +231,7 @@ Net Variance: ${varianceNet > 0 ? `+₹${varianceNet.toLocaleString('en-IN')} (O
       'Lead Source': r.leadSource,
       'Gross Revenue (₹)': grossRev,
       'GST 18% (₹)': gstVal,
-      'Net Revenue (₹)': r.netRevenue,
+      'Total Value (₹)': r.netRevenue,
       'Industry': r.industry,
       'Solution Type': r.solution,
       'Created Date': r.rawRecord?.['Created'] || r.date,

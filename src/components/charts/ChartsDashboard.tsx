@@ -920,16 +920,9 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
           <div style="font-size:10px;color:#64748b;margin-top:4px;">Click to view deals worksheet</div>`;
       }
     },
-    legend: {
-      top: '3%',
-      right: '2%',
-      textStyle: { color: '#94a3b8', fontSize: 10.5, fontWeight: '500' },
-      itemWidth: 12,
-      itemHeight: 8,
-      itemGap: 14
-    },
+    legend: { show: false },
     grid: {
-      top: '18%',
+      top: '12%',
       left: '2%',
       right: '3%',
       bottom: '8%',
@@ -1318,7 +1311,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
         'Lead Source': r.leadSource,
         'Gross Revenue (₹)': grossRev,
         'GST 18% (₹)': gstVal,
-        'Net Revenue (₹)': r.netRevenue,
+        'Total Value (₹)': r.netRevenue,
         'Industry': r.industry,
         'Solution Type': r.solution,
         'Created Date': r.rawRecord?.['Created'] || r.date,
@@ -1377,7 +1370,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
 
       {/* Row 4: Industry Revenue & Reasons Lost */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="SALES BY INDUSTRY" icon={<Award className="w-4 h-4 text-amber-400" />}>
+        <ChartContainer title="DEAL CLOSURE BY INDUSTRY" icon={<Award className="w-4 h-4 text-amber-400" />}>
           <ReactECharts option={industryOption} style={{ height: '280px' }} />
         </ChartContainer>
 
@@ -1388,7 +1381,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
 
       {/* Row 5: Solution Treemap & Deal Size Bracket Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="REVENUE BY SOLUTION TYPE" icon={<Layers className="w-4 h-4 text-cyan-400" />}>
+        <ChartContainer title="DEAL CLOSURE BY SOLUTION TYPE" icon={<Layers className="w-4 h-4 text-cyan-400" />}>
           <ReactECharts option={treemapOption} notMerge={true} style={{ height: '280px' }} />
         </ChartContainer>
 

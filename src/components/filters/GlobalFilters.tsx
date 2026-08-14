@@ -30,7 +30,7 @@ export const GlobalFilters: React.FC<GlobalFiltersProps> = ({
   const [isSuggestionsOpen, setIsSuggestionsOpen] = useState(false);
   const searchContainerRef = useRef<HTMLDivElement>(null);
 
-  const ALLOWED_REPS = ['Ashok Kumar', 'Jitesh Chander', 'Rohit Yadav', 'Sandeep Vahi', 'Taniya Negi', 'Tausif Ahmad'];
+  const ALLOWED_REPS = ['Ashok Kumar', 'Jitesh Chander', 'Rohit Yadav', 'Sandeep Vahi', 'Taniya Negi'];
   const salesReps = useMemo(() => {
     const set = new Set(allRecords.map(r => r.salesRep));
     return ALLOWED_REPS.filter(r => set.has(r) || true);
