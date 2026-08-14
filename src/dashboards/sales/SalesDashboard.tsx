@@ -300,6 +300,14 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   useEffect(() => {
     loadAllData();
+    const interval = setInterval(() => {
+      fetchOrdersSheetData(ordersUrl).then(sRes => {
+        if (sRes && sRes.orders && sRes.orders.length > 0) {
+          setSheetOrders(sRes.orders);
+        }
+      }).catch(() => {});
+    }, 30000);
+    return () => clearInterval(interval);
   }, [ordersUrl]);
 
   const projectKpis = useMemo(() => {
@@ -1503,7 +1511,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 <th className="p-3">Sales Rep</th>
                 <th className="p-3 text-right">Order Amount (₹)</th>
                 <th className="p-3">Creation Date (Bitrix ISO)</th>
-                <th className="p-3">Billed Date</th>
                 <th className="p-3 text-center">Billing Status</th>
               </tr>
             </thead>
@@ -1520,9 +1527,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                       ₹{ord.amount.toLocaleString('en-IN')}
                     </td>
                     <td className="p-3 font-mono text-slate-300">{ord.isoCreationDate || ord.orderDate}</td>
-                    <td className="p-3 font-mono text-slate-300">
-                      {ord.status === 'Billed' ? ord.billedDate : <span className="text-amber-400/80 italic">Not Billed</span>}
-                    </td>
                     <td className="p-3 text-center">
                       {ord.status === 'Billed' ? (
                         <span className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md inline-flex items-center gap-1">

@@ -6,12 +6,12 @@ import { mapBitrixAssignedUser } from './bitrixService';
 const DEFAULT_ORDERS_SHEET_FALLBACK = 'https://docs.google.com/spreadsheets/d/1HUkXoXIBgEBghfoVvazgunX-Cq66YTEHd96ke1scugo/edit?gid=1388928136#gid=1388928136';
 export const DEFAULT_ORDERS_SHEET_URL = import.meta.env.VITE_ORDERS_SHEET_URL || DEFAULT_ORDERS_SHEET_FALLBACK;
 
-const STORAGE_KEY = 'sales_dashboard_orders_sheet_url';
+const STORAGE_KEY = 'sales_dashboard_orders_sheet_url_v2';
 
 export const getStoredOrdersSheetUrl = (): string => {
   try {
     const stored = localStorage.getItem(STORAGE_KEY);
-    if (!stored || stored.trim() === '' || stored.includes('1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU')) {
+    if (!stored || stored.trim() === '' || stored.includes('1-HRp_m7bQkFUifOEV8wI8Yn2OpAMJtOnu6mH-lxUbfU') || !stored.includes('1HUkXoXIBgEBghfoVvazgunX-Cq66YTEHd96ke1scugo')) {
       localStorage.setItem(STORAGE_KEY, DEFAULT_ORDERS_SHEET_URL);
       return DEFAULT_ORDERS_SHEET_URL;
     }
@@ -56,12 +56,18 @@ export const fetchOrdersSheetData = async (
     return { orders: [], status: 'error', message: 'No Orders Google Sheet URL provided.' };
   }
 
-  const csvUrl = convertToCsvExportUrl(rawUrl);
+  const baseCsvUrl = convertToCsvExportUrl(rawUrl);
+  const csvUrl = `${baseCsvUrl}${baseCsvUrl.includes('?') ? '&' : '?'}_t=${Date.now()}`;
 
   try {
     const res = await fetch(csvUrl, {
       method: 'GET',
-      headers: { 'Accept': 'text/csv,text/plain,application/csv,*/*' }
+      headers: { 
+        'Accept': 'text/csv,text/plain,application/csv,*/*',
+        'Cache-Control': 'no-cache, no-store, must-revalidate',
+        'Pragma': 'no-cache'
+      },
+      cache: 'no-store'
     });
 
     if (!res.ok) {
@@ -82,15 +88,27 @@ export const fetchOrdersSheetData = async (
       return { orders: [], status: 'success', message: 'No data rows found in Google Sheet.' };
     }
 
-    // Locate column header row (contains "Deal Id", "Deal Name", "S/N", or "Billing Status")
-    let headerRowIdx = 0;
-    for (let i = 0; i < Math.min(lines.length, 5); i++) {
+    // Locate true column header row (skipping banner/title rows)
+    let headerRowIdx = -1;
+    for (let i = 0; i < Math.min(lines.length, 8); i++) {
       const parsed = parseCsvLine(lines[i]).map(h => h.toLowerCase());
-      if (parsed.some(h => h.includes('deal id') || h.includes('deal name') || h.includes('billing status') || h.includes('s/n'))) {
+      const matchCount = parsed.filter(h => 
+        h.includes('deal id') || 
+        h.includes('deal name') || 
+        h.includes('deal value') || 
+        h.includes('billed value') || 
+        h.includes('created date') || 
+        h.includes('billing status') ||
+        h === 's/n' ||
+        h === 'ccpl no.'
+      ).length;
+
+      if (matchCount >= 2) {
         headerRowIdx = i;
         break;
       }
     }
+    if (headerRowIdx === -1) headerRowIdx = 0;
 
     const headers = parseCsvLine(lines[headerRowIdx]).map(h => h.toLowerCase());
 
@@ -126,23 +144,14 @@ export const fetchOrdersSheetData = async (
         customerName = dealName;
       }
 
-      // Parse Amount: Take amount without 18% GST (prioritize net value without tax, or divide gross value with tax by 1.18)
+      // Parse Amount (without 18% GST)
       const rawAmtWithTax = idxValWithTax >= 0 ? row[idxValWithTax] : '';
       const rawAmtNet = idxValNet >= 0 ? row[idxValNet] : '';
       const rawBilledVal = idxBilledVal >= 0 ? row[idxBilledVal] : '';
       
-      const numWithTax = parseFloat(String(rawAmtWithTax || '').replace(/[^0-9.]/g, '')) || 0;
-      const numNet = parseFloat(String(rawAmtNet || '').replace(/[^0-9.]/g, '')) || 0;
-      const numBilled = parseFloat(String(rawBilledVal || '').replace(/[^0-9.]/g, '')) || 0;
-
-      let amount = 0;
-      if (numNet > 0) {
-        amount = numNet;
-      } else if (numWithTax > 0) {
-        amount = splitGst(numWithTax, true).netRevenue;
-      } else if (numBilled > 0) {
-        amount = splitGst(numBilled, true).netRevenue;
-      }
+      const numWithTax = parseFloat(String(rawAmtWithTax || '').replace(/,/g, '')) || 0;
+      const numNet = parseFloat(String(rawAmtNet || '').replace(/,/g, '')) || 0;
+      const numBilled = parseFloat(String(rawBilledVal || '').replace(/,/g, '')) || 0;
 
       const isoCreationDate = idxIsoCreated >= 0 ? row[idxIsoCreated] : '';
       const billingDate = idxBillingDate >= 0 ? row[idxBillingDate] : '';
@@ -153,6 +162,17 @@ export const fetchOrdersSheetData = async (
                        (billingDate && billingDate.trim().length > 0 && billingDate !== '-');
 
       const status: 'Billed' | 'Unbilled' = isBilled ? 'Billed' : 'Unbilled';
+
+      let amount = 0;
+      if (isBilled && numBilled > 0) {
+        amount = numBilled;
+      } else if (numNet > 0) {
+        amount = numNet;
+      } else if (numWithTax > 0) {
+        amount = splitGst(numWithTax, true).netRevenue;
+      } else if (numBilled > 0) {
+        amount = numBilled;
+      }
 
       orders.push({
         id: `ORD-${dealId}`,

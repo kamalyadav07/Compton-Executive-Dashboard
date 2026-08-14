@@ -75,5 +75,5 @@ export const convertToCsvExportUrl = (url: string): string => {
     gid = gidMatch[1];
   }
 
-  return `https://docs.google.com/spreadsheets/d/${id}/gviz/tq?tqx=out:csv&gid=${gid}`;
+  return `https://docs.google.com/spreadsheets/d/${id}/export?format=csv&gid=${gid}`;
 };
