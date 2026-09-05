@@ -77,6 +77,22 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
     return 0;
   };
 
+  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+  const normalizeMonthYear = (str?: string): string => {
+    if (!str) return '';
+    const parts = str.trim().split(/\s+/);
+    if (parts.length >= 2) {
+      const mStr = parts[0].toLowerCase().substring(0, 3);
+      const mNum = monthOrderMap[mStr];
+      const yNum = parseInt(parts[1], 10);
+      if (mNum !== undefined && !isNaN(yNum)) {
+        return `${shortMonthNames[mNum]} ${yNum}`;
+      }
+    }
+    return str;
+  };
+
   // -------------------------------------------------------------
   // 1. Monthly Revenue Trend Chart (April 1st to Today • Date Filter Exempt)
   // -------------------------------------------------------------
@@ -93,17 +109,17 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
 
   const monthMap: Record<string, number> = {};
 
-  // Ensure months from April to current month are initialized
+  // Ensure months from April to current month are initialized with 3-letter month abbreviations
   const now = new Date();
   const startMonthDate = new Date(fyBounds.start);
   while (startMonthDate <= now || (startMonthDate.getFullYear() === now.getFullYear() && startMonthDate.getMonth() === now.getMonth())) {
-    const mStr = startMonthDate.toLocaleString('en-IN', { month: 'short', year: 'numeric' });
+    const mStr = `${shortMonthNames[startMonthDate.getMonth()]} ${startMonthDate.getFullYear()}`;
     monthMap[mStr] = 0;
     startMonthDate.setMonth(startMonthDate.getMonth() + 1);
   }
 
   fyWonDeals.forEach(r => {
-    const mKey = r.monthYear;
+    const mKey = normalizeMonthYear(r.monthYear);
     if (mKey) {
       monthMap[mKey] = (monthMap[mKey] || 0) + (r.netRevenue || r.grossRevenue || 0);
     }
@@ -1058,7 +1074,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
 
   // Filter won deals for selected trend month (from allRecords pool)
   const trendMonthDeals = selectedTrendMonth
-    ? (pool.filter(r => r.type === 'won' && r.monthYear === selectedTrendMonth))
+    ? (pool.filter(r => r.type === 'won' && normalizeMonthYear(r.monthYear) === normalizeMonthYear(selectedTrendMonth)))
     : [];
 
   const modalTrendFilteredDeals = trendMonthDeals.filter(r => {
