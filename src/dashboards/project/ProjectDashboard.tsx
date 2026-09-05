@@ -27,6 +27,7 @@ import {
   filterProjectRecords,
   calculateProjectKPIs
 } from '../../engine/projectSheetsService';
+import { fetchServerProjectAnalytics, isServerKPIsEnabled } from '../../engine/apiClient';
 import { scanPortfolioForOverspendRisk, type ProjectHealthSignal } from '../../engine/projectHealthEngine';
 
 const initialProjectFilters: ProjectFilterState = {
@@ -122,11 +123,41 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
     actualCost: 95000
   });
 
-  // Fetch Live Google Sheet Data
+  // Fetch Live Google Sheet Data or Server PostgreSQL Projects
   const handleSyncData = async (urlToFetch = sheetUrl) => {
     setIsSyncing(true);
-    setSyncStatusMsg({ type: 'info', text: 'Fetching latest project data from Google Sheet...' });
+    setSyncStatusMsg({ type: 'info', text: 'Fetching latest project data...' });
     try {
+      if (isServerKPIsEnabled()) {
+        const serverData = await fetchServerProjectAnalytics();
+        if (serverData && Array.isArray(serverData.projects) && serverData.projects.length > 0) {
+          const mappedProjects: ProjectRecord[] = serverData.projects.map((p: any) => ({
+            id: p.external_project_id || p.id,
+            sNo: p.s_no || '1',
+            customerName: p.customer_name,
+            projectName: p.project_name,
+            status: p.status,
+            projectType: p.project_type,
+            startDate: p.start_date || '',
+            plannedEndDate: p.planned_end_date || '',
+            actualEndDate: p.actual_end_date || '',
+            plannedBudget: parseFloat(p.planned_budget || '0'),
+            actualCost: parseFloat(p.actual_cost || '0'),
+            timelineStatus: p.timeline_status,
+            budgetStatus: p.budget_status,
+            budgetVariance: parseFloat(p.budget_variance || '0'),
+            budgetVariancePct: parseFloat(p.budget_variance_pct || '0'),
+            delayDays: parseInt(p.delay_days || '0', 10),
+            rawRecord: p.raw_record || {}
+          }));
+          setProjects(mappedProjects);
+          setLastSyncedAt(new Date());
+          setSyncStatusMsg({ type: 'success', text: `Loaded ${mappedProjects.length} projects from PostgreSQL.` });
+          setIsSyncing(false);
+          return;
+        }
+      }
+
       const res = await fetchProjectSheetData(urlToFetch);
       if (res.status === 'success') {
         setProjects(res.records);
@@ -136,7 +167,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
         setSyncStatusMsg({ type: 'error', text: res.message });
       }
     } catch (err: any) {
-      console.error("Error fetching project sheet:", err);
+      console.error("Error fetching project data:", err);
       setSyncStatusMsg({ type: 'error', text: err?.message || 'Network error connecting to sheet.' });
     } finally {
       setIsSyncing(false);

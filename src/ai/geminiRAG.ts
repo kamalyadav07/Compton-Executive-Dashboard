@@ -1,15 +1,13 @@
+/**
+ * src/ai/geminiRAG.ts
+ * -----------------------------------------------------------------------
+ * Client helper for RAG context extraction and server-side chat proxy.
+ * All credentials (Gemini API key, Bitrix webhook) live strictly server-side.
+ */
+
 import type { DealRecord, KPIMetrics, ChatMessage } from '../types/sales';
-import { getStoredBitrixConfig } from '../config/bitrixConfig';
 
-const DEFAULT_GEMINI_KEY = import.meta.env.VITE_GEMINI_API_KEY || '';
-
-export const getStoredGeminiKey = (): string => {
-  return localStorage.getItem('compton_gemini_api_key') || DEFAULT_GEMINI_KEY;
-};
-
-export const setStoredGeminiKey = (key: string): void => {
-  localStorage.setItem('compton_gemini_api_key', key);
-};
+const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
 export interface FileAttachmentPayload {
   name: string;
@@ -18,51 +16,28 @@ export interface FileAttachmentPayload {
   mimeType?: string;
 }
 
-// Live Fetcher for single deal timeline comments, product rows, lost reasons, and uploaded quote attachments from Bitrix API
+/**
+ * Live Fetcher for single deal timeline comments, products, and loss reasons
+ * via the backend server proxy (/api/bitrix/deal/:id).
+ */
 export const fetchLiveBitrixDealInfo = async (query: string): Promise<string> => {
   const match = query.match(/(?:BITRIX[-_\s]?)?(\d{2,6})/i);
-  let searchId = match ? match[1] : '';
-
-  const config = getStoredBitrixConfig();
-  const baseUrl = config.webhookBaseUrl.endsWith('/') ? config.webhookBaseUrl : `${config.webhookBaseUrl}/`;
-
-  if (!searchId && (query.toLowerCase().includes('lokesh') || query.toLowerCase().includes('akshay') || query.toLowerCase().includes('patra') || query.toLowerCase().includes('sudhir') || query.toLowerCase().includes('suvansh') || query.toLowerCase().includes('panacea'))) {
-    try {
-      const searchRes = await fetch(`${baseUrl}crm.deal.list.json?FILTER[%SEARCH_TITLE]=${encodeURIComponent(query.split(' ')[0])}`).then(r => r.json()).catch(() => null);
-      if (searchRes?.result?.[0]?.ID) {
-        searchId = String(searchRes.result[0].ID);
-      }
-    } catch (e) {
-      // Ignore search error
-    }
-  }
+  const searchId = match ? match[1] : '';
 
   if (!searchId) return '';
 
   try {
-    const [dealRes, commentRes, prodRes] = await Promise.all([
-      fetch(`${baseUrl}crm.deal.get.json?id=${searchId}`).then(r => r.json()).catch(() => null),
-      fetch(`${baseUrl}crm.timeline.comment.list.json?filter[ENTITY_TYPE]=deal&filter[ENTITY_ID]=${searchId}`).then(r => r.json()).catch(() => null),
-      fetch(`${baseUrl}crm.deal.productrows.get.json?id=${searchId}`).then(r => r.json()).catch(() => null)
-    ]);
+    const res = await fetch(`${API_BASE}/api/bitrix/deal/${searchId}`).then(r => r.json()).catch(() => null);
+    if (!res || res.status !== 'success' || !res.deal) return '';
 
-    const deal = dealRes?.result || {};
-    const comments = (commentRes?.result || []).map((c: any) => c.COMMENT ? c.COMMENT.replace(/<[^>]*>/g, '').trim() : '').filter(Boolean);
-    const products = (prodRes?.result || []).map((p: any) => `${p.PRODUCT_NAME || 'Product'} (Qty: ${p.QUANTITY || 1}, Price: ₹${p.PRICE || p.PRICE_BRUTTO || 0})`).filter(Boolean);
+    const deal = res.deal;
+    const comments = (res.comments || []).map((c: any) => c.COMMENT ? c.COMMENT.replace(/<[^>]*>/g, '').trim() : '').filter(Boolean);
+    const products = (res.products || []).map((p: any) => `${p.PRODUCT_NAME || 'Product'} (Qty: ${p.QUANTITY || 1}, Price: ₹${p.PRICE || p.PRICE_BRUTTO || 0})`).filter(Boolean);
 
-    // Extract Lost Reason from Bitrix CRM custom fields
     const lostReason = deal.UF_CRM_1742536927863 || deal.UF_CRM_LOST_REASON || deal.ADDITIONAL_INFO || '';
     const semantic = String(deal.STAGE_SEMANTIC_ID || '').toUpperCase();
     const stageId = String(deal.STAGE_ID || '').toUpperCase();
     const isLost = semantic === 'F' || stageId.includes('LOSE') || stageId.includes('LOST') || stageId.includes('FAIL');
-
-    // Check for uploaded quotation file in custom fields
-    let uploadedQuoteFileInfo = '';
-    Object.keys(deal).forEach(k => {
-      if (k.startsWith('UF_CRM_') && deal[k] && typeof deal[k] === 'object' && deal[k].id) {
-        uploadedQuoteFileInfo = `Attached Quotation PDF File present on Bitrix record (File ID: ${deal[k].id}, Download URL: ${deal[k].downloadUrl || deal[k].showUrl})`;
-      }
-    });
 
     const solutionSpec = deal.UF_CRM_1744361655612 || deal.TITLE || '';
     const opportunityAmount = deal.OPPORTUNITY ? `₹${parseFloat(deal.OPPORTUNITY).toLocaleString('en-IN')}` : '';
@@ -73,23 +48,15 @@ export const fetchLiveBitrixDealInfo = async (query: string): Promise<string> =>
     
     if (isLost || lostReason) {
       infoStr += `DEAL STATUS: LOST (Closed Lost)\n`;
-      infoStr += `RECORDED REASON FOR LOSS (UF_CRM_1742536927863): "${lostReason || 'Customer dropped the idea / Budget constraint'}"\n`;
-    }
-
-    if (uploadedQuoteFileInfo) {
-      infoStr += `UPLOADED QUOTATION FILE ATTACHED: ${uploadedQuoteFileInfo}\n`;
+      infoStr += `RECORDED REASON FOR LOSS: "${lostReason || 'Customer dropped the idea / Budget constraint'}"\n`;
     }
 
     if (comments.length > 0) {
       infoStr += `RECORDED TIMELINE COMMENTS (${comments.length}):\n` + comments.map((c: string, idx: number) => `  ${idx + 1}. "${c}"`).join('\n') + '\n';
-    } else {
-      infoStr += `RECORDED TIMELINE COMMENTS: None recorded\n`;
     }
 
     if (products.length > 0) {
       infoStr += `QUOTED PRODUCTS / ITEMS (${products.length}):\n` + products.map((p: string, idx: number) => `  ${idx + 1}. ${p}`).join('\n') + '\n';
-    } else {
-      infoStr += `QUOTED PRODUCTS / SOLUTION SPEC SUMMARY:\n  - Quoted Solution / Spec: ${solutionSpec}\n  - Quoted Total Net Amount: ${opportunityAmount}\n  - ${uploadedQuoteFileInfo || 'PDF Quotation file uploaded on Bitrix CRM deal record'}\n`;
     }
     infoStr += `=== END LIVE BITRIX DATA ===\n`;
     return infoStr;
@@ -140,7 +107,7 @@ export const retrieveRelevantContext = (query: string, records: DealRecord[], to
   return lines.join('\n');
 };
 
-// 2. Compute Executive Predictive Deal Analysis
+// 2. Compute Executive Predictive Deal Analysis (Client Heuristic Fallback)
 export const computeExecutiveDealAnalysis = (query: string, records: DealRecord[]) => {
   const targetRecord = records.find(r => 
     query.toLowerCase().includes(r.id.toLowerCase()) || 
@@ -177,7 +144,7 @@ export const computeExecutiveDealAnalysis = (query: string, records: DealRecord[
   };
 };
 
-// 3. Gemini RAG Chatbot Engine for Executive Sales Intelligence
+// 3. Gemini RAG Chatbot Engine for Executive Sales Intelligence (Server-Side Proxy)
 export const processGeminiRAGQuery = async (
   query: string,
   records: DealRecord[],
@@ -185,9 +152,6 @@ export const processGeminiRAGQuery = async (
   _apiKeyOverride?: string,
   attachedFile?: FileAttachmentPayload
 ): Promise<ChatMessage> => {
-  const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
-
-
   try {
     const res = await fetch(`${API_BASE}/api/chat`, {
       method: 'POST',
@@ -210,7 +174,7 @@ export const processGeminiRAGQuery = async (
     console.warn("Server API chat endpoint error, falling back to local executive engine:", err);
   }
 
-  // Executive Local Fallback Engine (No Jargon!)
+  // Executive Local Fallback Engine
   const timestamp = new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   const msgId = `msg-${Date.now()}`;
   const execAnalysis = computeExecutiveDealAnalysis(query, records);

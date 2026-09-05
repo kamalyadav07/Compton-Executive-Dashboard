@@ -16,7 +16,42 @@
   },
   {
     "date": "2026-08-14",
-    "monthProjection": 8395623,
+    "monthProjection": 8394189,
     "fyProjection": 37513635
+  },
+  {
+    "date": "2026-08-16",
+    "monthProjection": 8719255,
+    "fyProjection": 39384774
+  },
+  {
+    "date": "2026-08-17",
+    "monthProjection": 7837753,
+    "fyProjection": 39383627
+  },
+  {
+    "date": "2026-08-25",
+    "monthProjection": 5626275,
+    "fyProjection": 35560451
+  },
+  {
+    "date": "2026-08-29",
+    "monthProjection": 0,
+    "fyProjection": 0
+  },
+  {
+    "date": "2026-08-30",
+    "monthProjection": 0,
+    "fyProjection": 0
+  },
+  {
+    "date": "2026-09-03",
+    "monthProjection": 12702441,
+    "fyProjection": 43168750
+  },
+  {
+    "date": "2026-09-05",
+    "monthProjection": 12246958,
+    "fyProjection": 37212677
   }
 ]

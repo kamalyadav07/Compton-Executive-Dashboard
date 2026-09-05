@@ -16,14 +16,20 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// ../src/engine/dealIntelligenceEngine.ts
+// src/engine/dealIntelligenceEngine.ts
 var dealIntelligenceEngine_exports = {};
 __export(dealIntelligenceEngine_exports, {
+  blendEnsembleWinProbability: () => blendEnsembleWinProbability,
   buildBenchmarks: () => buildBenchmarks,
   buildCycleLengthDistribution: () => buildCycleLengthDistribution,
+  buildDealTextProfile: () => buildDealTextProfile,
   buildFeatures: () => buildFeatures,
+  computeDealVectorEmbedding: () => computeDealVectorEmbedding,
   computeRealAgeDays: () => computeRealAgeDays,
   computeRealDaysSinceUpdate: () => computeRealDaysSinceUpdate,
+  cosineSimilarityVectors: () => cosineSimilarityVectors,
+  findAnalogousDeals: () => findAnalogousDeals,
+  getDealSizeBucket: () => getDealSizeBucket,
   probabilityCloseWithinDays: () => probabilityCloseWithinDays,
   runDealIntelligence: () => runDealIntelligence,
   scoreDeal: () => scoreDeal,
@@ -31,7 +37,7 @@ __export(dealIntelligenceEngine_exports, {
 });
 module.exports = __toCommonJS(dealIntelligenceEngine_exports);
 
-// ../src/engine/qualitativeRiskEngine.ts
+// src/engine/qualitativeRiskEngine.ts
 function computeRealCommentQuietDays(deal) {
   const comments = deal.comments || deal.remarks || "";
   let latestDate = null;
@@ -224,7 +230,7 @@ function ensembleAdjustWinProbability(baseProbabilityPct, signals) {
   };
 }
 
-// ../src/engine/dealIntelligenceEngine.ts
+// src/engine/dealIntelligenceEngine.ts
 var STAGE_ORDER = [
   "need analysis",
   "solution design",
@@ -417,6 +423,116 @@ function buildBenchmarks(allDeals) {
     repAvgWonSize
   };
 }
+function getDealSizeBucket(amount) {
+  if (amount < 1e5) return "<\u20B91 Lakh";
+  if (amount < 5e5) return "\u20B91L - \u20B95 Lakhs";
+  if (amount < 2e6) return "\u20B95L - \u20B920 Lakhs";
+  if (amount < 5e6) return "\u20B920L - \u20B950 Lakhs";
+  return ">\u20B950 Lakhs";
+}
+function buildDealTextProfile(deal, docSummary) {
+  const customer = deal.customer || "";
+  const title = deal.rawRecord?.TITLE || customer;
+  const industry = deal.industry || "General Industry";
+  const solution = deal.solution || "Enterprise Solution";
+  const leadSource = deal.leadSource || "Direct";
+  const rep = deal.salesRep || "";
+  const stage = deal.stage || "";
+  const sizeBucket = getDealSizeBucket(deal.grossRevenue || deal.netRevenue || 0);
+  const comments = (deal.comments || deal.remarks || "").trim();
+  const docInfo = docSummary ? ` Document Context: ${docSummary}` : "";
+  return `Deal: ${title} | Customer: ${customer} | Industry: ${industry} | Solution: ${solution} | Size: ${sizeBucket} | Rep: ${rep} | Source: ${leadSource} | Stage: ${stage} | Comments: ${comments}${docInfo}`.trim();
+}
+function hashString(str) {
+  let hash = 0;
+  for (let i = 0; i < str.length; i++) {
+    hash = (hash << 5) - hash + str.charCodeAt(i);
+    hash |= 0;
+  }
+  return hash.toString(36);
+}
+var dealEmbeddingCache = /* @__PURE__ */ new Map();
+function computeDealVectorEmbedding(deal, docSummary) {
+  const textProfile = buildDealTextProfile(deal, docSummary);
+  const profileHash = hashString(textProfile);
+  const cacheKey = deal.id || profileHash;
+  const cached = dealEmbeddingCache.get(cacheKey);
+  if (cached && cached.profileHash === profileHash) {
+    return cached.vector;
+  }
+  const dims = 128;
+  const vector = new Array(dims).fill(0);
+  const tokens = textProfile.toLowerCase().replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(Boolean);
+  for (const token of tokens) {
+    let h = 0;
+    for (let i = 0; i < token.length; i++) h = (h * 31 + token.charCodeAt(i)) % dims;
+    vector[Math.abs(h)] += 1;
+  }
+  const normText = textProfile.toLowerCase();
+  for (let i = 0; i < normText.length - 2; i++) {
+    const gram = normText.slice(i, i + 3);
+    let h = 0;
+    for (let j = 0; j < gram.length; j++) h = (h * 37 + gram.charCodeAt(j)) % dims;
+    vector[Math.abs(h)] += 0.5;
+  }
+  let norm = 0;
+  for (let i = 0; i < dims; i++) norm += vector[i] * vector[i];
+  const magnitude = Math.sqrt(norm) || 1;
+  const normalizedVector = vector.map((v) => v / magnitude);
+  dealEmbeddingCache.set(cacheKey, { profileHash, vector: normalizedVector });
+  return normalizedVector;
+}
+function cosineSimilarityVectors(vecA, vecB) {
+  if (!vecA || !vecB || vecA.length !== vecB.length) return 0;
+  let dot = 0;
+  for (let i = 0; i < vecA.length; i++) {
+    dot += vecA[i] * vecB[i];
+  }
+  return Math.max(0, Math.min(1, dot));
+}
+function findAnalogousDeals(targetDeal, closedDeals, topK = 10, docSummary) {
+  const targetVec = computeDealVectorEmbedding(targetDeal, docSummary);
+  const matches = closedDeals.map((closed) => {
+    const closedVec = computeDealVectorEmbedding(closed);
+    const sim = cosineSimilarityVectors(targetVec, closedVec);
+    const sizeMatch = getDealSizeBucket(targetDeal.grossRevenue) === getDealSizeBucket(closed.grossRevenue);
+    const indMatch = (targetDeal.industry || "").toLowerCase() === (closed.industry || "").toLowerCase();
+    const solMatch = (targetDeal.solution || "").toLowerCase() === (closed.solution || "").toLowerCase();
+    const reasonParts = [];
+    if (indMatch) reasonParts.push(`Same Industry (${targetDeal.industry})`);
+    if (solMatch) reasonParts.push(`Same Solution (${targetDeal.solution})`);
+    if (sizeMatch) reasonParts.push(`Similar Deal Size (${getDealSizeBucket(targetDeal.grossRevenue)})`);
+    if (reasonParts.length === 0) reasonParts.push(`Comparable pipeline attributes`);
+    return {
+      dealId: closed.id.startsWith("BITRIX-") ? closed.id : `BITRIX-${closed.id}`,
+      customer: closed.customer,
+      dealTitle: closed.rawRecord?.TITLE || `${closed.customer} (${closed.solution})`,
+      solution: closed.solution,
+      industry: closed.industry,
+      outcome: closed.type === "won" ? "won" : "lost",
+      netRevenue: closed.netRevenue,
+      grossRevenue: closed.grossRevenue,
+      similarityScore: Math.round(sim * 100) / 100,
+      reason: reasonParts.join(", ")
+    };
+  });
+  matches.sort((a, b) => b.similarityScore - a.similarityScore);
+  const topMatches = matches.slice(0, topK);
+  const wonCount = topMatches.filter((m) => m.outcome === "won").length;
+  const analogousWinRate = topMatches.length > 0 ? Math.round(wonCount / topMatches.length * 100) : 50;
+  return {
+    analogousWinRate,
+    analogousDeals: topMatches
+  };
+}
+var LOGISTIC_WEIGHT = 0.6;
+var ANALOGOUS_WEIGHT = 0.25;
+var QUALITATIVE_WEIGHT = 0.15;
+function blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore) {
+  const qualWinProb = Math.max(5, Math.min(95, ensembleScore.adjustedWinProbabilityPct));
+  const blended = LOGISTIC_WEIGHT * baseWinProbabilityPct + ANALOGOUS_WEIGHT * analogousWinRate + QUALITATIVE_WEIGHT * qualWinProb;
+  return Math.round(Math.max(5, Math.min(95, blended)));
+}
 function runDealIntelligence(allDeals, documentChunksMap = {}) {
   const benchmarks = buildBenchmarks(allDeals);
   const closedDeals = allDeals.filter((d) => d.type === "won" || d.type === "lost");
@@ -426,14 +542,19 @@ function runDealIntelligence(allDeals, documentChunksMap = {}) {
   const results = openDeals.map((deal) => {
     const baseWinProbabilityPct = scoreDeal(deal, model, benchmarks);
     const docChunks = documentChunksMap[deal.id] || [];
+    const docSummary = docChunks.length > 0 ? docChunks.join(" ") : void 0;
     const qualitativeSignals = extractQualitativeRiskSignals(deal, docChunks);
     const ensembleScore = ensembleAdjustWinProbability(baseWinProbabilityPct, qualitativeSignals);
+    const { analogousWinRate, analogousDeals } = findAnalogousDeals(deal, closedDeals, 10, docSummary);
+    const finalWinProbPct = blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore);
     const p7 = probabilityCloseWithinDays(deal, distribution, 7);
     const p15 = probabilityCloseWithinDays(deal, distribution, 15);
     return {
       deal,
-      winProbabilityPct: ensembleScore.adjustedWinProbabilityPct,
+      winProbabilityPct: finalWinProbPct,
       baseWinProbabilityPct,
+      analogousWinRate,
+      analogousDeals,
       qualitativeSignals,
       ensembleScore,
       closesWithin7DaysPct: p7.probabilityPct,
@@ -448,11 +569,17 @@ function runDealIntelligence(allDeals, documentChunksMap = {}) {
 }
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
+  blendEnsembleWinProbability,
   buildBenchmarks,
   buildCycleLengthDistribution,
+  buildDealTextProfile,
   buildFeatures,
+  computeDealVectorEmbedding,
   computeRealAgeDays,
   computeRealDaysSinceUpdate,
+  cosineSimilarityVectors,
+  findAnalogousDeals,
+  getDealSizeBucket,
   probabilityCloseWithinDays,
   runDealIntelligence,
   scoreDeal,

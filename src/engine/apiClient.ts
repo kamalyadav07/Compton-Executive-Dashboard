@@ -13,7 +13,7 @@
  * -----------------------------------------------------------------------
  */
 
-import { getStoredBitrixCache, saveBitrixCache, fetchBitrixDeals, type BitrixSyncResult } from './bitrixService';
+import { getStoredBitrixCache, saveBitrixCache, type BitrixSyncResult } from './bitrixService';
 
 const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
 
@@ -84,23 +84,8 @@ export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
   // Attempt 2: Browser localStorage cache (instant, offline-capable)
   const storedCache = getStoredBitrixCache();
   if (storedCache && (storedCache.won.length > 0 || storedCache.progress.length > 0)) {
-    console.log('[apiClient] Loaded deals from browser localStorage cache.');
+    console.log('[apiClient] Loaded deals from browser localStorage offline cache.');
     return storedCache;
-  }
-
-  // Attempt 3: Direct client-side fetch from Bitrix24 REST API
-  // (works on any hosting — static, shared, CDN — as long as the
-  // VITE_BITRIX_WEBHOOK_URL env var was baked into the build)
-  try {
-    console.log('[apiClient] Fetching deals directly from Bitrix24 API...');
-    const directResult = await fetchBitrixDeals();
-    if (directResult && (directResult.won.length > 0 || directResult.progress.length > 0)) {
-      console.log(`[apiClient] Direct Bitrix fetch succeeded: ${directResult.won.length} won, ${directResult.lost.length} lost, ${directResult.progress.length} in-progress.`);
-      saveBitrixCache(directResult);
-      return directResult;
-    }
-  } catch (directErr: any) {
-    console.error('[apiClient] Direct Bitrix fetch failed:', directErr.message);
   }
 
   return {
@@ -115,7 +100,7 @@ export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
     totalFetchedLeads: 0,
     lastSyncedAt: new Date(),
     status: 'error',
-    message: 'Could not load deal data. Please check your internet connection and Bitrix24 configuration.'
+    message: 'Could not connect to backend server. Ensure the backend server is running and BITRIX_WEBHOOK_URL is configured.'
   };
 }
 
@@ -144,25 +129,112 @@ export async function triggerServerSync(): Promise<BitrixSyncResult> {
 
     return result;
   } catch (err: any) {
-    console.error('[apiClient] Failed to trigger server sync, trying direct client sync:', err);
-    try {
-      return await fetchBitrixDeals();
-    } catch (clientErr) {
-      return {
-        won: [],
-        lost: [],
-        progress: [],
-        leads: [],
-        qualifiedLeadsCount: 0,
-        disqualifiedLeadsCount: 0,
-        inProgressLeadsCount: 0,
-        totalFetchedDeals: 0,
-        totalFetchedLeads: 0,
-        lastSyncedAt: new Date(),
-        status: 'error',
-        message: err.message || 'Failed to trigger server sync.'
-      };
+    console.error('[apiClient] Failed to trigger server sync:', err);
+    return {
+      won: [],
+      lost: [],
+      progress: [],
+      leads: [],
+      qualifiedLeadsCount: 0,
+      disqualifiedLeadsCount: 0,
+      inProgressLeadsCount: 0,
+      totalFetchedDeals: 0,
+      totalFetchedLeads: 0,
+      lastSyncedAt: new Date(),
+      status: 'error',
+      message: err.message || 'Failed to trigger server sync. Please verify backend server is running.'
+    };
+  }
+}
+
+// ── Feature Flag for Server-Side Calculations ───────────────────────────
+
+export const isServerKPIsEnabled = (): boolean => {
+  return import.meta.env.VITE_USE_SERVER_KPIS !== 'false';
+};
+
+// ── SQL-Backed Dashboard Endpoints ──────────────────────────────────────
+
+function buildQueryParams(filters: Partial<any> = {}): string {
+  const qp = new URLSearchParams();
+  Object.keys(filters).forEach(key => {
+    const val = filters[key];
+    if (val !== undefined && val !== null && val !== '' && val !== 'All') {
+      qp.append(key, String(val));
     }
+  });
+  return qp.toString();
+}
+
+export async function fetchServerDashboardSummary(filters: any = {}): Promise<any | null> {
+  try {
+    const qs = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE}/api/dashboard/summary?${qs}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[apiClient] Failed to fetch server summary KPIs:', err);
+    return null;
+  }
+}
+
+export async function fetchServerRevenueAnalytics(filters: any = {}): Promise<any | null> {
+  try {
+    const qs = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE}/api/dashboard/revenue?${qs}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[apiClient] Failed to fetch server revenue analytics:', err);
+    return null;
+  }
+}
+
+export async function fetchServerPipelineAnalytics(filters: any = {}): Promise<any | null> {
+  try {
+    const qs = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE}/api/dashboard/pipeline?${qs}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[apiClient] Failed to fetch server pipeline analytics:', err);
+    return null;
+  }
+}
+
+export async function fetchServerWinRateAnalytics(filters: any = {}): Promise<any | null> {
+  try {
+    const qs = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE}/api/dashboard/win-rate?${qs}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[apiClient] Failed to fetch server win rate analytics:', err);
+    return null;
+  }
+}
+
+export async function fetchServerSalesRepAnalytics(filters: any = {}): Promise<any | null> {
+  try {
+    const qs = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE}/api/dashboard/sales-reps?${qs}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[apiClient] Failed to fetch server sales reps analytics:', err);
+    return null;
+  }
+}
+
+export async function fetchServerProjectAnalytics(filters: any = {}): Promise<any | null> {
+  try {
+    const qs = buildQueryParams(filters);
+    const res = await fetch(`${API_BASE}/api/dashboard/projects?${qs}`);
+    if (!res.ok) return null;
+    return await res.json();
+  } catch (err) {
+    console.warn('[apiClient] Failed to fetch server project analytics:', err);
+    return null;
   }
 }
 

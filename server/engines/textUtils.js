@@ -16,7 +16,7 @@ var __copyProps = (to, from, except, desc) => {
 };
 var __toCommonJS = (mod) => __copyProps(__defProp({}, "__esModule", { value: true }), mod);
 
-// ../src/utils/textUtils.ts
+// src/utils/textUtils.ts
 var textUtils_exports = {};
 __export(textUtils_exports, {
   cleanDealTitle: () => cleanDealTitle,

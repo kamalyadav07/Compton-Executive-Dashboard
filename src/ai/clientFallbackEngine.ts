@@ -48,9 +48,41 @@ export function executeClientFallbackAnswer(userQuery: string, deals: DealRecord
     }).join('\n')}`;
   }
 
-  // 3. Search specific deal by ID or Customer term
+  // 3. Sales-rep ranking / leaderboard questions (e.g. "which sales rep has
+  // the highest revenue"). Must run before the generic search below, since
+  // these questions have no company/deal name to search for.
+  const isRankingQuestion = /\b(highest|lowest|top|best|worst|most|least|leaderboard|rank|ranking)\b/.test(q)
+    && /\b(rep|sales ?rep|salesperson|performer|revenue|sales)\b/.test(q);
+  if (isRankingQuestion) {
+    const byRep = new Map<string, { rep: string; wonRevenue: number; wonCount: number; lostCount: number }>();
+    for (const d of allDeals) {
+      const rep = d.salesRep || 'Unassigned';
+      if (!byRep.has(rep)) byRep.set(rep, { rep, wonRevenue: 0, wonCount: 0, lostCount: 0 });
+      const entry = byRep.get(rep)!;
+      if (d.type === 'won') { entry.wonRevenue += (d.grossRevenue || 0); entry.wonCount += 1; }
+      if (d.type === 'lost') entry.lostCount += 1;
+    }
+    const wantsLowest = /\b(lowest|worst|least)\b/.test(q);
+    const ranked = [...byRep.values()]
+      .filter(r => r.rep !== 'Unassigned')
+      .sort((a, b) => wantsLowest ? a.wonRevenue - b.wonRevenue : b.wonRevenue - a.wonRevenue);
+
+    if (ranked.length === 0) {
+      return `### Sales Rep Leaderboard\nNo sales-rep-attributed deals were found in the currently loaded data.`;
+    }
+    const top = ranked[0];
+    return `### Sales Rep Leaderboard (by Won Revenue)\n**${top.rep}** has the ${wantsLowest ? 'lowest' : 'highest'} won revenue at **₹${(top.wonRevenue / 100000).toFixed(2)} Lakh** across **${top.wonCount} won deals**.\n\n| Sales Rep | Won Revenue | Won Deals | Lost Deals |\n| :--- | :--- | :--- | :--- |\n${ranked.slice(0, 10).map(r => `| ${r.rep} | ₹${(r.wonRevenue / 100000).toFixed(2)} Lakh | ${r.wonCount} | ${r.lostCount} |`).join('\n')}`;
+  }
+
+  // 4. Search specific deal by ID or Customer term
   const words = q.split(/\s+/);
-  const ignoreWords = new Set(['recent', 'all', 'deals', 'won', 'lost', 'open', 'in', 'july', 'august', 'june', 'may', 'and', 'its', 'value', 'show', 'list', 'the', 'for', 'rep', 'what', 'which']);
+  const ignoreWords = new Set([
+    'recent', 'all', 'deals', 'deal', 'won', 'lost', 'open', 'in', 'july', 'august', 'june', 'may',
+    'and', 'its', 'value', 'show', 'list', 'the', 'for', 'rep', 'reps',
+    'what', 'which', 'who', 'whom', 'whose', 'why', 'how', 'has', 'have', 'had',
+    'is', 'are', 'was', 'were', 'does', 'do', 'did', 'can', 'could', 'would', 'should',
+    'highest', 'lowest', 'top', 'best', 'worst', 'most', 'least', 'about', 'our', 'company'
+  ]);
   const searchTerms = words.filter(w => w.length >= 3 && !ignoreWords.has(w));
 
   if (searchTerms.length > 0) {
@@ -72,9 +104,11 @@ export function executeClientFallbackAnswer(userQuery: string, deals: DealRecord
         return `| ${d.id} | ${title} | ${rep} | ${val} | ${d.stage} | ${d.date || '2026-08-12'} |`;
       }).join('\n')}`;
     }
+    // No matches — fall through to the default overview instead of
+    // silently returning the whole unfiltered dataset mislabeled as a match.
   }
 
-  // 4. Default Executive Pipeline Overview
+  // 5. Default Executive Pipeline Overview
   const totalOpenVal = openDeals.reduce((s, d) => s + (d.grossRevenue || 0), 0);
   const totalWonVal = wonDeals.reduce((s, d) => s + (d.grossRevenue || 0), 0);
 

@@ -100,7 +100,7 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
               type="text"
               value={webhookUrl}
               onChange={(e) => setWebhookUrl(e.target.value)}
-              placeholder="https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/"
+              placeholder="https://your-domain.bitrix24.in/rest/..."
               className="flex-1 px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-blue-500 font-mono"
             />
             <button

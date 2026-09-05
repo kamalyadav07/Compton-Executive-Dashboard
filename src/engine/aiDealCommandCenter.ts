@@ -169,7 +169,7 @@ export class AIDealCommandCenterEngine {
             winReason: h.type === 'won' ? 'Established trust & technical alignment' : undefined,
             lostReason: h.type === 'lost' ? (h.lostReason || 'Competitor pricing') : undefined,
             salesCycleDays: h.salesCycleDays || 30,
-            discountPct: Math.floor(Math.random() * 10) + 2,
+            discountPct: Math.max(0, parseFloat(h.rawRecord?.DISCOUNT_PERCENT || '0')),
             similarityPct: Math.min(98, score)
           };
         })
@@ -202,9 +202,13 @@ export class AIDealCommandCenterEngine {
         ? Math.round(similarDeals.reduce((s, d) => s + d.similarityPct, 0) / similarDeals.length) 
         : 75;
 
-      // 7. Urgency Score
-      const daysInStage = Math.floor(Math.random() * 20) + 2;
-      const daysSinceLastUpdate = Math.floor(Math.random() * 8) + 1;
+      // 7. Urgency Score (Derived strictly from real creation & update timestamps)
+      const createdDate = new Date(deal.rawRecord?.DATE_CREATE || deal.date || new Date());
+      const modifiedDate = new Date(deal.rawRecord?.DATE_MODIFY || deal.date || new Date());
+      const nowMs = Date.now();
+      const daysInStage = Math.max(0, Math.round((nowMs - createdDate.getTime()) / (1000 * 60 * 60 * 24)));
+      const daysSinceLastUpdate = Math.max(0, Math.round((nowMs - modifiedDate.getTime()) / (1000 * 60 * 60 * 24)));
+
       let urgency = 60;
       if (deal.grossRevenue > 2000000) urgency += 20;
       if (daysInStage > 14) urgency += 15;

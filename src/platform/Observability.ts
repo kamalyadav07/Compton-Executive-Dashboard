@@ -19,19 +19,20 @@ export class ObservabilityService {
     latencyMs: number,
     rowsProcessed: number,
     errorPct = 0,
-    retries = 0
+    retries = 0,
+    queueTimeMs = 0
   ) {
     const rowsSec = latencyMs > 0 ? Math.round((rowsProcessed / (latencyMs / 1000))) : 300;
 
     this.stageMetrics[stage] = {
       stage,
-      latencyMs,
-      cpuPct: Number((Math.random() * 5 + 2).toFixed(1)),
-      memoryMb: Math.round(Math.random() * 20 + 30),
+      latencyMs: Math.round(latencyMs),
+      cpuPct: 3.5,
+      memoryMb: 42,
       rowsPerSec: Math.min(1000, Math.max(10, rowsSec)),
       errorPct,
       retryCount: retries,
-      queueTimeMs: Math.round(Math.random() * 10 + 2)
+      queueTimeMs: Math.round(queueTimeMs)
     };
   }
 

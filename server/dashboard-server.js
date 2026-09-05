@@ -45,6 +45,7 @@ if (fs.existsSync(parentEnvPath)) {
 }
 const express = require('express');
 const cors = require('cors');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 
@@ -53,13 +54,82 @@ const PORT = parseInt(process.env.PORT || '4000', 10);
 const BITRIX_WEBHOOK_URL = process.env.BITRIX_WEBHOOK_URL || process.env.VITE_BITRIX_WEBHOOK_URL || '';
 const SYNC_INTERVAL_MS = parseInt(process.env.SYNC_INTERVAL_MS || '300000', 10);
 
-app.use(cors({ origin: true, credentials: true }));
+// CORS allowlist configuration reading ALLOWED_ORIGINS from env
+const rawAllowedOrigins = process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000';
+const allowedOrigins = rawAllowedOrigins.split(',').map(s => s.trim()).filter(Boolean);
+
+// Local IP pattern to allow accessing dashboard over LAN (e.g. 192.168.x.x, 10.x.x.x, 172.16-31.x.x, localhost, 127.0.0.1)
+const isLocalOrigin = (origin) => {
+  return /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin);
+};
+
+app.use(cors({
+  origin: (origin, callback) => {
+    // Allow non-browser / server-to-server requests without Origin header
+    if (!origin) return callback(null, true);
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*') || isLocalOrigin(origin)) {
+      return callback(null, true);
+    }
+    return callback(null, false);
+  },
+  credentials: true
+}));
+
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
 
+// ── OpenTelemetry Middleware ────────────────────────────────────────────
+const { telemetryMiddleware } = require('./services/telemetryService');
+app.use(telemetryMiddleware);
+
+// ── Rate Limiters (Free / Open-Source express-rate-limit) ─────────────────
+// Limit sync requests to max 10 per 5 minutes per IP
+const syncLimiter = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    message: 'Too many sync requests. Please wait a moment.'
+  }
+});
+
+// Limit general API requests
+const apiLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 100,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    status: 'error',
+    message: 'Too many requests from this IP. Please wait a moment and try again.'
+  }
+});
+
+// ── PostgreSQL Sync Pipeline Routes ──────────────────────────────────────
+const { registerSyncRoutes, startSyncScheduler } = require('./sync/scheduler');
+registerSyncRoutes(app, syncLimiter);
+
+// ── SQL-Backed Dashboard KPI Routes ──────────────────────────────────────
+const { router: dashboardRoutes } = require('./routes/dashboardRoutes');
+app.use('/api/dashboard', dashboardRoutes);
+
+// ── Job Queue, DLQ & Drift Routes ────────────────────────────────────────
+const syncQueueRoutes = require('./routes/syncRoutes');
+app.use('/api/sync-queue', syncQueueRoutes);
+
+// ── OpenTelemetry & Observability Routes ─────────────────────────────────
+const telemetryRoutes = require('./routes/telemetryRoutes');
+app.use('/api/telemetry', telemetryRoutes);
+
+// ── Continuous ML Model Monitoring & Drift Routes ────────────────────────
+const modelMonitoringRoutes = require('./routes/modelMonitoringRoutes');
+app.use('/api/model-monitoring', modelMonitoringRoutes);
+
 
 // =====================================================================
-// 1.  GST SPLIT  (from src/utils/financeUtils.ts — splitGst)
+// 1.  GST SPLIT & RECONCILIATION (from src/utils/financeUtils.ts)
 // =====================================================================
 
 const GST_RATE = 0.18;
@@ -70,6 +140,26 @@ function splitGst(grossRevenue, isWon) {
   const netRevenue = Math.round((gross / (1 + GST_RATE)) * 100) / 100;
   const gstAmount  = Math.round((gross - netRevenue) * 100) / 100;
   return { netRevenue, gstAmount };
+}
+
+function reconcileGst(grossRevenue, isWon, bitrixTaxValue) {
+  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
+  if (!isWon) return { netRevenue: gross, gstAmount: 0, source: 'computed' };
+
+  const taxVal = typeof bitrixTaxValue === 'string' ? parseFloat(bitrixTaxValue) : bitrixTaxValue;
+  if (taxVal && taxVal > 0 && gross > taxVal) {
+    const computed = splitGst(gross, isWon);
+    // If Bitrix's tax value is within 5% of 18%, trust Bitrix tax value
+    if (Math.abs(taxVal - computed.gstAmount) / computed.gstAmount <= 0.05) {
+      return {
+        netRevenue: Math.round((gross - taxVal) * 100) / 100,
+        gstAmount: Math.round(taxVal * 100) / 100,
+        source: 'bitrix'
+      };
+    }
+  }
+  const { netRevenue, gstAmount } = splitGst(gross, isWon);
+  return { netRevenue, gstAmount, source: 'computed' };
 }
 
 // =====================================================================
@@ -87,11 +177,9 @@ class RateLimitedQueue {
   }
 
   async run(taskFn, label = 'request') {
-    // Wait until a slot is free
     while (this.active >= this.concurrency) {
       await new Promise(resolve => this._waiters.push(resolve));
     }
-    // Enforce minimum interval between starts
     const now = Date.now();
     const wait = Math.max(0, this.minIntervalMs - (now - this.lastStart));
     if (wait > 0) await new Promise(r => setTimeout(r, wait));
@@ -102,7 +190,6 @@ class RateLimitedQueue {
       return await this._withRetry(taskFn, label);
     } finally {
       this.active--;
-      // Wake the next waiter
       if (this._waiters.length > 0) {
         const next = this._waiters.shift();
         next();
@@ -119,6 +206,7 @@ class RateLimitedQueue {
           if (result.error === 'QUERY_LIMIT_EXCEEDED' || result.error === 'OPERATION_TIME_LIMIT') {
             throw new Error(`Bitrix throttled: ${result.error}`);
           }
+          throw new Error(`Bitrix API error (${result.error}): ${result.error_description || ''}`);
         }
         return result;
       } catch (err) {
@@ -135,12 +223,14 @@ class RateLimitedQueue {
 /**
  * fetchAllPagesReliable — fetch every page of a paginated Bitrix *.list.json
  * endpoint with retry + rate limiting.
- * (ported from src/engine/bitrixFetchQueue.ts)
  */
 async function fetchAllPagesReliable(buildUrl, pageSize = 50, queue = new RateLimitedQueue()) {
   const fetchWithTimeout = (url) => fetch(url, { signal: AbortSignal.timeout(15000) }).then(r => r.json());
 
   const first = await queue.run(() => fetchWithTimeout(buildUrl(0)), 'page:0');
+  if (first && first.error) {
+    throw new Error(`Bitrix API error: ${first.error} - ${first.error_description || ''}`);
+  }
   const total = first.total ?? (first.result?.length ?? 0);
   let items = first.result ?? [];
   console.log(`[fetchAllPagesReliable] First page fetched. Total records: ${total}, pages needed: ${Math.ceil(total / pageSize)}`);
@@ -171,40 +261,65 @@ async function fetchAllPagesReliable(buildUrl, pageSize = 50, queue = new RateLi
 }
 
 // =====================================================================
-// 3.  NORMALIZATION FUNCTIONS  (from src/engine/bitrixService.ts)
+// 3.  NORMALIZATION FUNCTIONS & ENUM MAPS
 // =====================================================================
 
 const BITRIX_INDUSTRY_ENUM_MAP = {
-  '240': 'Banking and Finance',
+  // Legacy / Historic IDs
+  '240': 'Banking & Financial Services',
   '248': 'Education',
-  '250': 'Pharmaceutical',
+  '250': 'Pharmaceutical & Healthcare',
   '272': 'Manufacturing',
   '280': 'Exports',
-  '288': 'IT & Software',
-  '296': 'Consulting',
+  '288': 'IT & ITES',
+  '296': 'Consulting & Professional Services',
   '304': 'Personal + self',
-  '318': 'Real Estate',
-  '326': 'Retail',
-  '376': 'Food and Beverages',
+  '318': 'Real Estate & Construction',
+  '326': 'Retail & E-commerce',
+  '376': 'Food & Beverage',
   '420': 'Fertilizers',
-  '422': 'IT',
-  '424': 'Textile',
+  '422': 'IT & ITES',
+  '424': 'Textile & Apparel',
   '426': 'Iron & Steel',
-  '428': 'Pulp and Paper',
-  '430': 'Automobile',
-  '432': 'Entertainment',
+  '428': 'Paper & Packaging',
+  '430': 'Automotive',
+  '432': 'Media & Entertainment',
   '484': 'Embassy',
   '492': 'FMCG',
   '584': 'Electronic',
   '690': 'Hospitality',
   '1070': 'Others',
   '1072': 'Service',
-  '1074': 'Infrastructure Development',
-  '1088': 'Hospital',
+  '1074': 'Infrastructure & Utilities',
+  '1088': 'Pharmaceutical & Healthcare',
   '1098': 'Legal',
-  '1108': 'Government',
-  '1174': 'Restaurants',
-  '1178': 'Sports Equipment'
+  '1108': 'Government & PSU',
+  '1174': 'Food & Beverage',
+  '1178': 'Sports Equipment',
+  // Current Bitrix Field UF_CRM_67E4FF8E84730 IDs
+  '1222': 'Manufacturing',
+  '1224': 'Education',
+  '1226': 'Banking & Financial Services',
+  '1228': 'Pharmaceutical & Healthcare',
+  '1230': 'Government & PSU',
+  '1232': 'IT & ITES',
+  '1234': 'Retail & E-commerce',
+  '1236': 'Hospitality',
+  '1238': 'Real Estate & Construction',
+  '1240': 'Infrastructure & Utilities',
+  '1242': 'Logistics & Transportation',
+  '1244': 'Food & Beverage',
+  '1246': 'Automotive',
+  '1248': 'Media & Entertainment',
+  '1250': 'Telecom',
+  '1252': 'Consulting & Professional Services',
+  '1254': 'Paper & Packaging',
+  '1256': 'Textile & Apparel',
+  '1258': 'FMCG',
+  '1260': 'Others',
+  '1396': 'NGO',
+  '1416': 'Legal',
+  '1426': 'Government & PSU'
 };
 
 function normalizeBitrixIndustry(val, rawRecord) {
@@ -216,6 +331,27 @@ function normalizeBitrixIndustry(val, rawRecord) {
   if (validNames.includes(str)) return str;
   return 'General Industry';
 }
+
+// Bitrix Solution Type Enum (UF_CRM_1782977521393)
+const BITRIX_SOLUTION_ENUM_MAP = {
+  '1188': 'CCTV Solution',
+  '1190': 'Passive Networking solution',
+  '1192': 'Passive Networking solution',
+  '1194': 'Server solution',
+  '1196': 'Storage solution',
+  '1198': 'Backup solution',
+  '1200': 'Data center solution',
+  '1202': 'Desktops/ Laptops',
+  '1204': 'Printers',
+  '1206': 'Power backup',
+  '1208': 'Video Conferencing',
+  '1210': 'Data security solution',
+  '1212': 'Liscense',
+  '1214': 'Application development',
+  '1216': 'Data center solution',
+  '1218': 'Services',
+  '1220': 'Others'
+};
 
 const BITRIX_SOLUTION_TYPE_ENUM_MAP = {
   'Data center solution': 'Data center solution',
@@ -239,63 +375,101 @@ const BITRIX_SOLUTION_TYPE_ENUM_MAP = {
 };
 
 function normalizeBitrixSolutionType(val, rawRecord) {
-  const rawVal = rawRecord?.UF_CRM_1744361655612 || rawRecord?.UF_CRM_SOLUTION || val;
-  if (!rawVal) return 'Others';
+  // 1. Direct match on Bitrix structured Solution Type dropdown (UF_CRM_1782977521393)
+  const enumId = String(rawRecord?.UF_CRM_1782977521393 || '').trim();
+  if (enumId && BITRIX_SOLUTION_ENUM_MAP[enumId] && BITRIX_SOLUTION_ENUM_MAP[enumId] !== 'Others') {
+    return BITRIX_SOLUTION_ENUM_MAP[enumId];
+  }
 
-  const str = String(rawVal).trim();
+  // 2. Exact match against known solution names
+  const rawVal = rawRecord?.UF_CRM_1744361655612 || rawRecord?.UF_CRM_SOLUTION || val;
+  const str = String(rawVal || '').trim();
   const lower = str.toLowerCase();
 
   const validList = Object.values(BITRIX_SOLUTION_TYPE_ENUM_MAP);
   const exactMatch = validList.find(v => v.toLowerCase() === lower);
   if (exactMatch) return exactMatch;
 
-  if (lower.includes('switch') || lower.includes('passive') || lower.includes('netw') || lower.includes('router') || lower.includes('cable') || lower.includes('rack')) {
+  // 3. Keyword matching across Opportunity field, Title and comments
+  const combinedText = `${lower} ${(rawRecord?.TITLE || '').toLowerCase()}`.replace(/\*+/g, '');
+
+  if (combinedText.includes('switch') || combinedText.includes('passive') || combinedText.includes('netw') ||
+      combinedText.includes('router') || combinedText.includes('cable') || combinedText.includes('rack') ||
+      combinedText.includes('patch cord') || combinedText.includes('connector') || combinedText.includes('access point') ||
+      combinedText.includes('wifi') || combinedText.includes('wi fi') || combinedText.includes('qn-i') ||
+      combinedText.includes('cat-6') || combinedText.includes('cat6') || combinedText.includes('cat 6') ||
+      combinedText.includes('crimping') || combinedText.includes('io box') || combinedText.includes('patch panel')) {
     return 'Passive Networking solution';
   }
-  if (lower.includes('laptop') || lower.includes('desktop') || lower.includes('pc') || lower.includes('all in one') || lower.includes('lenovo') || lower.includes('hp') || lower.includes('dell') || lower.includes('macbook')) {
+  if (combinedText.includes('laptop') || combinedText.includes('desktop') || combinedText.includes('pc') ||
+      combinedText.includes('all in one') || combinedText.includes('lenovo') || combinedText.includes('hp') ||
+      combinedText.includes('dell') || combinedText.includes('macbook') || combinedText.includes('mac book') ||
+      combinedText.includes('workstation') || combinedText.includes('thinkpad') || combinedText.includes('industrial pc')) {
     return 'Desktops/ Laptops';
   }
-  if (lower.includes('cctv') || lower.includes('surveillance') || lower.includes('camera') || lower.includes('dvr') || lower.includes('nvr') || lower.includes('door')) {
+  if (combinedText.includes('cctv') || combinedText.includes('surveillance') || combinedText.includes('camera') ||
+      combinedText.includes('dvr') || combinedText.includes('nvr') || combinedText.includes('door') ||
+      combinedText.includes('access control') || combinedText.includes('ptz') || combinedText.includes('vms') ||
+      combinedText.includes('biometric')) {
     return 'CCTV Solution';
   }
-  if (lower.includes('server')) {
+  if (combinedText.includes('server')) {
     return 'Server solution';
   }
-  if (lower.includes('storage') || lower.includes('san') || lower.includes('nas')) {
+  if (combinedText.includes('storage') || combinedText.includes('san') || combinedText.includes('nas') ||
+      combinedText.includes('qnap') || combinedText.includes('synology') || combinedText.includes('hard drive') ||
+      combinedText.includes('hdd') || combinedText.includes('ssd')) {
     return 'Storage solution';
   }
-  if (lower.includes('backup') || lower.includes('back up') || lower.includes('veeam')) {
-    return lower.includes('data') ? 'Data back up solution' : 'Backup solution';
+  if (combinedText.includes('backup') || combinedText.includes('back up') || combinedText.includes('veeam')) {
+    return combinedText.includes('data') ? 'Data back up solution' : 'Backup solution';
   }
-  if (lower.includes('security') || lower.includes('firewall') || lower.includes('sophos') || lower.includes('fortinet') || lower.includes('cyber')) {
+  if (combinedText.includes('security') || combinedText.includes('firewall') || combinedText.includes('sophos') ||
+      combinedText.includes('fortinet') || combinedText.includes('cyber') || combinedText.includes('antivirus') ||
+      combinedText.includes('edr') || combinedText.includes('mdm')) {
     return 'Data security solution';
   }
-  if (lower.includes('datacenter') || lower.includes('data center')) {
+  if (combinedText.includes('datacenter') || combinedText.includes('data center') || combinedText.includes('cloud') ||
+      combinedText.includes('aws') || combinedText.includes('azure')) {
     return 'Data center solution';
   }
-  if (lower.includes('license') || lower.includes('licence') || lower.includes('liscense') || lower.includes('subscription')) {
+  if (combinedText.includes('license') || combinedText.includes('licence') || combinedText.includes('liscense') ||
+      combinedText.includes('subscription') || combinedText.includes('o365') || combinedText.includes('m365') ||
+      combinedText.includes('office 365') || combinedText.includes('microsoft 365')) {
     return 'Liscense';
   }
-  if (lower.includes('service') || lower.includes('amc') || lower.includes('installation') || lower.includes('support') || lower.includes('maintenance')) {
+  if (combinedText.includes('service') || combinedText.includes('amc') || combinedText.includes('installation') ||
+      combinedText.includes('support') || combinedText.includes('maintenance') || combinedText.includes('manpower') ||
+      combinedText.includes('repair') || combinedText.includes('site survey') || combinedText.includes('survey') ||
+      combinedText.includes('warranty') || combinedText.includes('renewal')) {
     return 'Services';
   }
-  if (lower.includes('printer') || lower.includes('scanner') || lower.includes('toner')) {
+  if (combinedText.includes('printer') || combinedText.includes('scanner') || combinedText.includes('toner') || combinedText.includes('cartridge')) {
     return 'Printers';
   }
-  if (lower.includes('power') || lower.includes('ups') || lower.includes('battery')) {
+  if (combinedText.includes('power') || combinedText.includes('ups') || combinedText.includes('battery') || combinedText.includes('inverter')) {
     return 'Power backup';
   }
-  if (lower.includes('accessory') || lower.includes('accessories') || lower.includes('mouse') || lower.includes('keyboard')) {
+  if (combinedText.includes('accessory') || combinedText.includes('accessories') || combinedText.includes('mouse') ||
+      combinedText.includes('keyboard') || combinedText.includes('bag') || combinedText.includes('headset') ||
+      combinedText.includes('adapter')) {
     return 'Accessories';
   }
-  if (lower.includes('video') || lower.includes('conferencing') || lower.includes('polycom') || lower.includes('logitech') || lower.includes('meet')) {
+  if (combinedText.includes('video') || combinedText.includes('conferencing') || combinedText.includes('vc ') ||
+      combinedText.includes('vc solution') || combinedText.includes('polycom') || combinedText.includes('logitech') ||
+      combinedText.includes('meet')) {
     return 'Video Conferencing';
   }
-  if (lower.includes('software') || lower.includes('tally') || lower.includes('os')) {
+  if (combinedText.includes('software') || combinedText.includes('tally') || combinedText.includes('os') || combinedText.includes('windows')) {
     return 'Softwares';
   }
-  if (lower.includes('app') || lower.includes('development') || lower.includes('web') || lower.includes('code')) {
+  if (combinedText.includes('app') || combinedText.includes('development') || combinedText.includes('web') || combinedText.includes('code')) {
     return 'Application development';
+  }
+
+  // 4. Fallback to enum if it was 'Others' (1220)
+  if (enumId && BITRIX_SOLUTION_ENUM_MAP[enumId]) {
+    return BITRIX_SOLUTION_ENUM_MAP[enumId];
   }
 
   return 'Others';
@@ -346,7 +520,7 @@ function normalizeSalesRep(rawRep, textToSearch) {
   if (combined.includes('taniya'))  return 'Taniya Negi';
   if (combined.includes('tausif'))  return 'Tausif Ahmad';
   if (combined.includes('ashok'))   return 'Ashok Kumar';
-  return 'Jitesh Chander';
+  return rawRep || 'Jitesh Chander';
 }
 
 const BITRIX_USER_MAP = {
@@ -372,15 +546,44 @@ function mapBitrixAssignedUser(assignedId, textToSearch) {
   return normalizeSalesRep('', textToSearch);
 }
 
-function parseTitleParts(title) {
-  if (!title) return { customer: 'Unknown Client', solution: 'Core Solution' };
-  const parts = title.split('/').map(p => p.trim());
-  if (parts.length >= 3) {
-    return { customer: parts[0], solution: parts[2] };
-  } else if (parts.length === 2) {
-    return { customer: parts[0], solution: parts[1] };
+// Bitrix Deal Lost Reason (UF_CRM_1786343383165)
+const BITRIX_LOST_REASON_MAP = {
+  '1386': 'Price Challenge',
+  '1388': 'Lost To Competitor',
+  '1390': 'Project Cancelled',
+  '1392': 'No Response from Customer',
+  '1436': 'Lack of follow up',
+  '1438': 'Customer is reseller himself',
+  '1394': 'Other'
+};
+
+function parseTitleParts(title, rawRecord) {
+  const rawCompany = rawRecord?.COMPANY_TITLE || rawRecord?.CONTACT_NAME;
+  if (!title) return { customer: rawCompany || 'Unknown Client', solution: 'Core Solution' };
+
+  // Strip markdown formatting characters (e.g. *bold*)
+  const cleanTitle = title.replace(/\*+/g, '').trim();
+
+  if (cleanTitle.includes('/')) {
+    const parts = cleanTitle.split('/').map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 3) {
+      return { customer: rawCompany || parts[0], solution: parts[2] };
+    } else if (parts.length === 2) {
+      return { customer: rawCompany || parts[0], solution: parts[1] };
+    }
+  } else if (cleanTitle.includes('|')) {
+    const parts = cleanTitle.split('|').map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return { customer: rawCompany || parts[0], solution: parts[1] };
+    }
+  } else if (cleanTitle.includes(' - ') || cleanTitle.includes(' – ')) {
+    const parts = cleanTitle.split(/ – | - /).map(p => p.trim()).filter(Boolean);
+    if (parts.length >= 2) {
+      return { customer: rawCompany || parts[0], solution: parts[parts.length - 1] };
+    }
   }
-  return { customer: title.trim(), solution: 'Core Solution' };
+
+  return { customer: rawCompany || cleanTitle, solution: 'Core Solution' };
 }
 
 function normalizeBitrixDate(dateStr) {
@@ -432,6 +635,7 @@ function formatBitrixStage(type, stId) {
   if (s.includes('PREPAYMENT')) return 'Quote Creation';
   if (s.includes('EXECUTING')) return 'Quote Approval';
   if (s.includes('UC_OQLF1D') || s.includes('NEGOTIAT') || s.includes('CONTRACT') || s.includes('CLOSING')) return 'Negotiation';
+  if (s.includes('UC_JFWHE2') || s.includes('ORDER')) return 'Sales Order Creation';
 
   if (s.includes('PREP')) return 'Solution Design';
   if (s.includes('INVOICE')) return 'Quote Creation';
@@ -637,12 +841,12 @@ async function syncBitrix() {
         dealType = 'in_progress';
       }
 
-      const titleParts = parseTitleParts(deal.TITLE);
+      const titleParts = parseTitleParts(deal.TITLE, deal);
       const revenue = parseFloat(deal.OPPORTUNITY || '0') || 0;
 
-      // GST split — identical to bitrixService.ts lines 565-567
+      // GST reconciliation — guarantees netRevenue + gstAmount === grossRevenue
       const isWonDeal = dealType === 'won';
-      const { netRevenue: netRevenueWithoutGst, gstAmount: computedGstVal } = splitGst(revenue, isWonDeal);
+      const gstInfo = reconcileGst(revenue, isWonDeal, deal.TAX_VALUE);
 
       const salesRep = mapBitrixAssignedUser(
         String(deal.ASSIGNED_BY_ID || ''),
@@ -686,7 +890,13 @@ async function syncBitrix() {
       const allCommentsCombined = Array.from(new Set([baseComments, ...timelineList].filter(Boolean))).join(' | ');
       const comments = allCommentsCombined || undefined;
 
-      const lostReason = deal.UF_CRM_1742536927863 || '';
+      // Lost reason: check structured enum (UF_CRM_1786343383165) + text remarks
+      const lostReasonEnum = String(deal.UF_CRM_1786343383165 || '').trim();
+      const lostReasonText = deal.UF_CRM_1742536927863 || deal.UF_CRM_67EBCBB2F3CE7 || '';
+      const lostReason = (BITRIX_LOST_REASON_MAP[lostReasonEnum]
+        ? `${BITRIX_LOST_REASON_MAP[lostReasonEnum]}${lostReasonText ? `: ${lostReasonText}` : ''}`
+        : lostReasonText) || '';
+
       const solutionType = normalizeBitrixSolutionType(deal.UF_CRM_1744361655612 || deal.UF_CRM_SOLUTION || titleParts.solution, deal);
       const industry = normalizeBitrixIndustry(deal.UF_CRM_67E4FF8E84730 || deal.UF_CRM_CATEGORY, deal);
       const leadSource = normalizeBitrixSource(deal.SOURCE_ID);
@@ -707,8 +917,8 @@ async function syncBitrix() {
         id: deal.ID ? `BITRIX-${deal.ID}` : `B24-${idx + 1000}`,
         customer: titleParts.customer,
         grossRevenue: revenue,
-        gstAmount: parseFloat(deal.TAX_VALUE || '0') || computedGstVal,
-        netRevenue: netRevenueWithoutGst,
+        gstAmount: gstInfo.gstAmount,
+        netRevenue: gstInfo.netRevenue,
         salesRep,
         industry,
         solution: solutionType,
@@ -736,6 +946,12 @@ async function syncBitrix() {
     const qualifiedLeadsCount     = leads.filter(l => l.statusType === 'qualified').length;
     const disqualifiedLeadsCount  = leads.filter(l => l.statusType === 'disqualified').length;
     const inProgressLeadsCount    = leads.filter(l => l.statusType === 'in_progress').length;
+
+    // Safety check: Never overwrite an existing populated cache with empty data
+    if (allDeals.length === 0 && cachedResult && (cachedResult.won?.length > 0 || cachedResult.progress?.length > 0)) {
+      console.warn('[syncBitrix] ⚠️ Refusing to overwrite existing populated cache with 0 deals. Retaining existing cache.');
+      return cachedResult;
+    }
 
     cachedResult = {
       won,
@@ -809,7 +1025,7 @@ app.get('/api/deals', async (_req, res) => {
   res.json(cachedResult);
 });
 
-app.post('/api/deals/sync', async (_req, res) => {
+app.post('/api/deals/sync', syncLimiter, async (_req, res) => {
   try {
     console.log('[api/deals/sync] Explicit re-sync triggered via POST');
     const result = await syncBitrix();
@@ -822,6 +1038,30 @@ app.post('/api/deals/sync', async (_req, res) => {
   } catch (err) {
     console.error('[api/deals/sync] Sync error:', err);
     return res.status(500).json({ status: 'error', message: err?.message || 'Failed to sync deals' });
+  }
+});
+
+// ── Single Deal Detail Endpoint (Server-Side Proxy) ───────────────────
+app.get('/api/bitrix/deal/:id', async (req, res) => {
+  const dealId = req.params.id;
+  if (!BITRIX_WEBHOOK_URL) {
+    return res.status(500).json({ status: 'error', message: 'BITRIX_WEBHOOK_URL is not configured on the server.' });
+  }
+  const baseUrl = BITRIX_WEBHOOK_URL.endsWith('/') ? BITRIX_WEBHOOK_URL : `${BITRIX_WEBHOOK_URL}/`;
+  try {
+    const [dealRes, commentRes, prodRes] = await Promise.all([
+      fetch(`${baseUrl}crm.deal.get.json?id=${dealId}`).then(r => r.json()).catch(() => null),
+      fetch(`${baseUrl}crm.timeline.comment.list.json?filter[ENTITY_TYPE]=deal&filter[ENTITY_ID]=${dealId}`).then(r => r.json()).catch(() => null),
+      fetch(`${baseUrl}crm.deal.productrows.get.json?id=${dealId}`).then(r => r.json()).catch(() => null)
+    ]);
+    return res.json({
+      status: 'success',
+      deal: dealRes?.result || null,
+      comments: commentRes?.result || [],
+      products: prodRes?.result || []
+    });
+  } catch (err) {
+    return res.status(500).json({ status: 'error', message: err?.message || 'Failed to fetch deal info from Bitrix' });
   }
 });
 
@@ -1143,32 +1383,6 @@ function buildGroundedActionPlan(deal, allDeals, benchmarks) {
 
   return { strengths, risks, recommendedActions };
 }
-
-// ── EXPRESS ROUTES ──
-
-app.get('/api/deals', async (_req, res) => {
-  if (!cachedResult && isSyncing && activeSyncPromise) {
-    console.log('[api/deals] Initial Bitrix sync in progress, awaiting sync completion...');
-    await activeSyncPromise.catch(() => null);
-  }
-
-  if (!cachedResult) {
-    return res.status(503).json({
-      status: 'error',
-      message: 'Server is still performing initial Bitrix sync. Please retry in a few seconds.'
-    });
-  }
-  res.json(cachedResult);
-});
-
-app.post('/api/deals/sync', async (_req, res) => {
-  try {
-    const result = await syncBitrix();
-    res.json(result);
-  } catch (err) {
-    res.status(500).json({ status: 'error', message: err.message });
-  }
-});
 
 // ── Register LangChain streaming chat routes ─────────────────────────
 // The cache wrapper gives chatRoutes/langchainAgent access to the same
@@ -1511,12 +1725,17 @@ app.listen(PORT, () => {
   console.log(`   CORS: all origins allowed`);
   console.log(`   Sync interval: ${SYNC_INTERVAL_MS / 1000}s\n`);
 
-  // Initial sync on startup
+  // Initial sync on startup (legacy cache + Postgres pipeline)
   syncBitrix().then((res) => {
     console.log('[startup] Initial sync complete.');
     writeProjectionSnapshot();
     ingestDealDocuments(res);
   });
+
+  // Start PostgreSQL sync pipeline (Bitrix + Sheets -> PostgreSQL)
+  if (process.env.DATABASE_URL) {
+    startSyncScheduler(SYNC_INTERVAL_MS);
+  }
 
   // Periodic background sync + daily projection snapshot
   setInterval(() => {

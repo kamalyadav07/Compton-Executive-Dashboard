@@ -5,7 +5,7 @@ import { syncProjectsGoogleSheet, type SheetFetchStatus } from './engine/googleS
 import { getStoredSheetsConfig, saveSheetsConfig, type GoogleSheetsConfig } from './config/sheetsConfig';
 import { getStoredBitrixConfig, saveBitrixConfig, type BitrixConfig } from './config/bitrixConfig';
 import { getStoredBitrixCache, type BitrixSyncResult } from './engine/bitrixService';
-import { fetchDealsFromServer } from './engine/apiClient';
+import { fetchDealsFromServer, fetchServerDashboardSummary, isServerKPIsEnabled } from './engine/apiClient';
 import { globalPlatform } from './platform/EventDrivenPlatform';
 
 import { Navbar } from './components/common/Navbar';
@@ -183,9 +183,23 @@ export function App() {
     return filterRecords(allRecords, filters);
   }, [allRecords, filters]);
 
-  const kpis: KPIMetrics = useMemo(() => {
+  const [serverKPIs, setServerKPIs] = useState<KPIMetrics | null>(null);
+
+  useEffect(() => {
+    if (isServerKPIsEnabled()) {
+      fetchServerDashboardSummary(filters).then(data => {
+        if (data && typeof data.totalNetRevenue === 'number') {
+          setServerKPIs(data);
+        }
+      }).catch(() => {});
+    }
+  }, [filters, bitrixSyncResult]);
+
+  const clientKPIs: KPIMetrics = useMemo(() => {
     return calculateKPIs(filteredRecords, filters, undefined, allRecords);
   }, [filteredRecords, filters, allRecords]);
+
+  const kpis: KPIMetrics = (isServerKPIsEnabled() && serverKPIs) ? serverKPIs : clientKPIs;
 
   return (
     <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'dark bg-[#0a0e1a]' : 'light-theme'}`}>

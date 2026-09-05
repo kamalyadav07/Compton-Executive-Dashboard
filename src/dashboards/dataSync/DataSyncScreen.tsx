@@ -16,6 +16,7 @@ import { GoogleSheetsSyncSection } from '../../components/sheets/GoogleSheetsSyn
 import type { BitrixConfig } from '../../config/bitrixConfig';
 import type { BitrixSyncResult } from '../../engine/bitrixService';
 import { BitrixSyncSection } from '../../components/bitrix/BitrixSyncSection';
+import { PostgresSyncAuditSection } from '../../components/sync/PostgresSyncAuditSection';
 
 interface DataSyncScreenProps {
   config: GoogleSheetsConfig;
@@ -126,6 +127,9 @@ export const DataSyncScreen: React.FC<DataSyncScreenProps> = ({
           <p className="text-[10px] text-slate-400 font-mono">Active Pipeline (All Till Date)</p>
         </div>
       </div>
+
+      {/* PostgreSQL System of Record & Sync Runs Audit Section */}
+      <PostgresSyncAuditSection />
 
       {/* Bitrix24 CRM Sync Component */}
       <BitrixSyncSection

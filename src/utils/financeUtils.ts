@@ -28,7 +28,7 @@ export const GST_RATE = 0.18;
  * because GST only applies to invoiced/won revenue.
  */
 export function splitGst(grossRevenue: number, isWon: boolean): { netRevenue: number; gstAmount: number } {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
+  const gross = Number.isFinite(grossRevenue) ? Math.max(0, grossRevenue) : 0;
   if (!isWon) {
     return { netRevenue: gross, gstAmount: 0 };
   }

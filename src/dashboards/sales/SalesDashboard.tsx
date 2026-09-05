@@ -1,12 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import ReactECharts from 'echarts-for-react';
-import { 
-  CheckCircle2, 
-  Clock, 
-  RefreshCw, 
-  TrendingUp, 
-  Users, 
-  AlertCircle, 
+import {
+  CheckCircle2,
+  Clock,
+  RefreshCw,
+  TrendingUp,
+  Users,
+  AlertCircle,
   Search,
   Package,
   DollarSign,
@@ -19,24 +19,24 @@ import {
   TrendingDown,
   Target
 } from 'lucide-react';
-import { 
-  COMPANY_MONTHLY_TARGET, 
-  COMPANY_YEARLY_TARGET, 
-  INDIVIDUAL_REP_MONTHLY_TARGETS 
+import {
+  COMPANY_MONTHLY_TARGET,
+  COMPANY_YEARLY_TARGET,
+  INDIVIDUAL_REP_MONTHLY_TARGETS
 } from '../../config/salesTargets';
 import type { OrderRecord, OperationalKPIMetrics } from '../../types/orders';
 import type { DealRecord } from '../../types/sales';
 import { getStoredBitrixCache, normalizeBitrixSource, type BitrixSyncResult } from '../../engine/bitrixService';
 import { fetchDealsFromServer } from '../../engine/apiClient';
-import { 
-  fetchOrdersSheetData, 
+import {
+  fetchOrdersSheetData,
   getStoredOrdersSheetUrl
 } from '../../engine/ordersSheetsService';
-import { 
-  fetchProjectSheetsData, 
-  calculateProjectKPIs, 
-  INITIAL_SAMPLE_PROJECTS, 
-  type ProjectRecord 
+import {
+  fetchProjectSheetsData,
+  calculateProjectKPIs,
+  INITIAL_SAMPLE_PROJECTS,
+  type ProjectRecord
 } from '../../engine/projectSheetsService';
 import { splitGst } from '../../utils/financeUtils';
 
@@ -84,8 +84,8 @@ const getCurrentMonthStr = (): string => {
   return `${shortMonthNames[now.getMonth()]} ${now.getFullYear()}`;
 };
 
-const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({ 
-  percentage, 
+const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({
+  percentage,
   label = "billed"
 }) => {
   const clamped = Math.min(100, Math.max(0, percentage));
@@ -234,7 +234,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   // Single unified Bitrix dataset (Prioritizes prop from App -> local state -> cached localStorage)
   const bitrixData = bitrixSyncResult || localBitrixData || getStoredBitrixCache();
-  
+
   // UI Controls & Filters (controlled via Navbar header or fallback local)
   const [_showConfigModal, _setShowConfigModal] = useState<boolean>(false);
   const [_editUrlInput, _setEditUrlInput] = useState<string>(ordersUrl);
@@ -289,7 +289,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             setProjectRecords(res.records);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
 
     } catch (err: any) {
       setSheetStatusMessage(`Sync error: ${err.message}`);
@@ -305,7 +305,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         if (sRes && sRes.orders && sRes.orders.length > 0) {
           setSheetOrders(sRes.orders);
         }
-      }).catch(() => {});
+      }).catch(() => { });
     }, 30000);
     return () => clearInterval(interval);
   }, [ordersUrl]);
@@ -317,7 +317,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   // Fast Deal Map lookup by clean numeric dealId
   const bitrixMap = useMemo(() => {
     const map = new Map<string, DealRecord>();
-    
+
     if (allRecords && allRecords.length > 0) {
       allRecords.forEach(d => {
         const cleanId = String(d.id).replace(/[^0-9]/g, '');
@@ -360,8 +360,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           isoCreationDate = bMatch.date;
         }
 
-        const salesRep = bMatch?.salesRep 
-          ? bMatch.salesRep 
+        const salesRep = bMatch?.salesRep
+          ? bMatch.salesRep
           : ((ord.salesRep && ord.salesRep !== 'Assigned Sales Rep' && ord.salesRep !== 'Unassigned') ? ord.salesRep : 'Unassigned Rep');
 
         return {
@@ -502,7 +502,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     const bitrixCreatedDeals = allBitrixDealsList.filter(matchBitrixCreatedWithDate);
 
     const salesOrdersCreatedCount = bitrixData ? bitrixCreatedDeals.length : activeOrders.length;
-    const salesOrdersCreatedValue = bitrixData 
+    const salesOrdersCreatedValue = bitrixData
       ? bitrixCreatedDeals.reduce((s, d) => s + (d.netRevenue || (d.grossRevenue ? splitGst(d.grossRevenue, true).netRevenue : 0)), 0)
       : activeOrders.reduce((s, o) => s + o.amount, 0);
 
@@ -1090,7 +1090,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       <div className="space-y-3">
         {/* Row 1: Finance Health & Deal Performance Compound KPI Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
-          
+
           {/* 1. Finance Health Executive Compound Card */}
           <div className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
             {/* Card Header */}
@@ -1352,7 +1352,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
       {/* 3. SYMMETRICAL 6-CHART OPERATIONAL VISUAL ANALYTICS GRID */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
-        
+
         {/* Chart 1: Orders Billed vs Unbilled Value */}
         <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">

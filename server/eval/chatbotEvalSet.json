@@ -1,0 +1,86 @@
+[
+  {
+    "id": "eval-001",
+    "query": "What is our total active pipeline value?",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_dashboard_summary",
+    "category": "Pipeline Metrics",
+    "expectedKeywords": ["pipeline", "₹", "Lakh"]
+  },
+  {
+    "id": "eval-002",
+    "query": "Which deals above ₹20 lakh are currently in negotiation?",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_deals",
+    "expectedArgs": { "stage": "Negotiation", "min_value": 2000000 },
+    "category": "Deal Filtering",
+    "expectedKeywords": ["BITRIX-", "Negotiation", "₹"]
+  },
+  {
+    "id": "eval-003",
+    "query": "Who is our top performing sales rep by quota attainment?",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_dashboard_summary",
+    "category": "Sales Rep Analytics",
+    "expectedKeywords": ["attainment", "%", "revenue"]
+  },
+  {
+    "id": "eval-004",
+    "query": "What are the payment terms mentioned in the Fortinet quotation?",
+    "expectedRoute": "DOCUMENT",
+    "expectedTool": "hybrid_retrieval",
+    "category": "Document Evidence",
+    "expectedKeywords": ["Fortinet", "quotation", "terms", "advance"]
+  },
+  {
+    "id": "eval-005",
+    "query": "Find the quote containing FortiGate 100F and 5-year FortiCare",
+    "expectedRoute": "DOCUMENT",
+    "expectedTool": "hybrid_retrieval",
+    "category": "Document Exact SKU Search",
+    "expectedKeywords": ["FortiGate 100F", "FortiCare", "bundle"]
+  },
+  {
+    "id": "eval-006",
+    "query": "How accurate is our deal win-probability forecast model?",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_forecast",
+    "category": "Model Calibration",
+    "expectedKeywords": ["accuracy", "calibration", "predicted", "actual"]
+  },
+  {
+    "id": "eval-007",
+    "query": "Which delivery projects are currently facing schedule delays?",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_projects",
+    "expectedArgs": { "status": "delayed" },
+    "category": "Project Delivery",
+    "expectedKeywords": ["delay", "budget", "project"]
+  },
+  {
+    "id": "eval-008",
+    "query": "What is our company projected revenue achievement for this month?",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_forecast",
+    "expectedArgs": { "period": "month" },
+    "category": "Sales Projection",
+    "expectedKeywords": ["booked", "projection", "target", "gap"]
+  },
+  {
+    "id": "eval-009",
+    "query": "Tell me about deal BITRIX-4320 Acme Corp and why it is high priority",
+    "expectedRoute": "STRUCTURED_DATA",
+    "expectedTool": "get_deal",
+    "expectedArgs": { "id": "BITRIX-4320" },
+    "category": "Deal Detail & Risk",
+    "expectedKeywords": ["BITRIX-4320", "Acme Corp", "Negotiation"]
+  },
+  {
+    "id": "eval-010",
+    "query": "What is the warranty and SLA clause in the Cisco Catalyst contract proposal?",
+    "expectedRoute": "DOCUMENT",
+    "expectedTool": "hybrid_retrieval",
+    "category": "Contract Clauses",
+    "expectedKeywords": ["Cisco", "Catalyst", "warranty", "SLA"]
+  }
+]

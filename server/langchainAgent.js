@@ -148,7 +148,7 @@ function buildTools(cache) {
 
   const getRepPerformanceTool = new DynamicStructuredTool({
     name: 'get_rep_performance',
-    description: 'Get a sales rep\'s performance: monthly target, monthly booked revenue, target attainment %, all-time won/lost deals, win rate, total revenue, average deal size, and open pipeline.',
+    description: 'Get ONE named sales rep\'s performance: monthly target, monthly booked revenue, target attainment %, all-time won/lost deals, win rate, total revenue, average deal size, and open pipeline. Requires a specific rep name — for "which rep has the highest revenue" or any ranking/leaderboard question across all reps, use get_sales_rep instead (called without an id).',
     schema: z.object({ repName: z.string() }),
     func: async ({ repName }) => {
       const deals = getCachedDeals(cache);
@@ -543,7 +543,348 @@ function buildTools(cache) {
     }
   });
 
+  // ── Explicit LangChain Tools (Phase 10) ──────────────────────────────────
+
+  const getDashboardSummaryTool = new DynamicStructuredTool({
+    name: 'get_dashboard_summary',
+    description: 'Get high-level company revenue, target attainment %, open pipeline values, win rates, and cycle benchmarks from PostgreSQL database.',
+    schema: z.object({
+      startDate: z.string().optional(),
+      endDate: z.string().optional(),
+      month: z.string().optional(),
+      year: z.string().optional()
+    }),
+    func: async (args) => {
+      const dashboardService = require('./services/dashboardService');
+      const summary = await dashboardService.getDashboardSummary(args);
+      return JSON.stringify(summary);
+    }
+  });
+
+  const getDealsTool = new DynamicStructuredTool({
+    name: 'get_deals',
+    description: 'Filter deals by stage (e.g. "Negotiation", "Won", "Lost", "Under Finalization", "Proposal Submitting"), status ("won", "lost", "in_progress", "all"), sales rep, customer, minimum/maximum net value in INR (e.g. min_value: 2000000 for ₹20 Lakh), industry, solution, or date period.',
+    schema: z.object({
+      stage: z.string().optional().describe('Stage name e.g. "Negotiation", "Won", "Lost", "Under Finalization", "Proposal Submitting"'),
+      status: z.enum(['won', 'lost', 'in_progress', 'all']).optional().describe('Deal status'),
+      salesRep: z.string().optional().describe('Sales representative name e.g. "Sandeep Vahi", "Rohit Yadav"'),
+      customer: z.string().optional().describe('Customer or company name'),
+      min_value: z.number().optional().describe('Minimum deal net revenue in INR (e.g. 2000000 for ₹20 Lakh)'),
+      max_value: z.number().optional().describe('Maximum deal net revenue in INR'),
+      industry: z.string().optional(),
+      solution: z.string().optional(),
+      specificMonth: z.string().optional().describe('YYYY-MM format e.g. "2026-07"'),
+      relativePeriod: z.enum(['this_month', 'last_month', 'this_year', 'this_fy', 'last_7_days', 'last_30_days']).optional(),
+      limit: z.number().optional().default(20)
+    }),
+    func: async (args) => {
+      const deals = getCachedDeals(cache);
+      let filtered = deals;
+
+      if (args.stage) {
+        filtered = filtered.filter(d => (d.stage || '').toLowerCase().includes(args.stage.toLowerCase()));
+      }
+      if (args.status && args.status !== 'all') {
+        filtered = filtered.filter(d => d.type === args.status);
+      }
+      if (args.salesRep) {
+        filtered = filtered.filter(d => (d.salesRep || '').toLowerCase().includes(args.salesRep.toLowerCase()));
+      }
+      if (args.customer) {
+        filtered = filtered.filter(d => (d.customer || '').toLowerCase().includes(args.customer.toLowerCase()));
+      }
+      if (args.industry) {
+        filtered = filtered.filter(d => (d.industry || '').toLowerCase().includes(args.industry.toLowerCase()));
+      }
+      if (args.solution) {
+        filtered = filtered.filter(d => (d.solution || '').toLowerCase().includes(args.solution.toLowerCase()));
+      }
+      if (args.min_value !== undefined) {
+        filtered = filtered.filter(d => {
+          const net = splitGst(d.grossRevenue, d.type === 'won').netRevenue;
+          return net >= args.min_value;
+        });
+      }
+      if (args.max_value !== undefined) {
+        filtered = filtered.filter(d => {
+          const net = splitGst(d.grossRevenue, d.type === 'won').netRevenue;
+          return net <= args.max_value;
+        });
+      }
+
+      if (args.relativePeriod || args.specificMonth) {
+        const bounds = resolvePeriodBounds(args.relativePeriod, args.specificMonth);
+        if (bounds) {
+          filtered = filtered.filter(d => {
+            const rawDate = d.rawRecord?.CLOSEDATE || d.rawRecord?.DATE_CREATE || d.date;
+            if (!rawDate) return false;
+            const dDate = new Date(rawDate);
+            return dDate >= bounds.start && dDate <= bounds.end;
+          });
+        }
+      }
+
+      const totalMatched = filtered.length;
+      const limit = args.limit || 20;
+      const rows = filtered.slice(0, limit).map(d => {
+        const isWon = d.type === 'won';
+        const { netRevenue } = splitGst(d.grossRevenue, isWon);
+        return {
+          dealId: d.id,
+          bitrixDealId: d.id,
+          customer: d.customer,
+          dealName: cleanDealTitle(d.rawRecord?.TITLE || `${d.customer}`),
+          salesRep: d.salesRep || 'Unassigned',
+          stage: d.stage,
+          status: d.type,
+          netRevenue: Math.round(netRevenue),
+          grossRevenue: d.grossRevenue,
+          date: d.date,
+          industry: d.industry,
+          solution: d.solution
+        };
+      });
+
+      return JSON.stringify({
+        totalMatched,
+        returned: rows.length,
+        deals: rows
+      });
+    }
+  });
+
+  const getDealTool = new DynamicStructuredTool({
+    name: 'get_deal',
+    description: 'Get full detail on ONE specific deal by Bitrix Deal ID (e.g. "BITRIX-3668", "4406") or deal title.',
+    schema: z.object({ id: z.string().describe('Bitrix deal ID or deal name') }),
+    func: async ({ id }) => {
+      const deals = getCachedDeals(cache);
+      const target = (id || '').toLowerCase().trim();
+      const deal = deals.find(d => d.id.toLowerCase() === target || d.id.replace(/\D/g, '') === target.replace(/\D/g, '') || (d.customer && d.customer.toLowerCase().includes(target)));
+      if (!deal) return JSON.stringify({ error: `No deal found matching "${id}"` });
+      const isWon = deal.type === 'won';
+      const { netRevenue, gstAmount } = splitGst(deal.grossRevenue, isWon);
+      return JSON.stringify({
+        dealId: deal.id,
+        customer: deal.customer,
+        dealName: cleanDealTitle(deal.rawRecord?.TITLE || `${deal.customer}`),
+        salesRep: deal.salesRep || 'Unassigned',
+        stage: deal.stage,
+        status: deal.type,
+        netRevenue: Math.round(netRevenue),
+        grossRevenue: deal.grossRevenue,
+        gstAmount: Math.round(gstAmount),
+        industry: deal.industry,
+        solution: deal.solution,
+        date: deal.date,
+        comments: deal.comments
+      });
+    }
+  });
+
+  const getCustomerTool = new DynamicStructuredTool({
+    name: 'get_customer',
+    description: 'Get customer overview: won deal history, total revenue spent, active open pipeline deals, and associated delivery projects.',
+    schema: z.object({ id: z.string().describe('Customer company name') }),
+    func: async ({ id }) => {
+      const deals = getCachedDeals(cache);
+      const target = (id || '').toLowerCase().trim();
+      const custDeals = deals.filter(d => (d.customer || '').toLowerCase().includes(target));
+      const won = custDeals.filter(d => d.type === 'won');
+      const open = custDeals.filter(d => d.type === 'in_progress');
+      const totalSpent = won.reduce((s, d) => s + splitGst(d.grossRevenue, true).netRevenue, 0);
+      return JSON.stringify({
+        customerName: id,
+        totalDeals: custDeals.length,
+        wonDealsCount: won.length,
+        totalSpentNetRevenue: Math.round(totalSpent),
+        activePipelineDealsCount: open.length,
+        activePipelineValue: Math.round(open.reduce((s, d) => s + splitGst(d.grossRevenue, false).netRevenue, 0)),
+        recentDeals: custDeals.slice(0, 5).map(d => ({
+          dealId: d.id,
+          stage: d.stage,
+          netRevenue: Math.round(splitGst(d.grossRevenue, d.type === 'won').netRevenue),
+          date: d.date
+        }))
+      });
+    }
+  });
+
+  const getSalesRepTool = new DynamicStructuredTool({
+    name: 'get_sales_rep',
+    description:
+      'Get sales representative performance: monthly target, won revenue, quota attainment %, open pipeline, and win rate. ' +
+      'Call this WITHOUT the "id" argument to get every rep at once, already ranked highest-to-lowest by won revenue — ' +
+      'use that for ANY ranking/comparison question such as "which sales rep has the highest revenue", ' +
+      '"who is the top performer", "who has the lowest win rate", or "rank the sales reps". ' +
+      'Pass "id" only when the user names one specific rep.',
+    schema: z.object({
+      id: z.string().optional().describe('Sales representative name (e.g. "Sandeep Vahi", "Rohit Yadav"). Omit this to get all reps ranked by revenue.')
+    }),
+    func: async ({ id } = {}) => {
+      const dashboardService = require('./services/dashboardService');
+      const repStats = await dashboardService.getSalesRepAnalytics(id ? { salesRep: id } : {});
+      return JSON.stringify(repStats);
+    }
+  });
+
+  const getProjectsTool = new DynamicStructuredTool({
+    name: 'get_projects',
+    description: 'List operational delivery projects with planned budgets, actual costs, EVM cost variance, delay days, and timeline status.',
+    schema: z.object({
+      status: z.string().optional().describe('Project status: "Running", "Completed", "Delayed", "On Hold", or "All"'),
+      customer: z.string().optional().describe('Filter by customer name'),
+      projectType: z.string().optional().describe('Filter by project type (e.g. "CCTV", "Networking", "Access Control")'),
+      limit: z.number().optional().default(20)
+    }),
+    func: async (args) => {
+      const dashboardService = require('./services/dashboardService');
+      const projectsData = await dashboardService.getProjectAnalytics(args);
+      return JSON.stringify(projectsData);
+    }
+  });
+
+  const getProjectTool = new DynamicStructuredTool({
+    name: 'get_project',
+    description: 'Get details of a single delivery project including budget variance, milestone dates, and delay status.',
+    schema: z.object({ id: z.string().describe('Project ID, S.No, or project name') }),
+    func: async ({ id }) => {
+      const dashboardService = require('./services/dashboardService');
+      const projectsData = await dashboardService.getProjectAnalytics({});
+      const target = (id || '').toLowerCase().trim();
+      const project = (projectsData.projects || []).find(p => 
+        (p.external_project_id && p.external_project_id.toLowerCase().includes(target)) ||
+        (p.project_name && p.project_name.toLowerCase().includes(target)) ||
+        (p.customer_name && p.customer_name.toLowerCase().includes(target))
+      );
+      return JSON.stringify(project || { error: `No project found matching "${id}"` });
+    }
+  });
+
+  const getForecastTool = new DynamicStructuredTool({
+    name: 'get_forecast',
+    description: 'Get sales projections: booked net revenue so far, weighted forecast of open pipeline, company target, and gap to target.',
+    schema: z.object({ period: z.enum(['month', 'fy', 'quarter']).optional().default('month') }),
+    func: async ({ period }) => {
+      const deals = getCachedDeals(cache);
+      const targets = getTargets();
+      const projection = computeSalesProjection(deals, period === 'fy' ? 'fy' : 'month', targets);
+      return JSON.stringify(projection);
+    }
+  });
+
+  const getPipelineTool = new DynamicStructuredTool({
+    name: 'get_pipeline',
+    description: 'Get pipeline analytics: stage distribution breakdown, deal count per stage, gross/net stage value, and stage-weighted forecast value.',
+    schema: z.object({
+      salesRep: z.string().optional(),
+      solution: z.string().optional(),
+      industry: z.string().optional()
+    }),
+    func: async (args) => {
+      const dashboardService = require('./services/dashboardService');
+      const pipeline = await dashboardService.getPipelineAnalytics(args);
+      return JSON.stringify(pipeline);
+    }
+  });
+
+  const getWinRateTool = new DynamicStructuredTool({
+    name: 'get_win_rate',
+    description: 'Get win/loss analytics: overall win rate %, representative breakdown, won vs lost values, and categorized lost reasons.',
+    schema: z.object({
+      salesRep: z.string().optional(),
+      startDate: z.string().optional(),
+      endDate: z.string().optional()
+    }),
+    func: async (args) => {
+      const dashboardService = require('./services/dashboardService');
+      const winRate = await dashboardService.getWinRateAnalytics(args);
+      return JSON.stringify(winRate);
+    }
+  });
+
+  const getSalesCycleTool = new DynamicStructuredTool({
+    name: 'get_sales_cycle',
+    description: 'Get sales cycle duration metrics: average days from deal creation to closure across deals and sales reps.',
+    schema: z.object({ salesRep: z.string().optional() }),
+    func: async ({ salesRep }) => {
+      const dashboardService = require('./services/dashboardService');
+      const summary = await dashboardService.getDashboardSummary({ salesRep });
+      return JSON.stringify({
+        avgSalesCycleDays: summary.avgSalesCycleDays,
+        largestDealSize: summary.largestDealSize,
+        medianDealSize: summary.medianDealSize
+      });
+    }
+  });
+
+  const searchDocumentsTool = new DynamicStructuredTool({
+    name: 'search_documents',
+    description: 'Search inside uploaded/attached quotation PDFs, Word docs, contracts, and technical specifications using hybrid TF-IDF + semantic search.',
+    schema: z.object({
+      query: z.string().describe('Search query, technical specification, SKU, or quotation clause'),
+      dealId: z.string().optional().describe('Optional Bitrix deal ID filter')
+    }),
+    func: async ({ query, dealId }) => {
+      const { retrieveHybridEvidence } = require('./services/hybridRetrievalService');
+      const result = await retrieveHybridEvidence(query, { dealId, topK: 6 });
+      return JSON.stringify(result.evidenceChunks);
+    }
+  });
+
+  const getDealTimelineTool = new DynamicStructuredTool({
+    name: 'get_deal_timeline',
+    description: 'Get stage change timeline and velocity history for a deal, including days spent in each stage.',
+    schema: z.object({ id: z.string().describe('Bitrix deal ID or UUID') }),
+    func: async ({ id }) => {
+      try {
+        const { pool } = require('./db');
+        const { rows } = await pool.query(
+          `SELECT h.previous_stage, h.new_stage, h.days_in_stage, h.transitioned_at
+           FROM deal_stage_history h
+           JOIN deals d ON d.id = h.deal_id
+           WHERE d.bitrix_deal_id = $1 OR d.id::text = $1
+           ORDER BY h.transitioned_at ASC`,
+          [id]
+        );
+        return JSON.stringify({ dealId: id, transitions: rows });
+      } catch (err) {
+        return JSON.stringify({ dealId: id, transitions: [], error: err.message });
+      }
+    }
+  });
+
+  const getDealCommentsTool = new DynamicStructuredTool({
+    name: 'get_deal_comments',
+    description: 'Get CRM comments, discussion notes, and activity logs logged against a specific deal.',
+    schema: z.object({ id: z.string().describe('Bitrix deal ID or UUID') }),
+    func: async ({ id }) => {
+      const deals = getCachedDeals(cache);
+      const target = (id || '').toLowerCase().trim();
+      const deal = deals.find(d => d.id.toLowerCase() === target || d.id.replace(/\D/g, '') === target.replace(/\D/g, ''));
+      return JSON.stringify({
+        dealId: id,
+        comments: deal?.comments || 'No CRM discussion comments logged for this deal.'
+      });
+    }
+  });
+
   const rawTools = [
+    getDashboardSummaryTool,
+    getDealsTool,
+    getDealTool,
+    getCustomerTool,
+    getSalesRepTool,
+    getProjectsTool,
+    getProjectTool,
+    getForecastTool,
+    getPipelineTool,
+    getWinRateTool,
+    getSalesCycleTool,
+    searchDocumentsTool,
+    getDealTimelineTool,
+    getDealCommentsTool,
+    // Backwards-compatible legacy aliases
     getSalesProjectionTool,
     getDealCloseLikelihoodTool,
     getRepPerformanceTool,
@@ -581,30 +922,35 @@ IMPORTANT DATE SYSTEM RULE:
 Today's real date is provided to you as ${currentDate} — always use it for any relative date reasoning in your response text (e.g. when saying which month you're describing). Never guess or assume a date.
 
 TOOL SELECTION GUIDE:
-• get_sales_projection → projections, targets, "will we hit our number", monthly/yearly performance
-• get_deals_likely_to_close → deals ranked by close probability within N days
-• get_rep_performance → a specific sales rep's stats (deals won/lost, revenue, pipeline)
-• get_deal_detail → full detail on ONE specific named deal or deal ID (e.g. "BITRIX-3668", "deal 4406"). DO NOT use this for listing multiple deals or "recently won deals" for a company — use query_deals instead for list questions.
-• search_deal_documents → search inside attached PDF/Word/Excel quotes/documents for a specific deal
+• get_dashboard_summary → company-level total revenue, target attainment %, overall pipeline value, win rate, and sales cycle benchmarks
+• get_deals → Filter deals by stage (e.g. "Negotiation", "Won"), min/max value in INR (e.g. min_value: 2000000 for ₹20 Lakh), sales rep, customer, industry, solution, or date range
+• get_deal → full detail on ONE specific named deal or deal ID (e.g. "BITRIX-3668", "4406")
+• get_customer → customer overview: won deal history, total revenue spent, active open pipeline deals, and associated delivery projects
+• get_sales_rep → a specific sales rep's stats (monthly target, booked revenue, quota attainment %, open pipeline, win rate)
+• get_projects → list delivery projects with planned budgets, actual spend, EVM variance, delay days, and timeline status
+• get_project → single project in-depth delivery information (budget, actual cost, milestone dates)
+• get_forecast → sales projections: booked net revenue so far, weighted forecast of open pipeline, company target, and gap to target
+• get_pipeline → pipeline stage distribution breakdown, deal count per stage, gross/net stage value, and stage-weighted forecast value
+• get_win_rate → overall win rate %, representative breakdown, won vs lost values, and categorized lost reasons
+• get_sales_cycle → sales cycle duration metrics: average days from deal creation to closure
+• search_documents → search inside attached quotation PDFs, Word docs, contracts, and technical specifications
+• get_deal_timeline → stage change timeline and velocity history for a deal
+• get_deal_comments → CRM comments, discussion notes, and activity logs logged against a specific deal
 • get_forecast_calibration → predictive model accuracy, calibration buckets, prediction tracking reports
-• query_deals → EVERYTHING ELSE. Any ad-hoc question about the deal data: filtering by industry, date range, deal size, stale deals, lost reasons, counts, averages, recent deals, list of deals, etc.
 
-CRITICAL RULES FOR QUERY_DEALS DATES & TRUNCATION:
-1. DATE & MONTH FILTERING RULES:
-   - For relative periods ("this month", "last month", "this year", "this fy", "last 7 days", "last 30 days"), pass relativePeriod ('this_month', 'last_month', 'this_year', 'this_fy', 'last_7_days', 'last_30_days').
-   - For SPECIFIC named months ("July", "in June", "May 2026", "deals won in July"), pass specificMonth in "YYYY-MM" format (e.g. "2026-07" for July 2026, "2026-06" for June 2026, "2026-05" for May 2026) calculated relative to the injected current date (${currentDate}).
-   - FEW-SHOT EXAMPLES (given today is ${currentDate}):
-     • "all deals won in July and its value" → query_deals(specificMonth: "2026-07", filters: [{ field: "type", operator: "eq", value: "won" }])
-     • "all deals won in August and its value" → query_deals(specificMonth: "2026-08", filters: [{ field: "type", operator: "eq", value: "won" }])
-     • "all deals won in June and its value" → query_deals(specificMonth: "2026-06", filters: [{ field: "type", operator: "eq", value: "won" }])
-     • "deals won in May 2026" → query_deals(specificMonth: "2026-05", filters: [{ field: "type", operator: "eq", value: "won" }])
-   - DO NOT pass freeform date strings in the filters array. Always use relativePeriod or specificMonth.
-2. When query_deals returns showingNote or when totalMatched > returned, include an explicit note in your response stating "Showing top N of TOTAL matching deals" so the user is informed about truncation.
+FEW-SHOT EXAMPLES:
 
-CURATED FEW-SHOT Q&A EXAMPLES:
+Example 0 (Stage & Minimum Value Filtering):
+User: "Which deals above ₹20 lakh are currently in negotiation?"
+Agent:
+Querying \`get_deals(stage: "Negotiation", min_value: 2000000)\`.
+### High-Value Deals in Negotiation (> ₹20 Lakh)
+Found **2 matching deals** totaling **₹68.4 Lakh** in active negotiation.
 
-Example 1 (Named Month Table Output):
-User: "all deals won in July and its value"
+| Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| BITRIX-4320 | Acme Corp / Delhi / Data Center Revamp | Sandeep Vahi | ₹45,00,000 | Negotiation | 2026-08-10 |
+| BITRIX-4288 | Metro Rail Corp / CCTV Expansion | Rohit Yadav | ₹23,40,000 | Negotiation | 2026-08-04 |
 Agent:
 Querying \`query_deals(specificMonth: "2026-07", filters: [{ field: "type", operator: "eq", value: "won" }])\`.
 ### July 2026 Won Deals Summary
@@ -640,7 +986,7 @@ Querying \`get_deal_detail(query: "BITRIX-4464")\`.
 FORMATTING & RESPONSE STRUCTURE REQUIREMENTS:
 1. MANDATORY BITRIX DEAL ID RULE: Every single deal mentioned in ANY table, list, or summary MUST show its Bitrix Deal ID (format: BITRIX-XXXX). NEVER omit the Bitrix Deal ID under any circumstances.
 2. STRICT REQUIRED TABLE SCHEMA FOR MULTI-DEAL LISTS:
-   Whenever query_deals, get_deals_likely_to_close, or get_sales_projection returns multiple deals, you MUST format the response as a Markdown table using EXACTLY this column order and headers:
+   Whenever query_deals, get_deals, get_deals_likely_to_close, or get_sales_projection returns multiple deals, you MUST format the response as a Markdown table using EXACTLY this column order and headers:
 
    | Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |
    | :--- | :--- | :--- | :--- | :--- | :--- |
@@ -657,10 +1003,18 @@ FORMATTING & RESPONSE STRUCTURE REQUIREMENTS:
 3. CLEAN DEAL TITLES: Never output raw HTML tags (like <br>), stray asterisks (*), or markdown markup inside table cells or deal titles.
 4. ALWAYS bold the single headline number in every response (e.g. "**₹42.5 Lakh**", "**18 deals**", "**82%**").
 5. Structure narrative answers using section headers (### Section Title), short paragraphs, and blockquotes (> [!NOTE]) instead of long bullet dumps.
-6. When answering from an attached document chunk (via search_deal_documents or get_deal_detail's relevantDocumentChunks), ALWAYS cite the source file name.
-7. All monetary values are already GST-adjusted (net of 18% GST on won deals) — format in Indian numbering (Lakhs, Crores) for readability.
-8. NEVER invent, round differently, or restate numbers differently from what the tool returned.
-9. When answering a rep performance question (from get_rep_performance), ALWAYS state the rep's monthly target and their current attainment percentage.`;
+6. MANDATORY ANTI-HALLUCINATION & NUMERICAL PARITY RULES:
+   - NEVER invent CRM or dashboard numbers, deal counts, or revenue metrics.
+   - For ANY numerical/factual question, ALWAYS call the corresponding deterministic tool.
+   - If a tool returns no data or an empty result set, say the data is unavailable rather than estimating, guessing, or fabricating figures.
+   - NEVER modify, recalculate, or alter a numerical tool result before presenting it.
+7. EPISTEMIC DISTINCTION IN PHRASING:
+   Explicitly distinguish the nature of your statements:
+   - **Actual CRM Records**: State as facts (e.g. "According to CRM records, Deal BITRIX-4320 has ₹45 Lakh booked net value in Negotiation...").
+   - **Model Predictions**: State as statistical estimates (e.g. "The AI predictive engine estimates an 85% close likelihood...").
+   - **Document Evidence**: State as quotation excerpts with file name (e.g. "According to \`Quotation_FortiGate.pdf\`, the 5-year 24x7 support bundle is included...").
+   - **Assumptions**: Place in blockquotes (\`> [!NOTE] Assumption: ...\`).
+8. CITATIONS: Always cite the source tool or document file name for factual statements.`;
 }
 
 let globalCheckpointer = null;
@@ -723,6 +1077,135 @@ function getApiKey() {
   return apiKey;
 }
 
+// ── Intent Detection Step (Structured Output Classification) ───────────
+
+/**
+ * Classifies an incoming question as either STRUCTURED_DATA or DOCUMENT
+ * using a fast, deterministic LLM call (temperature: 0.0).
+ *
+ * @param {string} userMessage - The raw user prompt
+ * @param {Object|null} attachedFile - Uploaded file if present
+ * @returns {Promise<'STRUCTURED_DATA'|'DOCUMENT'>}
+ */
+async function detectIntent(userMessage, attachedFile = null) {
+  if (attachedFile) return 'DOCUMENT';
+
+  const cleanMsg = (userMessage || '').trim();
+  if (!cleanMsg) return 'STRUCTURED_DATA';
+
+  const apiKey = getApiKey();
+  if (!apiKey) {
+    // Deterministic keyword heuristics fallback
+    const docKeywords = /\b(quote|quotation|clause|payment terms?|contract|warranty|sla|spec|specification|rfp|tender|pdf|document|attachment|po#|sku)\b/i;
+    return docKeywords.test(cleanMsg) ? 'DOCUMENT' : 'STRUCTURED_DATA';
+  }
+
+  try {
+    const rawModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+    const modelName = rawModel.includes('3.6') ? 'gemini-1.5-flash' : rawModel;
+    const classifier = new ChatGoogleGenerativeAI({
+      model: modelName,
+      apiKey,
+      temperature: 0.0,
+      maxRetries: 2
+    });
+
+    const prompt = `You are an intent classifier for Compton's enterprise sales dashboard assistant.
+Classify the user's question into EXACTLY ONE of two categories:
+
+1. STRUCTURED_DATA: Questions asking about database numbers, metrics, deal counts, pipeline values, win rates, sales rep quotas, deal stages, revenue booked, closed deals, projections, or lists of deals.
+2. DOCUMENT: Questions asking about the content of uploaded/attached documents, quotation line items, technical specifications, payment terms, SLAs, contract clauses, warranties, or tender terms.
+
+User Question: "${cleanMsg}"
+
+Respond with ONLY one word: either STRUCTURED_DATA or DOCUMENT.`;
+
+    const response = await classifier.invoke(prompt);
+    const content = (response?.content || '').toUpperCase().trim();
+    if (content.includes('DOCUMENT')) return 'DOCUMENT';
+    return 'STRUCTURED_DATA';
+  } catch (err) {
+    console.warn('[langchainAgent] LLM intent classification notice, using heuristic fallback:', err.message);
+    const docKeywords = /\b(quote|quotation|clause|payment terms?|contract|warranty|sla|spec|specification|rfp|tender|pdf|document|attachment|po#|sku)\b/i;
+    return docKeywords.test(cleanMsg) ? 'DOCUMENT' : 'STRUCTURED_DATA';
+  }
+}
+
+// ── Route B: Document Evidence Grounded Execution ───────────────────────
+
+/**
+ * Route B: Answers questions based strictly on hybrid TF-IDF + Semantic evidence chunks.
+ *
+ * @param {string} userMessage - User query
+ * @param {Object|null} attachedFile - Uploaded file if present
+ * @param {Function} onToken - Callback for streaming tokens
+ * @returns {Promise<Object>}
+ */
+async function executeDocumentRoute(userMessage, attachedFile, onToken) {
+  const { retrieveHybridEvidence } = require('./services/hybridRetrievalService');
+  const apiKey = getApiKey();
+  const rawModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
+  const modelName = rawModel.includes('3.6') ? 'gemini-1.5-flash' : rawModel;
+
+  const llm = new ChatGoogleGenerativeAI({
+    model: modelName,
+    apiKey,
+    temperature: 0.2,
+    streaming: true,
+    maxRetries: 3
+  });
+
+  let evidenceContext = '';
+  let evidenceFiles = [];
+
+  if (attachedFile && attachedFile.extractedText) {
+    evidenceContext += `--- Uploaded File: ${attachedFile.name} ---\n${attachedFile.extractedText.slice(0, 8000)}\n\n`;
+    evidenceFiles.push(attachedFile.name);
+  }
+
+  const hybridResult = await retrieveHybridEvidence(userMessage, { topK: 8 });
+  if (hybridResult.evidenceChunks && hybridResult.evidenceChunks.length > 0) {
+    hybridResult.evidenceChunks.forEach((chunk, i) => {
+      evidenceContext += `--- Document Evidence Chunk ${i + 1} (File: ${chunk.fileName}, Deal: ${chunk.dealId || 'N/A'}, Relevance: ${Math.round(chunk.finalScore * 100)}%) ---\n${chunk.content}\n\n`;
+      if (!evidenceFiles.includes(chunk.fileName)) evidenceFiles.push(chunk.fileName);
+    });
+  }
+
+  const documentSystemPrompt = `You are the Compton Document Intelligence Assistant.
+You are answering a question based ONLY on the provided document excerpts, quotation files, and contract clauses below.
+
+EVIDENCE CHUNKS:
+${evidenceContext || 'No document evidence chunks found in the database.'}
+
+HARD RULES FOR ACCURACY:
+1. Answer ONLY using facts, terms, numbers, and specifications explicitly present in the evidence above.
+2. If the provided evidence does not contain the answer, you must state clearly:
+   "Based on the provided document evidence, I could not find information regarding [topic]."
+3. Do NOT extrapolate, hallucinate, or invent specifications, pricing, warranty terms, or clauses.
+4. When stating facts from the documents, explicitly cite the source file name (e.g. "According to \`Quotation_FortiGate.pdf\`...").
+5. Format key technical specifications, prices, and line items neatly in tables or bullet points.`;
+
+  const responseStream = await llm.stream([
+    { role: 'system', content: documentSystemPrompt },
+    { role: 'user', content: userMessage }
+  ]);
+
+  let fullResponse = '';
+  for await (const chunk of responseStream) {
+    const text = chunk?.content;
+    if (text && typeof text === 'string') {
+      fullResponse += text;
+      if (onToken) onToken(text);
+    }
+  }
+
+  return {
+    response: fullResponse,
+    evidenceChunks: hybridResult.evidenceChunks,
+    evidenceFiles
+  };
+}
+
 function buildConversationalAgent(cache) {
   const rawModel = process.env.GEMINI_MODEL || 'gemini-1.5-flash';
   const modelName = rawModel.includes('3.6') ? 'gemini-1.5-flash' : rawModel;
@@ -760,4 +1243,10 @@ function clearHistory(sessionId) {
   }
 }
 
-module.exports = { buildConversationalAgent, clearHistory, sanitizeSessionHistory };
+module.exports = { 
+  buildConversationalAgent, 
+  detectIntent, 
+  executeDocumentRoute, 
+  clearHistory, 
+  sanitizeSessionHistory 
+};

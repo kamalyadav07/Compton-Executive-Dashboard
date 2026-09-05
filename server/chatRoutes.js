@@ -12,10 +12,58 @@
  */
 
 const path = require('path');
-const { buildConversationalAgent, clearHistory, sanitizeSessionHistory } = require('./langchainAgent');
+const rateLimit = require('express-rate-limit');
+const { 
+  buildConversationalAgent, 
+  detectIntent, 
+  executeDocumentRoute, 
+  clearHistory, 
+  sanitizeSessionHistory 
+} = require('./langchainAgent');
+const { validateNumericalGrounding } = require('./services/numericalGroundingValidator');
+
+// Rate limiter for chat streaming and queries (60 requests per minute per IP)
+const chatLimiter = rateLimit({
+  windowMs: 1 * 60 * 1000,
+  max: 60,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: {
+    error: 'Too many chat requests from this IP. Please wait a minute and try again.'
+  }
+});
 
 // Active per-session locks: sessionId -> { startTime, reqId }
 const activeSessions = new Map();
+
+// Helper to log chat messages, citations, and audit routes to PostgreSQL
+async function logChatMessageToDb(sessionId, role, content, toolsInvoked = [], route = 'STRUCTURED_DATA', citations = [], sourceRef = '') {
+  try {
+    const { pool } = require('./db');
+    await pool.query(
+      `INSERT INTO chat_sessions (id, title)
+       VALUES ($1, $2)
+       ON CONFLICT (id) DO NOTHING`,
+      [sessionId, `Chat Session ${new Date().toLocaleDateString()}`]
+    );
+    await pool.query(
+      `INSERT INTO chat_messages (session_id, role, content, tools_invoked, route, source_type, source_reference, citations)
+       VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+      [
+        sessionId,
+        role,
+        content,
+        JSON.stringify(toolsInvoked),
+        route,
+        route === 'DOCUMENT' ? 'document_evidence' : 'structured_sql',
+        sourceRef || (toolsInvoked.length > 0 ? `Tools: ${toolsInvoked.join(', ')}` : 'PostgreSQL Deals Table'),
+        JSON.stringify(citations || [])
+      ]
+    );
+  } catch (err) {
+    console.warn('[chatRoutes] PostgreSQL chat audit log notice:', err.message);
+  }
+}
 
 function registerChatRoutes(app, cache) {
   function getAgent() {
@@ -23,7 +71,7 @@ function registerChatRoutes(app, cache) {
   }
 
   // ── Streaming chat endpoint ─────────────────────────────────────────
-  app.post('/api/chat/stream', async (req, res) => {
+  app.post('/api/chat/stream', chatLimiter, async (req, res) => {
     const { message, sessionId, attachedFile } = req.body;
     if (!message || !sessionId) {
       return res.status(400).json({ error: 'message and sessionId are required' });
@@ -32,7 +80,7 @@ function registerChatRoutes(app, cache) {
     const reqId = `req-${Date.now()}-${Math.random().toString(36).slice(2, 6)}`;
     const startTime = Date.now();
 
-    // ── Concurrency Lock (Requirement 3.d) ─────────────────────────────
+    // ── Concurrency Lock ──────────────────────────────────────────────
     if (activeSessions.has(sessionId)) {
       const existing = activeSessions.get(sessionId);
       const elapsed = Date.now() - existing.startTime;
@@ -61,8 +109,14 @@ function registerChatRoutes(app, cache) {
     let firstTokenEmitted = false;
     let tokenCount = 0;
     let isTimedOut = false;
+    let fullResponseText = '';
+    let toolsCalled = [];
+    let rawToolOutputs = [];
+    let activeRoute = 'STRUCTURED_DATA';
+    let citations = [];
+    let sourceReference = '';
 
-    // ── Server-Side Timeout (Requirement 3.a - 40s) ──────────────────────
+    // ── Server-Side Timeout (40s) ───────────────────────────────────────
     const timeoutId = setTimeout(async () => {
       isTimedOut = true;
       console.error(`[CHAT STREAM] [${reqId}] TIMEOUT after 40s | session: ${sessionId}`);
@@ -78,7 +132,15 @@ function registerChatRoutes(app, cache) {
     try {
       console.log(`[CHAT STREAM] [${reqId}] Start request | session: ${sessionId} | input: "${message.slice(0, 60)}..."`);
 
-      // Clean up any dangling corrupted checkpoint before starting (Requirement 3.c)
+      // 1. Intent Detection Step (Classify STRUCTURED_DATA vs DOCUMENT)
+      activeRoute = await detectIntent(message, attachedFile);
+      console.log(`[CHAT STREAM] [${reqId}] Active Route Classified: [${activeRoute}]`);
+      res.write(`data: ${JSON.stringify({ route: activeRoute })}\n\n`);
+
+      // Audit user message to PostgreSQL
+      logChatMessageToDb(sessionId, 'user', message, [], activeRoute);
+
+      // Clean up any dangling corrupted checkpoint before starting
       await sanitizeSessionHistory(sessionId);
 
       let input = message;
@@ -86,43 +148,92 @@ function registerChatRoutes(app, cache) {
         input = `${message}\n\n[Attached file: ${attachedFile.name}]\n${attachedFile.extractedText.slice(0, 6000)}`;
       }
 
-      console.log(`[CHAT STREAM] [${reqId}] LangChain agent invocation starting...`);
-      const { agent } = getAgent();
-      const eventStream = agent.streamEvents(
-        { messages: [{ role: 'user', content: input }] },
-        { version: 'v2', configurable: { thread_id: sessionId } }
-      );
+      if (activeRoute === 'DOCUMENT') {
+        // ── ROUTE B: DOCUMENT EVIDENCE GROUNDED RAG ─────────────────────
+        console.log(`[CHAT STREAM] [${reqId}] Dispatching to Route B (Document Intelligence RAG)...`);
+        toolsCalled = ['hybrid_retrieval'];
 
-      let toolsCalled = [];
-
-      for await (const event of eventStream) {
-        if (isTimedOut) break;
-
-        if (event.event === 'on_tool_start') {
-          if (event.name && !toolsCalled.includes(event.name)) {
-            toolsCalled.push(event.name);
+        const docResult = await executeDocumentRoute(message, attachedFile, (token) => {
+          if (isTimedOut) return;
+          if (!firstTokenEmitted) {
+            firstTokenEmitted = true;
+            const ttft = Date.now() - startTime;
+            console.log(`[CHAT STREAM] [${reqId}] First token emitted (TTFT: ${ttft}ms) via Route B`);
           }
-        }
+          tokenCount++;
+          fullResponseText += token;
+          res.write(`data: ${JSON.stringify({ token })}\n\n`);
+        });
 
-        if (event.event === 'on_chat_model_stream') {
-          const chunk = event.data?.chunk;
-          if (chunk && typeof chunk.content === 'string' && chunk.content) {
-            if (!firstTokenEmitted) {
-              firstTokenEmitted = true;
-              const ttft = Date.now() - startTime;
-              console.log(`[CHAT STREAM] [${reqId}] First token emitted (TTFT: ${ttft}ms)`);
+        fullResponseText = docResult.response || fullResponseText;
+        citations = (docResult.evidenceChunks || []).map(c => ({
+          fileName: c.fileName,
+          chunkIndex: c.chunkIndex,
+          score: c.finalScore,
+          matchedTerms: c.matchedTerms,
+          preview: (c.content || '').slice(0, 150)
+        }));
+        sourceReference = (docResult.evidenceFiles || []).join(', ') || 'Attached Quotations & Contracts';
+      } else {
+        // ── ROUTE A: STRUCTURED DATA & EXACT SQL TOOLS ──────────────────
+        console.log(`[CHAT STREAM] [${reqId}] Dispatching to Route A (Structured Data & SQL Tools)...`);
+        const { agent } = getAgent();
+        const eventStream = agent.streamEvents(
+          { messages: [{ role: 'user', content: input }] },
+          { version: 'v2', configurable: { thread_id: sessionId } }
+        );
+
+        for await (const event of eventStream) {
+          if (isTimedOut) break;
+
+          if (event.event === 'on_tool_start') {
+            if (event.name && !toolsCalled.includes(event.name)) {
+              toolsCalled.push(event.name);
             }
-            tokenCount++;
-            res.write(`data: ${JSON.stringify({ token: chunk.content })}\n\n`);
+          }
+
+          if (event.event === 'on_tool_end') {
+            const toolOut = event.data?.output;
+            if (toolOut) {
+              rawToolOutputs.push(toolOut);
+            }
+          }
+
+          if (event.event === 'on_chat_model_stream') {
+            const chunk = event.data?.chunk;
+            if (chunk && typeof chunk.content === 'string' && chunk.content) {
+              if (!firstTokenEmitted) {
+                firstTokenEmitted = true;
+                const ttft = Date.now() - startTime;
+                console.log(`[CHAT STREAM] [${reqId}] First token emitted (TTFT: ${ttft}ms) via Route A`);
+              }
+              tokenCount++;
+              fullResponseText += chunk.content;
+              res.write(`data: ${JSON.stringify({ token: chunk.content })}\n\n`);
+            }
           }
         }
+
+        // 3. Post-Response Numerical Validation Step (Requirement 3)
+        if (rawToolOutputs.length > 0) {
+          const valResult = validateNumericalGrounding(fullResponseText, rawToolOutputs);
+          if (!valResult.isValid) {
+            console.warn(`[CHAT STREAM] [${reqId}] Numerical validation flagged ungrounded numbers:`, valResult.ungroundedNumbers);
+          }
+        }
+
+        citations = toolsCalled.map(t => ({
+          tool: t,
+          source: 'PostgreSQL Database / Bitrix Synced CRM Data'
+        }));
+        sourceReference = toolsCalled.length > 0 ? `Tools: ${toolsCalled.join(', ')}` : 'PostgreSQL Deals Table';
       }
 
       clearTimeout(timeoutId);
 
       if (!isTimedOut) {
         const totalDuration = Date.now() - startTime;
-        console.log(`[CHAT STREAM] [${reqId}] Request completed successfully | duration: ${totalDuration}ms | tokens: ${tokenCount} | tools: ${toolsCalled.join(', ')}`);
+        console.log(`[CHAT STREAM] [${reqId}] Request completed successfully | route: ${activeRoute} | duration: ${totalDuration}ms | tokens: ${tokenCount} | tools: ${toolsCalled.join(', ')}`);
         
         const { logChatInteraction } = require('./chatQueryLogger');
         logChatInteraction({
@@ -131,6 +242,12 @@ function registerChatRoutes(app, cache) {
           toolsCalled,
           responseLength: tokenCount
         });
+
+        // Emit Citation & Evidence Metadata to Frontend
+        res.write(`data: ${JSON.stringify({ citations, sourceReference })}\n\n`);
+
+        // Audit assistant response with route and citations to PostgreSQL
+        logChatMessageToDb(sessionId, 'assistant', fullResponseText, toolsCalled, activeRoute, citations, sourceReference);
 
         res.write('data: [DONE]\n\n');
         res.end();
@@ -263,12 +380,49 @@ function executeFallbackToolAnswer(userQuery, cache) {
     return `### High-Probability Closes (Next 15 Days)\nFound **${topCloses.length} open deals** likely to close within 15 days (≥50% close probability).\n\n| Bitrix Deal ID | Deal Name & Customer | Sales Rep | Net Value | Stage | Date |\n| :--- | :--- | :--- | :--- | :--- | :--- |\n${topCloses.map(r => `| ${r.deal.id} | ${r.deal.rawRecord?.TITLE || r.deal.customer || r.deal.title} | ${r.deal.salesRep || 'Unassigned'} | ₹${(r.deal.grossRevenue || 0).toLocaleString('en-IN')} | ${r.deal.stage} | ${r.deal.date || 'Near-term'} |`).join('\n')}`;
   }
 
-  // 4. Entity & Stage Query Matching (e.g. "recent capri won deals")
+  // 4. Sales-rep ranking / leaderboard questions (e.g. "which rep has the
+  // highest revenue", "top performer", "who has the lowest win rate").
+  // This must run BEFORE the generic entity-search branch below, since a
+  // question like "which sales rep has the highest revenue" contains no
+  // company/deal name to search for and would otherwise fall through to it.
+  const isRankingQuestion = /\b(highest|lowest|top|best|worst|most|least|leaderboard|rank|ranking)\b/.test(q)
+    && /\b(rep|sales ?rep|salesperson|performer|revenue|sales)\b/.test(q);
+  if (isRankingQuestion) {
+    const byRep = new Map();
+    for (const d of deals) {
+      const rep = d.salesRep || 'Unassigned';
+      if (!byRep.has(rep)) byRep.set(rep, { rep, wonRevenue: 0, wonCount: 0, lostCount: 0 });
+      const entry = byRep.get(rep);
+      if (d.type === 'won') { entry.wonRevenue += (d.grossRevenue || 0); entry.wonCount += 1; }
+      if (d.type === 'lost') entry.lostCount += 1;
+    }
+    const wantsLowest = /\b(lowest|worst|least)\b/.test(q);
+    const ranked = [...byRep.values()]
+      .filter(r => r.rep !== 'Unassigned')
+      .sort((a, b) => wantsLowest ? a.wonRevenue - b.wonRevenue : b.wonRevenue - a.wonRevenue);
+
+    if (ranked.length === 0) {
+      return `### Sales Rep Leaderboard\nNo sales-rep-attributed deals were found in the currently cached data.`;
+    }
+
+    const top = ranked[0];
+    return `### Sales Rep Leaderboard (by Won Revenue)\n**${top.rep}** has the ${wantsLowest ? 'lowest' : 'highest'} won revenue at **₹${(top.wonRevenue / 100000).toFixed(2)} Lakh** across **${top.wonCount} won deals**.\n\n| Sales Rep | Won Revenue | Won Deals | Lost Deals |\n| :--- | :--- | :--- | :--- |\n${ranked.slice(0, 10).map(r => `| ${r.rep} | ₹${(r.wonRevenue / 100000).toFixed(2)} Lakh | ${r.wonCount} | ${r.lostCount} |`).join('\n')}`;
+  }
+
+  // 5. Entity & Stage Query Matching (e.g. "recent capri won deals")
   let filtered = [...deals];
   const words = q.split(/\s+/);
-  const ignoreWords = new Set(['recent', 'all', 'deals', 'won', 'lost', 'open', 'in', 'july', 'august', 'june', 'may', 'and', 'its', 'value', 'show', 'list', 'the', 'for', 'rep']);
+  const ignoreWords = new Set([
+    'recent', 'all', 'deals', 'deal', 'won', 'lost', 'open', 'in', 'july', 'august', 'june', 'may',
+    'and', 'its', 'value', 'show', 'list', 'the', 'for', 'rep', 'reps',
+    // question words — these must never be treated as a search term
+    'which', 'who', 'what', 'whom', 'whose', 'why', 'how', 'has', 'have', 'had',
+    'is', 'are', 'was', 'were', 'does', 'do', 'did', 'can', 'could', 'would', 'should',
+    'highest', 'lowest', 'top', 'best', 'worst', 'most', 'least', 'about', 'our', 'company'
+  ]);
   const companyTerms = words.filter(w => w.length >= 3 && !ignoreWords.has(w));
 
+  let hadUnmatchedSearchTerm = false;
   if (companyTerms.length > 0) {
     const term = companyTerms[0];
     const matches = deals.filter(d =>
@@ -279,7 +433,16 @@ function executeFallbackToolAnswer(userQuery, cache) {
     );
     if (matches.length > 0) {
       filtered = matches;
+    } else {
+      // Do NOT silently fall back to "all deals" mislabeled as a match —
+      // that's the bug that previously made every unrecognized question
+      // return the entire 1000+ row dataset under a nonsense title.
+      hadUnmatchedSearchTerm = true;
     }
+  }
+
+  if (hadUnmatchedSearchTerm) {
+    return `### I couldn't find a specific match\nI didn't find any deals matching "${companyTerms[0]}", and this question doesn't match a metric I can compute from the cached deal data alone.\n\n> [!TIP]\n> Try asking things like:\n> * *"Which sales rep has the highest revenue?"*\n> * *"Show deals for [customer or rep name]"*\n> * *"What is our sales projection this month?"*\n> * *"Which deals are likely to close in the next 15 days?"*`;
   }
 
   if (q.includes('won')) {

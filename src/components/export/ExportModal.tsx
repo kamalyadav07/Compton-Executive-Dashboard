@@ -400,7 +400,7 @@ Net Variance: ${varianceNet > 0 ? `+₹${varianceNet.toLocaleString('en-IN')} (O
                 required
                 value={bitrixWebhookUrlInput}
                 onChange={(e) => setBitrixWebhookUrlInput(e.target.value)}
-                placeholder="https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/"
+                placeholder="https://your-domain.bitrix24.in/rest/..."
                 className="w-full px-3 py-2 bg-slate-950 border border-slate-700 rounded-xl text-xs text-white focus:outline-none focus:border-purple-500 font-mono"
               />
             </div>

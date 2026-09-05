@@ -6,9 +6,22 @@ import path from 'path';
 let serverlessCache: any = null;
 
 export default async function handler(req: VercelRequest, res: VercelResponse) {
-  // CORS Headers
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
-  res.setHeader('Access-Control-Allow-Origin', '*');
+  const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
+
+  const reqOrigin = (req.headers.origin || '') as string;
+  const isLocalOrigin = /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(reqOrigin);
+
+  if (reqOrigin && (allowedOrigins.includes(reqOrigin) || allowedOrigins.includes('*') || isLocalOrigin)) {
+    res.setHeader('Access-Control-Allow-Origin', reqOrigin);
+    res.setHeader('Access-Control-Allow-Credentials', 'true');
+    res.setHeader('Vary', 'Origin');
+  } else if (!reqOrigin) {
+    res.setHeader('Access-Control-Allow-Origin', '*');
+  }
+
   res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
   res.setHeader(
     'Access-Control-Allow-Headers',
@@ -42,7 +55,13 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
 
   // Attempt 3: Live Bitrix fetch fallback if disk cache is unavailable
   try {
-    const webhookUrl = process.env.BITRIX_WEBHOOK_URL || process.env.VITE_BITRIX_WEBHOOK_URL || 'https://compton.bitrix24.in/rest/212/ml282niaoub4hrkz/';
+    const webhookUrl = (process.env.BITRIX_WEBHOOK_URL || process.env.VITE_BITRIX_WEBHOOK_URL || '').trim();
+    if (!webhookUrl) {
+      return res.status(500).json({
+        status: 'error',
+        message: 'BITRIX_WEBHOOK_URL environment variable is not configured on serverless environment.'
+      });
+    }
     const cleanBaseUrl = webhookUrl.endsWith('/') ? webhookUrl : `${webhookUrl}/`;
 
     const qp = new URLSearchParams();

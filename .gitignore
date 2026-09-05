@@ -7,12 +7,28 @@ yarn-error.log*
 pnpm-debug.log*
 lerna-debug.log*
 
+# Dependencies and Builds
 node_modules
 dist
 dist-ssr
 *.local
+
+# Environment variables & secrets
 .env
 .env.*
+!.env.example
+!server/.env.example
+
+# Runtime server data caches & business prediction snapshots
+server/cached_bitrix_deals.json
+server/chatQueryLogs.json
+server/predictionSnapshots.json
+server/projectionSnapshots.json
+server/reconciledOutcomes.json
+server/test-reconcile-input.json
+server/*.json.bak
+*.xlsx
+*.xls
 
 # Editor directories and files
 .vscode/*
