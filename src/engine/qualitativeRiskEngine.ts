@@ -21,7 +21,9 @@ export interface QualitativeRiskSignals {
   competitorMentioned: boolean;
   decisionMakerChanged: boolean;
   customerWentQuiet: boolean;
+  dealStalled: boolean;
   quietDays: number;
+  dealAgeDays: number;
   scopeOrPriceChangedRecently: boolean;
   urgencyLanguageDetected: boolean;
   extractedUrgencyDate: string | null;
@@ -132,6 +134,10 @@ export function extractQualitativeRiskSignals(
   const quietDays = computeRealCommentQuietDays(deal);
   const customerWentQuiet = deal.type === 'in_progress' && quietDays > 14;
 
+  const created = deal.rawRecord?.DATE_CREATE || deal.date;
+  const dealAgeDays = created ? Math.max(0, Math.round((Date.now() - new Date(created).getTime()) / 86400000)) : 0;
+  const dealStalled = deal.type === 'in_progress' && dealAgeDays > 60 && quietDays >= 14;
+
   const competitorMentioned = COMPETITOR_PATTERNS.some(p => combinedText.includes(p));
   const decisionMakerChanged = DECISION_MAKER_PATTERNS.some(p => combinedText.includes(p));
   const scopeOrPriceChangedRecently = SCOPE_PRICE_PATTERNS.some(p => combinedText.includes(p));
@@ -147,7 +153,8 @@ export function extractQualitativeRiskSignals(
   // Notes summary
   const notesParts: string[] = [];
   if (competitorMentioned) notesParts.push('Competitor/third-party vendor discussed in comments.');
-  if (customerWentQuiet) notesParts.push(`Customer quiet for ${quietDays} days with no CRM update.`);
+  if (dealStalled) notesParts.push(`Deal stalled: age ${dealAgeDays}d with no activity for ${quietDays}d.`);
+  else if (customerWentQuiet) notesParts.push(`Customer quiet for ${quietDays} days with no CRM update.`);
   if (decisionMakerChanged) notesParts.push('Mention of contact or decision maker change.');
   if (scopeOrPriceChangedRecently) notesParts.push('Price negotiation or scope revision noted.');
   if (urgencyLanguageDetected) notesParts.push(`Customer indicated urgent timeline${extractedUrgencyDate ? ` (${extractedUrgencyDate})` : ''}.`);
@@ -158,7 +165,9 @@ export function extractQualitativeRiskSignals(
     competitorMentioned,
     decisionMakerChanged,
     customerWentQuiet,
+    dealStalled,
     quietDays,
+    dealAgeDays,
     scopeOrPriceChangedRecently,
     urgencyLanguageDetected,
     extractedUrgencyDate,
@@ -175,6 +184,7 @@ export function extractQualitativeRiskSignals(
  * Multipliers:
  *  - competitorMentioned: 0.85 (-15%)
  *  - customerWentQuiet: 0.80 (-20%)
+ *  - dealStalled: 0.60 to 0.75 (-25% to -40%)
  *  - decisionMakerChanged: 0.88 (-12%)
  *  - scopeOrPriceChangedRecently: 0.92 (-8%)
  *  - urgencyLanguageDetected: 1.10 (+10%)
@@ -198,7 +208,17 @@ export function ensembleAdjustWinProbability(
     });
   }
 
-  if (signals.customerWentQuiet) {
+  if (signals.dealStalled) {
+    const stallMult = signals.dealAgeDays > 180 ? 0.60 : 0.75;
+    multiplier *= stallMult;
+    activeSignals.push({
+      key: 'dealStalled',
+      label: signals.dealAgeDays > 180 ? `🛑 Dormant (${signals.dealAgeDays}d)` : `⏳ Stalled (${signals.dealAgeDays}d)`,
+      multiplier: stallMult,
+      badgeStyle: signals.dealAgeDays > 180 ? 'bg-rose-500/20 text-rose-300 border-rose-500/40' : 'bg-amber-500/20 text-amber-300 border-amber-500/40',
+      description: `Deal is ${signals.dealAgeDays} days old with no CRM activity for ${signals.quietDays} days.`
+    });
+  } else if (signals.customerWentQuiet) {
     multiplier *= 0.80;
     activeSignals.push({
       key: 'customerWentQuiet',

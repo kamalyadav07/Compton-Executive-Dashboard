@@ -22,9 +22,8 @@ type SortKey =
   | 'amount'
   | 'salesRep'
   | 'stage'
+  | 'closureProbability'
   | 'winProbabilityPct'
-  | 'closesWithin7DaysPct'
-  | 'closesWithin15DaysPct'
   | 'expectedCloseDate'
   | 'ageDays';
 
@@ -263,6 +262,11 @@ const FocusDeals: React.FC<{ projection: SalesProjection }> = ({ projection }) =
               <div className="text-base font-black text-emerald-400">{formatINRFull(deal.netValue)}</div>
               <div className="flex items-center justify-between">
                 <span className={`text-xs font-bold ${probColor}`}>{prob}% win prob</span>
+                {deal.closureProbability !== null && deal.closureProbability !== undefined && (
+                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 font-mono border border-teal-500/30" title={`Rep Closure Prob: ${deal.closureProbabilityLabel || deal.closureProbability + '%'}`}>
+                    Rep: {deal.closureProbability}%
+                  </span>
+                )}
                 <span className="text-[11px] text-slate-500">{deal.expectedCloseDate}</span>
               </div>
               <div className="w-full bg-slate-800 rounded-full h-1.5">
@@ -334,16 +338,41 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
     return new Set(monthProjection.topDealsLikelyToClose.map(d => d.dealName));
   }, [monthProjection]);
 
+  // Helper to determine if a deal closes within a target day window (by expected close date or close likelihood)
+  const isClosingInWindow = useCallback((r: DealIntelligenceResult, days: number) => {
+    // Stalled / dormant deals with customer quiet for 14+ days and age > 60d cannot close within 7 or 15 days
+    if ((r.daysSinceLastUpdate >= 14 || r.qualitativeSignals?.customerWentQuiet || r.qualitativeSignals?.dealStalled) && r.ageDays > 60) {
+      return false;
+    }
+
+    const pct = days <= 7 ? r.closesWithin7DaysPct : r.closesWithin15DaysPct;
+
+    // 1. High empirical closing probability within this window
+    if (pct >= 50) return true;
+
+    // 2. Expected close date is within the window AND deal has active momentum
+    if (r.expectedCloseDate) {
+      const targetDate = new Date(r.expectedCloseDate);
+      const today = new Date();
+      today.setHours(0, 0, 0, 0);
+      const diffDays = Math.round((targetDate.getTime() - today.getTime()) / (1000 * 60 * 60 * 24));
+      if (diffDays >= 0 && diffDays <= days) {
+        return pct >= 15 && r.daysSinceLastUpdate < 14;
+      }
+    }
+    return false;
+  }, []);
+
   // ── Table filtering & sorting ────────────────────────────────────────
 
   const filtered = useMemo(() => {
     let base = intelligenceResults;
 
-    // Pipeline filter tabs (require >= 50% threshold for likelihood filters)
+    // Pipeline filter tabs (deals closing this week or within 15 days)
     if (pipelineFilter === '7d') {
-      base = base.filter(r => r.closesWithin7DaysPct >= 50);
+      base = base.filter(r => isClosingInWindow(r, 7));
     } else if (pipelineFilter === '15d') {
-      base = base.filter(r => r.closesWithin15DaysPct >= 50);
+      base = base.filter(r => isClosingInWindow(r, 15));
     }
 
     // Text search
@@ -359,13 +388,21 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
         (r.deal.rawRecord?.TITLE || '').toLowerCase().includes(q) ||
         (r.deal.salesRep || '').toLowerCase().includes(q) ||
         (r.deal.stage || '').toLowerCase().includes(q) ||
-        (r.deal.solution || '').toLowerCase().includes(q)
+        (r.deal.solution || '').toLowerCase().includes(q) ||
+        (r.repClosureProbabilityLabel || '').toLowerCase().includes(q) ||
+        (r.repClosureProbability !== null && `${r.repClosureProbability}%`.includes(q))
       );
     });
-  }, [intelligenceResults, searchQuery, pipelineFilter]);
+  }, [intelligenceResults, searchQuery, pipelineFilter, isClosingInWindow]);
 
-  const count7d = useMemo(() => intelligenceResults.filter(r => r.closesWithin7DaysPct >= 50).length, [intelligenceResults]);
-  const count15d = useMemo(() => intelligenceResults.filter(r => r.closesWithin15DaysPct >= 50).length, [intelligenceResults]);
+  const count7d = useMemo(
+    () => intelligenceResults.filter(r => isClosingInWindow(r, 7)).length,
+    [intelligenceResults, isClosingInWindow]
+  );
+  const count15d = useMemo(
+    () => intelligenceResults.filter(r => isClosingInWindow(r, 15)).length,
+    [intelligenceResults, isClosingInWindow]
+  );
 
   const sorted = useMemo(() => {
     const compare = (a: DealIntelligenceResult, b: DealIntelligenceResult): number => {
@@ -396,6 +433,10 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
           va = a.deal.stage.toLowerCase();
           vb = b.deal.stage.toLowerCase();
           break;
+        case 'closureProbability':
+          va = a.repClosureProbability !== null && a.repClosureProbability !== undefined ? a.repClosureProbability : -1;
+          vb = b.repClosureProbability !== null && b.repClosureProbability !== undefined ? b.repClosureProbability : -1;
+          break;
         case 'expectedCloseDate':
           va = a.expectedCloseDate;
           vb = b.expectedCloseDate;
@@ -425,6 +466,11 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
     return [...filtered].sort(compare);
   }, [filtered, sortKey, sortDir]);
 
+  const totalShownValue = useMemo(
+    () => sorted.reduce((sum, r) => sum + (r.deal.grossRevenue || r.deal.netRevenue || 0), 0),
+    [sorted]
+  );
+
   const toggleSort = useCallback((key: SortKey) => {
     if (sortKey === key) {
       setSortDir(d => d === 'asc' ? 'desc' : 'asc');
@@ -435,17 +481,21 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
   }, [sortKey]);
 
   const SortIcon: React.FC<{ col: SortKey }> = ({ col }) => {
-    if (sortKey !== col) return <ArrowUpDown className="w-3 h-3 inline opacity-30 ml-1" />;
-    return sortDir === 'asc'
-      ? <ChevronUp className="w-3 h-3 inline text-cyan-400 ml-1" />
-      : <ChevronDown className="w-3 h-3 inline text-cyan-400 ml-1" />;
+    if (sortKey !== col) {
+      return <ArrowUpDown className="w-3 h-3 text-slate-500 opacity-40 group-hover:opacity-80 transition-opacity shrink-0" />;
+    }
+    return sortDir === 'asc' ? (
+      <ChevronUp className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+    ) : (
+      <ChevronDown className="w-3.5 h-3.5 text-cyan-400 shrink-0" />
+    );
   };
 
   const filterTabClass = (active: boolean) =>
-    `px-3 py-1.5 rounded-lg text-xs font-bold transition-colors cursor-pointer select-none ${
+    `px-3 py-1.5 rounded-lg text-xs font-bold transition-all duration-150 cursor-pointer select-none inline-flex items-center gap-1.5 ${
       active
-        ? 'bg-cyan-500/20 text-cyan-400 border border-cyan-500/30'
-        : 'bg-slate-800/60 text-slate-400 border border-slate-700 hover:text-slate-200'
+        ? 'bg-cyan-500/20 text-cyan-300 border border-cyan-500/40 shadow-sm shadow-cyan-500/10'
+        : 'bg-slate-800/70 text-slate-400 border border-slate-700/80 hover:text-slate-200 hover:bg-slate-800'
     }`;
 
   return (
@@ -511,72 +561,149 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
         <div className="lg:col-span-2 glass-panel px-4 py-2.5 rounded-xl border border-slate-800 flex items-start space-x-2.5 bg-slate-900/60">
           <Info className="w-4 h-4 text-blue-400 mt-0.5 shrink-0" />
           <div className="text-xs text-slate-400 leading-relaxed">
-            <strong className="text-slate-200">How Win Probability Works:</strong> Win probability is evaluated from five core factors: this sales rep's historical win rate, how this deal's size compares to what the rep typically closes, how long the deal has been in the pipeline, pipeline stage progress, and industry win rates. These weights are learned directly from patterns across your {model.trainedOn} historical deals.
+            <strong className="text-slate-200">How Win Probability Works:</strong> Win probability blends sales reps' active Closure Probability assessments (0%–100%) with five core machine learning factors: historical rep win rate, deal size ratio vs rep baseline, pipeline age, stage progress, and industry win rates, calibrated against {model.trainedOn} historical closed deals.
           </div>
         </div>
       </div>
 
-      {/* ── Pipeline Filter Tabs ── */}
-      <div className="flex items-center gap-2 flex-wrap">
-        <Calendar className="w-4 h-4 text-slate-400" />
-        <span className="text-xs text-slate-400 font-semibold mr-1">Show:</span>
-        <button className={filterTabClass(pipelineFilter === 'all')} onClick={() => setPipelineFilter('all')}>
-          All Open Deals ({intelligenceResults.length})
-        </button>
-        <button className={filterTabClass(pipelineFilter === '15d')} onClick={() => setPipelineFilter('15d')}>
-          Closing ≤15 Days ({count15d})
-        </button>
-        <button className={filterTabClass(pipelineFilter === '7d')} onClick={() => setPipelineFilter('7d')}>
-          Closing This Week (≤7d) ({count7d})
-        </button>
-        <span className="text-xs text-slate-500 ml-1">
-          {pipelineFilter !== 'all' && `${sorted.length} of ${intelligenceResults.length} shown`}
-        </span>
+      {/* ── Pipeline Filter & Stats Bar ── */}
+      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-slate-900/60 border border-slate-800/80 p-3 rounded-xl">
+        <div className="flex items-center gap-2 flex-wrap">
+          <Calendar className="w-4 h-4 text-cyan-400 shrink-0" />
+          <span className="text-xs text-slate-400 font-semibold mr-1">Filter Pipeline:</span>
+          <button className={filterTabClass(pipelineFilter === 'all')} onClick={() => setPipelineFilter('all')}>
+            All Open Deals ({intelligenceResults.length})
+          </button>
+          <button className={filterTabClass(pipelineFilter === '7d')} onClick={() => setPipelineFilter('7d')}>
+            Closing This Week (≤7d) ({count7d})
+          </button>
+          <button className={filterTabClass(pipelineFilter === '15d')} onClick={() => setPipelineFilter('15d')}>
+            Closing ≤15 Days ({count15d})
+          </button>
+        </div>
+        <div className="flex items-center gap-3 text-xs text-slate-400 self-end sm:self-auto">
+          <span>Showing <strong className="text-slate-200">{sorted.length}</strong> of {intelligenceResults.length} deals</span>
+          <span className="text-slate-700">|</span>
+          <span>Pipeline Value: <strong className="text-emerald-400 font-mono">₹{totalShownValue.toLocaleString('en-IN')}</strong></span>
+        </div>
       </div>
 
       {/* ── Deal Intelligence Table ── */}
-      <div className="glass-panel rounded-2xl border border-slate-800 overflow-hidden bg-slate-900/60">
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-900/90 text-slate-400 uppercase tracking-wider font-semibold border-b border-slate-800">
+      <div className="glass-panel rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-900/60 shadow-xl">
+        <div className="overflow-x-auto custom-scrollbar">
+          <table className="w-full text-left text-xs min-w-[1150px] border-collapse">
+            <thead className="bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 select-none">
               <tr>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none" onClick={() => toggleSort('dealId')}>
-                  Bitrix ID <SortIcon col="dealId" />
+                <th
+                  className={`py-3.5 px-4 w-[120px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'dealId' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('dealId')}
+                >
+                  <div className="inline-flex items-center gap-1.5">
+                    <span>Bitrix ID</span>
+                    <SortIcon col="dealId" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none" onClick={() => toggleSort('customer')}>
-                  Customer & Deal <SortIcon col="customer" />
+                <th
+                  className={`py-3.5 px-4 min-w-[280px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'customer' || sortKey === 'dealTitle' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('customer')}
+                >
+                  <div className="inline-flex items-center gap-1.5">
+                    <span>Customer & Deal</span>
+                    <SortIcon col="customer" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none text-right" onClick={() => toggleSort('amount')}>
-                  Amount (Gross/Net) <SortIcon col="amount" />
+                <th
+                  className={`py-3.5 px-4 w-[165px] text-right cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'amount' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('amount')}
+                >
+                  <div className="flex items-center justify-end gap-1.5 w-full">
+                    <span>Amount (Gross/Net)</span>
+                    <SortIcon col="amount" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none" onClick={() => toggleSort('salesRep')}>
-                  Sales Rep <SortIcon col="salesRep" />
+                <th
+                  className={`py-3.5 px-4 w-[150px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'salesRep' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('salesRep')}
+                >
+                  <div className="inline-flex items-center gap-1.5">
+                    <span>Sales Rep</span>
+                    <SortIcon col="salesRep" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none" onClick={() => toggleSort('stage')}>
-                  Stage <SortIcon col="stage" />
+                <th
+                  className={`py-3.5 px-4 w-[140px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'stage' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('stage')}
+                >
+                  <div className="inline-flex items-center gap-1.5">
+                    <span>Stage</span>
+                    <SortIcon col="stage" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none text-right" onClick={() => toggleSort('winProbabilityPct')}>
-                  Win Prob % <SortIcon col="winProbabilityPct" />
+                <th
+                  className={`py-3.5 px-4 w-[140px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'closureProbability' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('closureProbability')}
+                >
+                  <div className="flex items-center justify-center gap-1.5 w-full">
+                    <span>Closure Prob (Rep)</span>
+                    <SortIcon col="closureProbability" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none text-right" onClick={() => toggleSort('closesWithin7DaysPct')}>
-                  Closes ≤7d % <SortIcon col="closesWithin7DaysPct" />
+                <th
+                  className={`py-3.5 px-4 w-[135px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'winProbabilityPct' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('winProbabilityPct')}
+                >
+                  <div className="flex items-center justify-center gap-1.5 w-full">
+                    <span>Win Prob % (AI)</span>
+                    <SortIcon col="winProbabilityPct" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none text-right" onClick={() => toggleSort('closesWithin15DaysPct')}>
-                  Closes ≤15d % <SortIcon col="closesWithin15DaysPct" />
+                <th
+                  className={`py-3.5 px-4 w-[135px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'expectedCloseDate' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('expectedCloseDate')}
+                >
+                  <div className="flex items-center justify-center gap-1.5 w-full">
+                    <span>Expected Close</span>
+                    <SortIcon col="expectedCloseDate" />
+                  </div>
                 </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none" onClick={() => toggleSort('expectedCloseDate')}>
-                  Expected Close <SortIcon col="expectedCloseDate" />
-                </th>
-                <th className="p-3 cursor-pointer hover:text-white transition-colors select-none text-right" onClick={() => toggleSort('ageDays')}>
-                  Age (Days) <SortIcon col="ageDays" />
+                <th
+                  className={`py-3.5 px-4 w-[100px] text-right cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                    sortKey === 'ageDays' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
+                  }`}
+                  onClick={() => toggleSort('ageDays')}
+                >
+                  <div className="flex items-center justify-end gap-1.5 w-full">
+                    <span>Age (Days)</span>
+                    <SortIcon col="ageDays" />
+                  </div>
                 </th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60">
+            <tbody className="divide-y divide-slate-800/60 bg-slate-900/30">
               {sorted.length === 0 && (
                 <tr>
-                  <td colSpan={10} className="p-8 text-center text-slate-500 text-sm">
-                    No matching in-progress deals found.
+                  <td colSpan={9} className="py-12 text-center text-slate-500 text-sm">
+                    <div className="flex flex-col items-center justify-center gap-2">
+                      <Search className="w-8 h-8 text-slate-600 mb-1" />
+                      <span className="font-semibold text-slate-300">No matching in-progress deals found</span>
+                      <span className="text-xs text-slate-500">Try adjusting your search query or pipeline filter</span>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -585,31 +712,46 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
                 const dealTitle = r.deal.rawRecord?.TITLE || `${r.deal.customer} (${r.deal.solution})`;
                 const bitrixAmount = r.deal.grossRevenue || r.deal.netRevenue;
                 const isFocusDeal = focusDealNames.has(dealTitle) || focusDealNames.has(r.deal.customer);
+                const repInitials = (r.deal.salesRep || '')
+                  .split(' ')
+                  .filter(Boolean)
+                  .map(n => n[0])
+                  .join('')
+                  .slice(0, 2)
+                  .toUpperCase() || 'SR';
 
                 return (
                   <tr
                     key={r.deal.id}
-                    className={`hover:bg-slate-900/50 transition-colors ${isFocusDeal ? 'border-l-2 border-amber-500/50' : ''}`}
+                    className={`group hover:bg-slate-800/40 transition-colors duration-150 ${
+                      isFocusDeal ? 'bg-amber-500/[0.03] border-l-2 border-amber-500' : ''
+                    }`}
                   >
-                    <td className="p-3 font-mono font-bold whitespace-nowrap">
-                      <span className={`px-2 py-0.5 rounded text-[10px] border ${isFocusDeal ? 'bg-amber-500/10 text-amber-400 border-amber-500/20' : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'}`}>
+                    <td className="py-3.5 px-4 font-mono font-bold whitespace-nowrap align-middle">
+                      <span className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-semibold border ${
+                        isFocusDeal
+                          ? 'bg-amber-500/10 text-amber-400 border-amber-500/20'
+                          : 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20'
+                      }`}>
                         {dealIdStr}
                       </span>
                     </td>
-                    <td className="p-3 max-w-[260px]">
+                    <td className="py-3.5 px-4 align-middle">
                       <div className="flex items-center gap-1.5">
-                        {isFocusDeal && <Zap className="w-3 h-3 text-amber-400 shrink-0" />}
-                        <div className="font-bold text-slate-100 truncate" title={r.deal.customer}>{r.deal.customer}</div>
+                        {isFocusDeal && <Zap className="w-3.5 h-3.5 text-amber-400 shrink-0 fill-amber-400/20" />}
+                        <div className="font-bold text-slate-100 text-xs sm:text-sm truncate" title={r.deal.customer}>
+                          {r.deal.customer}
+                        </div>
                       </div>
-                      <div className="text-[11px] text-slate-400 font-normal truncate mt-0.5" title={dealTitle}>
+                      <div className="text-[11px] text-slate-400 font-normal truncate mt-0.5 max-w-[340px]" title={dealTitle}>
                         {dealTitle}
                       </div>
                       {r.ensembleScore?.activeSignals && r.ensembleScore.activeSignals.length > 0 && (
-                        <div className="flex flex-wrap gap-1 mt-1">
+                        <div className="flex flex-wrap gap-1 mt-1.5">
                           {r.ensembleScore.activeSignals.map((sig, idx) => (
                             <span
                               key={idx}
-                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold border ${sig.badgeStyle}`}
+                              className={`px-1.5 py-0.5 rounded text-[9px] font-bold border tracking-wide ${sig.badgeStyle}`}
                               title={sig.description}
                             >
                               {sig.label}
@@ -618,36 +760,95 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
                         </div>
                       )}
                     </td>
-                    <td className="p-3 text-right font-mono whitespace-nowrap">
-                      <div className="font-bold text-emerald-400">
+                    <td className="py-3.5 px-4 text-right font-mono whitespace-nowrap align-middle">
+                      <div className="font-bold text-xs sm:text-sm text-emerald-400">
                         ₹{bitrixAmount.toLocaleString('en-IN')}
                       </div>
                       {r.deal.gstAmount > 0 && (
-                        <div className="text-[10px] text-slate-500">
+                        <div className="text-[10px] text-slate-400 mt-0.5">
                           Net: ₹{r.deal.netRevenue.toLocaleString('en-IN')}
                         </div>
                       )}
                     </td>
-                    <td className="p-3 text-slate-300 whitespace-nowrap">{r.deal.salesRep}</td>
-                    <td className="p-3">
-                      <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-slate-800 text-slate-300 border border-slate-700 whitespace-nowrap">
+                    <td className="py-3.5 px-4 whitespace-nowrap align-middle">
+                      <div className="flex items-center gap-2">
+                        <div className="w-5 h-5 rounded-full bg-slate-800 text-slate-300 border border-slate-700 text-[9px] font-bold flex items-center justify-center shrink-0">
+                          {repInitials}
+                        </div>
+                        <span className="text-xs text-slate-300 font-medium">{r.deal.salesRep || 'Unassigned'}</span>
+                      </div>
+                    </td>
+                    <td className="py-3.5 px-4 whitespace-nowrap align-middle">
+                      <span className="px-2.5 py-1 rounded-md text-[10px] font-bold bg-slate-800/90 text-slate-300 border border-slate-700/80">
                         {r.deal.stage}
                       </span>
                     </td>
-                    <td className={`p-3 text-right font-mono font-bold text-slate-200`}>
-                      {r.winProbabilityPct}%
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono align-middle">
+                      {r.repClosureProbability !== null && r.repClosureProbability !== undefined ? (
+                        <span
+                          className={`inline-flex items-center px-2 py-0.5 rounded text-[10px] font-bold border ${
+                            r.repClosureProbability >= 100
+                              ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/30'
+                              : r.repClosureProbability >= 75
+                              ? 'bg-teal-500/15 text-teal-300 border-teal-500/30'
+                              : r.repClosureProbability >= 50
+                              ? 'bg-amber-500/15 text-amber-300 border-amber-500/30'
+                              : r.repClosureProbability >= 25
+                              ? 'bg-orange-500/15 text-orange-300 border-orange-500/30'
+                              : 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                          }`}
+                          title={r.repClosureProbabilityLabel || `${r.repClosureProbability}% Closure Probability`}
+                        >
+                          {r.repClosureProbability}%
+                        </span>
+                      ) : (
+                        <span className="text-slate-500 text-[11px]" title="Not selected in Bitrix">—</span>
+                      )}
                     </td>
-                    <td className={`p-3 text-right font-mono font-bold text-slate-200`}>
-                      {r.closesWithin7DaysPct}%
+                    <td className="py-3.5 px-4 text-center whitespace-nowrap font-mono align-middle">
+                      <div className="flex flex-col items-center justify-center gap-1">
+                        <span className={`font-bold text-xs ${
+                          r.winProbabilityPct >= 70
+                            ? 'text-emerald-400'
+                            : r.winProbabilityPct >= 40
+                            ? 'text-cyan-400'
+                            : 'text-amber-400'
+                        }`}>
+                          {r.winProbabilityPct}%
+                        </span>
+                        <div className="w-12 h-1 bg-slate-800 rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full ${
+                              r.winProbabilityPct >= 70
+                                ? 'bg-emerald-400'
+                                : r.winProbabilityPct >= 40
+                                ? 'bg-cyan-400'
+                                : 'bg-amber-400'
+                            }`}
+                            style={{ width: `${Math.min(Math.max(r.winProbabilityPct, 5), 100)}%` }}
+                          />
+                        </div>
+                      </div>
                     </td>
-                    <td className={`p-3 text-right font-mono font-bold text-slate-200`}>
-                      {r.closesWithin15DaysPct}%
+                    <td className="py-3.5 px-4 text-center font-mono text-xs whitespace-nowrap align-middle">
+                      <span className={
+                        isClosingInWindow(r, 7)
+                          ? 'text-cyan-300 font-bold px-2 py-0.5 rounded bg-cyan-500/10 border border-cyan-500/20'
+                          : 'text-slate-300'
+                      }>
+                        {r.expectedCloseDate}
+                      </span>
                     </td>
-                    <td className="p-3 font-mono text-slate-300 whitespace-nowrap">
-                      {r.expectedCloseDate}
-                    </td>
-                    <td className="p-3 text-right font-mono text-slate-400">
-                      {r.ageDays}d
+                    <td className="py-3.5 px-4 text-right font-mono text-xs whitespace-nowrap align-middle">
+                      <span className={
+                        r.ageDays > 90
+                          ? 'text-rose-400 font-bold'
+                          : r.ageDays > 45
+                          ? 'text-amber-400 font-medium'
+                          : 'text-slate-400'
+                      }>
+                        {r.ageDays}d
+                      </span>
                     </td>
                   </tr>
                 );

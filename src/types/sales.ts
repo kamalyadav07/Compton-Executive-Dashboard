@@ -19,6 +19,8 @@ export interface DealRecord {
   lostReason?: string;
   winningCompetitor?: string;
   winProbability?: number; // 0-100
+  closureProbability?: number | null; // Rep-assigned Closure Probability: 0, 25, 50, 75, 100 or null if not selected
+  closureProbabilityLabel?: string | null; // e.g. 'Very High - 100 %', 'High - 75 %', etc.
   salesCycleDays?: number;
   contractTermMonths?: number;
   marginPct?: number;

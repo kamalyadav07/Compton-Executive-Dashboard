@@ -566,11 +566,16 @@ export const AIDealCommandCenterModal: React.FC<AIDealCommandCenterModalProps> =
                           #{item.rank}
                         </span>
                         <div>
-                          <div className="flex items-center space-x-2">
+                          <div className="flex items-center space-x-2 flex-wrap gap-y-1">
                             <h4 className="text-base font-extrabold text-slate-100">{item.deal.customer}</h4>
                             <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-slate-800 text-slate-300 border border-slate-700">
                               {item.priority}
                             </span>
+                            {item.deal.closureProbability !== null && item.deal.closureProbability !== undefined && (
+                              <span className="px-2.5 py-0.5 text-[10px] font-bold rounded-md bg-teal-500/15 text-teal-300 border border-teal-500/30" title={`Rep-Assigned Closure Probability: ${item.deal.closureProbabilityLabel || item.deal.closureProbability + '%'}`}>
+                                Rep Closure: {item.deal.closureProbability}%
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs text-slate-400 mt-0.5">
                             {item.deal.solution} • {item.deal.industry} • Rep: <strong className="text-slate-200">{item.deal.salesRep}</strong>

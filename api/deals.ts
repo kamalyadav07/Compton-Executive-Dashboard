@@ -99,6 +99,48 @@ const BITRIX_INDUSTRY_ENUM_MAP: Record<string, string> = {
   '1426': 'Government & PSU'
 };
 
+const BITRIX_CLOSURE_PROBABILITY_MAP: Record<string, { value: number; label: string }> = {
+  '384': { value: 0, label: 'Very Low - 0 %' },
+  '386': { value: 25, label: 'Low - 25 %' },
+  '388': { value: 50, label: 'Medium - 50 %' },
+  '390': { value: 75, label: 'High - 75 %' },
+  '392': { value: 100, label: 'Very High - 100 %' }
+};
+
+function parseBitrixClosureProbability(val: any): { value: number | null; label: string | null } {
+  if (val === undefined || val === null || val === '' || val === false) {
+    return { value: null, label: null };
+  }
+  const str = String(val).trim();
+  if (BITRIX_CLOSURE_PROBABILITY_MAP[str]) {
+    return BITRIX_CLOSURE_PROBABILITY_MAP[str];
+  }
+  const lower = str.toLowerCase();
+  if (lower.includes('not selected') || lower === 'none' || lower === 'null') {
+    return { value: null, label: null };
+  }
+  if (lower.includes('very high') || lower.includes('100')) {
+    return { value: 100, label: 'Very High - 100 %' };
+  }
+  if (lower.includes('high') || lower.includes('75')) {
+    return { value: 75, label: 'High - 75 %' };
+  }
+  if (lower.includes('medium') || lower.includes('50')) {
+    return { value: 50, label: 'Medium - 50 %' };
+  }
+  if (lower.includes('very low') || lower.includes('0 %') || lower === '0') {
+    return { value: 0, label: 'Very Low - 0 %' };
+  }
+  if (lower.includes('low') || lower.includes('25')) {
+    return { value: 25, label: 'Low - 25 %' };
+  }
+  const num = parseFloat(str);
+  if (!isNaN(num) && num >= 0 && num <= 100) {
+    return { value: num, label: `${num}%` };
+  }
+  return { value: null, label: null };
+}
+
 function normalizeBitrixIndustry(val: any, rawRecord?: any): string {
   const rawUfVal = rawRecord?.UF_CRM_67E4FF8E84730 || val;
   if (!rawUfVal) return 'General Industry';
@@ -421,6 +463,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const industry = normalizeBitrixIndustry(deal.UF_CRM_67E4FF8E84730 || deal.UF_CRM_CATEGORY, deal);
       const leadSource = normalizeBitrixSource(deal.SOURCE_ID);
 
+      const probInfo = parseBitrixClosureProbability(deal.UF_CRM_1745298149375 ?? deal.closureProbability);
+
       const mappedDeal = {
         id: String(deal.ID ? `BITRIX-${deal.ID}` : `B24-${idx + 1000}`),
         customer: titleParts.customer,
@@ -428,6 +472,8 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         grossRevenue,
         netRevenue: gstInfo.netRevenue,
         gstAmount: gstInfo.gstAmount,
+        closureProbability: probInfo.value,
+        closureProbabilityLabel: probInfo.label,
         stage: formatBitrixStage(dealType, stageId),
         type: dealType,
         date: dateInfo.isoDate,

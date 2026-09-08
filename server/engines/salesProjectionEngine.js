@@ -550,11 +550,42 @@ function findAnalogousDeals(targetDeal, closedDeals, topK = 10, docSummary) {
     analogousDeals: topMatches
   };
 }
+var BITRIX_CLOSURE_PROBABILITY_MAP = {
+  '384': { value: 0, label: 'Very Low - 0 %' },
+  '386': { value: 25, label: 'Low - 25 %' },
+  '388': { value: 50, label: 'Medium - 50 %' },
+  '390': { value: 75, label: 'High - 75 %' },
+  '392': { value: 100, label: 'Very High - 100 %' }
+};
+
+function parseBitrixClosureProbability(val) {
+  if (val === void 0 || val === null || val === '' || val === false) {
+    return { value: null, label: null };
+  }
+  const str = String(val).trim();
+  if (BITRIX_CLOSURE_PROBABILITY_MAP[str]) return BITRIX_CLOSURE_PROBABILITY_MAP[str];
+  const lower = str.toLowerCase();
+  if (lower.includes('not selected') || lower === 'none' || lower === 'null') return { value: null, label: null };
+  if (lower.includes('very high') || lower.includes('100')) return { value: 100, label: 'Very High - 100 %' };
+  if (lower.includes('high') || lower.includes('75')) return { value: 75, label: 'High - 75 %' };
+  if (lower.includes('medium') || lower.includes('50')) return { value: 50, label: 'Medium - 50 %' };
+  if (lower.includes('very low') || lower.includes('0 %') || lower === '0') return { value: 0, label: 'Very Low - 0 %' };
+  if (lower.includes('low') || lower.includes('25')) return { value: 25, label: 'Low - 25 %' };
+  const num = parseFloat(str);
+  if (!isNaN(num) && num >= 0 && num <= 100) return { value: num, label: `${num}%` };
+  return { value: null, label: null };
+}
+
 var LOGISTIC_WEIGHT = 0.6;
 var ANALOGOUS_WEIGHT = 0.25;
 var QUALITATIVE_WEIGHT = 0.15;
-function blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore) {
+function blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore, repClosureProbability) {
   const qualWinProb = Math.max(5, Math.min(95, ensembleScore.adjustedWinProbabilityPct));
+  if (repClosureProbability !== null && repClosureProbability !== void 0 && !isNaN(repClosureProbability)) {
+    const repProb = Math.max(0, Math.min(100, repClosureProbability));
+    const blended = (0.40 * repProb) + (0.35 * baseWinProbabilityPct) + (0.15 * analogousWinRate) + (0.10 * qualWinProb);
+    return Math.round(Math.max(5, Math.min(98, blended)));
+  }
   const blended = LOGISTIC_WEIGHT * baseWinProbabilityPct + ANALOGOUS_WEIGHT * analogousWinRate + QUALITATIVE_WEIGHT * qualWinProb;
   return Math.round(Math.max(5, Math.min(95, blended)));
 }
@@ -571,7 +602,10 @@ function runDealIntelligence(allDeals, documentChunksMap = {}) {
     const qualitativeSignals = extractQualitativeRiskSignals(deal, docChunks);
     const ensembleScore = ensembleAdjustWinProbability(baseWinProbabilityPct, qualitativeSignals);
     const { analogousWinRate, analogousDeals } = findAnalogousDeals(deal, closedDeals, 10, docSummary);
-    const finalWinProbPct = blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore);
+    const probInfo = (deal.closureProbability !== void 0 && deal.closureProbability !== null)
+      ? { value: deal.closureProbability, label: deal.closureProbabilityLabel || `${deal.closureProbability}%` }
+      : parseBitrixClosureProbability(deal.rawRecord?.UF_CRM_1745298149375);
+    const finalWinProbPct = blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore, probInfo.value);
     const p7 = probabilityCloseWithinDays(deal, distribution, 7);
     const p15 = probabilityCloseWithinDays(deal, distribution, 15);
     return {
@@ -582,6 +616,8 @@ function runDealIntelligence(allDeals, documentChunksMap = {}) {
       analogousDeals,
       qualitativeSignals,
       ensembleScore,
+      repClosureProbability: probInfo.value,
+      repClosureProbabilityLabel: probInfo.label,
       closesWithin7DaysPct: p7.probabilityPct,
       closesWithin15DaysPct: p15.probabilityPct,
       expectedCloseDate: p15.expectedCloseDate,
@@ -677,6 +713,8 @@ function computeSalesProjection(allDeals, scope, targets, asOf = /* @__PURE__ */
       salesRep: r.deal.salesRep || "Unassigned",
       netValue: splitGst(r.deal.grossRevenue, true).netRevenue,
       winProbabilityPct: r.winProbabilityPct,
+      closureProbability: r.repClosureProbability,
+      closureProbabilityLabel: r.repClosureProbabilityLabel,
       closesWithin7DaysPct: r.closesWithin7DaysPct,
       closesWithin15DaysPct: r.closesWithin15DaysPct,
       expectedCloseDate: r.expectedCloseDate

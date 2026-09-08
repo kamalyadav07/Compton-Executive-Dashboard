@@ -132,6 +132,8 @@ export interface SalesProjection {
     salesRep: string;
     netValue: number;
     winProbabilityPct: number;
+    closureProbability?: number | null;
+    closureProbabilityLabel?: string | null;
     closesWithin7DaysPct: number;
     closesWithin15DaysPct: number;
     expectedCloseDate: string;
@@ -184,6 +186,8 @@ export function computeSalesProjection(
         salesRep: r.deal.salesRep || 'Unassigned',
         netValue: splitGst(r.deal.grossRevenue, true).netRevenue,
         winProbabilityPct: r.winProbabilityPct,
+        closureProbability: r.repClosureProbability,
+        closureProbabilityLabel: r.repClosureProbabilityLabel,
         closesWithin7DaysPct: r.closesWithin7DaysPct,
         closesWithin15DaysPct: r.closesWithin15DaysPct,
         expectedCloseDate: r.expectedCloseDate

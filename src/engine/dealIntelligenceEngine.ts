@@ -43,6 +43,7 @@
  */
 
 import type { DealRecord } from '../types/sales';
+import { parseBitrixClosureProbability } from './bitrixService';
 
 // ---------------------------------------------------------------------------
 // 1. FEATURE ENGINEERING (all from real fields, nothing randomized)
@@ -149,7 +150,8 @@ function standardize(vectors: number[][]): { normed: number[][]; means: number[]
   }
   for (let d = 0; d < dims; d++) {
     const variance = vectors.reduce((s, v) => s + (v[d] - means[d]) ** 2, 0) / n;
-    stds[d] = Math.sqrt(variance) || 1;
+    const s = Math.sqrt(variance);
+    stds[d] = (isNaN(s) || s < 1e-4) ? 1 : s;
   }
   const normed = vectors.map(v => v.map((val, d) => (val - means[d]) / stds[d]));
   return { normed, means, stds };
@@ -245,17 +247,7 @@ export function buildCycleLengthDistribution(wonDeals: DealRecord[]): Record<str
 
 /**
  * P(deal closes within the next `horizonDays` days | it has already been
- * open for `ageDays` days), estimated empirically:
- *
- *   Let S = the set of historical won deals whose total cycle length was
- *   >= ageDays (i.e. deals that were "still alive" at this same age —
- *   the correct reference class; deals that closed faster than ageDays
- *   are not comparable).
- *   answer = fraction of S whose cycle length <= ageDays + horizonDays
- *
- * This is the discrete version of a conditional survival probability and
- * is exactly the right tool for "given it hasn't closed yet, will it
- * close soon" — much better grounded than picking a random day count.
+ * open for `ageDays` days), estimated empirically with dormancy & age decay adjustments:
  */
 export function probabilityCloseWithinDays(
   deal: DealRecord,
@@ -267,29 +259,65 @@ export function probabilityCloseWithinDays(
   if (!sample || sample.length < 8) sample = distribution['__all__'] || [];
 
   const ageDays = computeRealAgeDays(deal);
+  const quietDays = computeRealDaysSinceUpdate(deal);
   const stillAlive = sample.filter(c => c >= ageDays);
   const sampleSize = stillAlive.length;
 
   let probabilityPct: number;
-  if (sampleSize < 5) {
-    // Too little history for this stage/age combo — fall back to a
-    // conservative, clearly-labeled default rather than a false-precision number.
-    probabilityPct = 35;
+  if (ageDays > 180) {
+    // Heavily aged deal (>6 months old in pipeline)
+    probabilityPct = 2;
+  } else if (ageDays > 90) {
+    // Aged deal (>3 months old in pipeline)
+    probabilityPct = 5;
+  } else if (ageDays > 60) {
+    // Beyond 95th percentile of normal cycle (56 days)
+    probabilityPct = 10;
+  } else if (sampleSize < 5) {
+    // Young / early deal with small historical sample in stage
+    probabilityPct = 25;
   } else {
     const closesInWindow = stillAlive.filter(c => c <= ageDays + horizonDays).length;
     probabilityPct = Math.round((closesInWindow / sampleSize) * 100);
   }
 
-  const medianRemaining = sampleSize > 0
-    ? median(stillAlive.map(c => Math.max(0, c - ageDays)))
-    : 14;
-  const expectedClose = new Date();
-  expectedClose.setDate(expectedClose.getDate() + medianRemaining);
+  // Penalize for customer inactivity / quiet days
+  if (quietDays >= 21) {
+    probabilityPct = Math.round(probabilityPct * 0.1);
+  } else if (quietDays >= 14) {
+    probabilityPct = Math.round(probabilityPct * 0.25);
+  }
+
+  // Determine Expected Close Date:
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+  const rawCloseDate = deal.rawRecord?.CLOSEDATE ? deal.rawRecord.CLOSEDATE.slice(0, 10) : null;
+  const isFuturePlanned = rawCloseDate && new Date(rawCloseDate) >= today;
+
+  let expectedCloseStr: string;
+  if (isFuturePlanned && rawCloseDate) {
+    // 1. If Bitrix CRM has an active future planned CLOSEDATE, honor it
+    expectedCloseStr = rawCloseDate;
+  } else {
+    // 2. If aged or stalled, do NOT sample from tail outliers (which gives misleading 1-4 days)
+    const expectedClose = new Date();
+    if (ageDays > 60 || quietDays >= 14) {
+      // Stalled / overdue deals need re-engagement; estimate timeline out realistically
+      const pushOutDays = Math.max(30, Math.min(90, Math.round(ageDays * 0.2) + quietDays));
+      expectedClose.setDate(expectedClose.getDate() + pushOutDays);
+    } else {
+      const medianRemaining = sampleSize >= 5
+        ? median(stillAlive.map(c => Math.max(0, c - ageDays)))
+        : 14;
+      expectedClose.setDate(expectedClose.getDate() + Math.max(3, medianRemaining));
+    }
+    expectedCloseStr = expectedClose.toISOString().slice(0, 10);
+  }
 
   return {
     probabilityPct,
     sampleSize,
-    expectedCloseDate: expectedClose.toISOString().slice(0, 10)
+    expectedCloseDate: expectedCloseStr
   };
 }
 
@@ -505,15 +533,18 @@ export function findAnalogousDeals(
 /**
  * EXPLAINABLE ENSEMBLE WIN PROBABILITY WEIGHTS:
  * -------------------------------------------------------------------------
- *  1. Logistic Regression Model (60% weight):
+ *  1. Rep Assessment / Closure Probability (40% weight when provided):
+ *     Field sales rep assessment directly from Bitrix24 (0%, 25%, 50%, 75%, 100%).
+ *
+ *  2. Logistic Regression Model (35% with rep assessment, 60% without):
  *     Structured numeric feature weights trained on closed deal history
  *     (rep win rate, industry win rate, deal size ratio, age, stage).
  *
- *  2. Analogous Deal Retrieval Engine (25% weight):
+ *  3. Analogous Deal Retrieval Engine (15% with rep assessment, 25% without):
  *     k=10 nearest historical closed deals by cosine similarity over text profiles.
  *     Reflects real outcome patterns from historically similar deals.
  *
- *  3. Qualitative Risk & Urgency Signals (15% weight):
+ *  4. Qualitative Risk & Urgency Signals (10% with rep assessment, 15% without):
  *     Adjustments extracted from CRM comments and quote attachments
  *     (competitor mentions, decision maker changes, quiet days, buyer urgency).
  * -------------------------------------------------------------------------
@@ -525,9 +556,23 @@ const QUALITATIVE_WEIGHT = 0.15;
 export function blendEnsembleWinProbability(
   baseWinProbabilityPct: number,
   analogousWinRate: number,
-  ensembleScore: EnsembleScoreResult
+  ensembleScore: EnsembleScoreResult,
+  repClosureProbability?: number | null
 ): number {
   const qualWinProb = Math.max(5, Math.min(95, ensembleScore.adjustedWinProbabilityPct));
+
+  if (repClosureProbability !== null && repClosureProbability !== undefined && !isNaN(repClosureProbability)) {
+    // When the sales rep has assessed and selected a Closure Probability (0%, 25%, 50%, 75%, 100%):
+    // Blend: 40% Rep Assessment + 35% Trained Logistic ML + 15% Analogous Deals + 10% Qualitative Signals
+    const repProb = Math.max(0, Math.min(100, repClosureProbability));
+    const blended = (0.40 * repProb) +
+                    (0.35 * baseWinProbabilityPct) +
+                    (0.15 * analogousWinRate) +
+                    (0.10 * qualWinProb);
+    return Math.round(Math.max(5, Math.min(98, blended)));
+  }
+
+  // Default ensemble when "not selected": 60% Logistic, 25% Analogous, 15% Qualitative
   const blended = (LOGISTIC_WEIGHT * baseWinProbabilityPct) +
                   (ANALOGOUS_WEIGHT * analogousWinRate) +
                   (QUALITATIVE_WEIGHT * qualWinProb);
@@ -541,12 +586,14 @@ export function blendEnsembleWinProbability(
 
 export interface DealIntelligenceResult {
   deal: DealRecord;
-  winProbabilityPct: number;       // Final blended ensemble win probability
+  winProbabilityPct: number;       // Final blended ensemble win probability (incorporating Closure Probability)
   baseWinProbabilityPct: number;   // Logistic regression base win probability
   analogousWinRate: number;        // k=10 nearest historical deals win rate
   analogousDeals: AnalogousDealMatch[]; // k=10 nearest historical deals with outcomes
   qualitativeSignals: QualitativeRiskSignals;
   ensembleScore: EnsembleScoreResult;
+  repClosureProbability: number | null; // Rep-assigned Closure Probability (0, 25, 50, 75, 100 or null)
+  repClosureProbabilityLabel: string | null; // e.g. "High - 75 %"
   closesWithin7DaysPct: number;
   closesWithin15DaysPct: number;
   expectedCloseDate: string;
@@ -581,8 +628,18 @@ export function runDealIntelligence(
     // Retrieve k=10 analogous closed deals
     const { analogousWinRate, analogousDeals } = findAnalogousDeals(deal, closedDeals, 10, docSummary);
 
-    // Blend into final win probability
-    const finalWinProbPct = blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore);
+    // Extract rep Closure Probability
+    const probInfo = (deal.closureProbability !== undefined && deal.closureProbability !== null)
+      ? { value: deal.closureProbability, label: deal.closureProbabilityLabel || `${deal.closureProbability}%` }
+      : parseBitrixClosureProbability(deal.rawRecord?.UF_CRM_1745298149375);
+
+    // Blend into final win probability (including rep closure probability if selected)
+    const finalWinProbPct = blendEnsembleWinProbability(
+      baseWinProbabilityPct,
+      analogousWinRate,
+      ensembleScore,
+      probInfo.value
+    );
 
     const p7 = probabilityCloseWithinDays(deal, distribution, 7);
     const p15 = probabilityCloseWithinDays(deal, distribution, 15);
@@ -595,6 +652,8 @@ export function runDealIntelligence(
       analogousDeals,
       qualitativeSignals,
       ensembleScore,
+      repClosureProbability: probInfo.value,
+      repClosureProbabilityLabel: probInfo.label,
       closesWithin7DaysPct: p7.probabilityPct,
       closesWithin15DaysPct: p15.probabilityPct,
       expectedCloseDate: p15.expectedCloseDate,
