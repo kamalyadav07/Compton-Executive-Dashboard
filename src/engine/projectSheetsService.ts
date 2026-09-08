@@ -1,6 +1,7 @@
 import type { ProjectRecord, ProjectKPIMetrics, ProjectFilterState } from '../types/project';
 export type { ProjectRecord, ProjectKPIMetrics, ProjectFilterState } from '../types/project';
 import { convertToCsvExportUrl } from '../config/sheetsConfig';
+import { matchesDateFilter } from '../utils/dateUtils';
 
 export const DEFAULT_PROJECT_SHEET_URL = import.meta.env.VITE_PROJECTS_SHEET_URL || 'https://docs.google.com/spreadsheets/d/1-iXdZ3bhvsE-xQs5xplb9xG0L-sOVTnMMYNdfXrFJUQ/edit?gid=0#gid=0';
 
@@ -386,10 +387,9 @@ export const filterProjectRecords = (
 
     // 7. Date Filter
     if (filters.dateFilter && filters.dateFilter !== 'All Dates') {
-      const df = filters.dateFilter.toLowerCase();
-      const matchStart = (r.startDate || '').toLowerCase().includes(df);
-      const matchEnd = (r.plannedEndDate || '').toLowerCase().includes(df);
-      const matchActual = (r.actualEndDate || '').toLowerCase().includes(df);
+      const matchStart = matchesDateFilter(r.startDate, filters.dateFilter);
+      const matchEnd = matchesDateFilter(r.plannedEndDate, filters.dateFilter);
+      const matchActual = matchesDateFilter(r.actualEndDate, filters.dateFilter);
       if (!matchStart && !matchEnd && !matchActual) return false;
     }
 
@@ -412,7 +412,7 @@ export const calculateProjectKPIs = (records: ProjectRecord[], isAllStatusFilter
   const projectsRunning = runningRecords.length;
 
   // Breakdown records for Top Running Cards: If no status filter is explicitly selected, evaluate breakdown ONLY for running projects.
-  const runningBreakdownRecords = (isAllStatusFilter && runningRecords.length > 0) ? runningRecords : records;
+  const runningBreakdownRecords = isAllStatusFilter ? runningRecords : records;
 
   let onTimeProjects = 0;
   let delayedProjects = 0;

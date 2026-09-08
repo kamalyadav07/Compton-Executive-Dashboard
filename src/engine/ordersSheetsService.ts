@@ -29,6 +29,9 @@ export const saveStoredOrdersSheetUrl = (url: string): void => {
   }
 };
 
+import { normalizeSheetDateToIso } from '../utils/dateUtils';
+export { normalizeSheetDateToIso };
+
 // Robust CSV Row Parser handling double quotes and escaped commas inside values
 const parseCsvLine = (text: string): string[] => {
   const result: string[] = [];
@@ -174,6 +177,9 @@ export const fetchOrdersSheetData = async (
         amount = numBilled;
       }
 
+      const normalizedOrderDate = normalizeSheetDateToIso(isoCreationDate);
+      const normalizedBillingDate = normalizeSheetDateToIso(billingDate);
+
       orders.push({
         id: `ORD-${dealId}`,
         dealId: dealId,
@@ -182,10 +188,11 @@ export const fetchOrdersSheetData = async (
         dealName,
         salesRep: mapBitrixAssignedUser('', `${customerName} ${dealName}`),
         amount,
-        orderDate: isoCreationDate || '',
-        billedDate: isBilled ? (billingDate || 'Billed') : 'Unbilled',
+        orderDate: normalizedOrderDate || isoCreationDate || '',
+        isoCreationDate: normalizedOrderDate || isoCreationDate || '',
+        billedDate: isBilled ? (normalizedBillingDate || normalizedOrderDate || 'Billed') : 'Unbilled',
         status,
-        rawRecord: { row }
+        rawRecord: { row, rawIsoCreationDate: isoCreationDate, rawBillingDate: billingDate }
       });
     }
 

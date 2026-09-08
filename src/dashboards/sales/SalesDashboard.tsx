@@ -39,6 +39,7 @@ import {
   type ProjectRecord
 } from '../../engine/projectSheetsService';
 import { splitGst } from '../../utils/financeUtils';
+import { matchesDateFilter } from '../../utils/dateUtils';
 
 interface SalesDashboardProps {
   allRecords?: DealRecord[];
@@ -63,20 +64,6 @@ interface SalesDashboardProps {
   onResetFilters?: () => void;
 }
 
-const MONTH_INFO: { name: string; short: string; num: string }[] = [
-  { name: 'january', short: 'jan', num: '01' },
-  { name: 'february', short: 'feb', num: '02' },
-  { name: 'march', short: 'mar', num: '03' },
-  { name: 'april', short: 'apr', num: '04' },
-  { name: 'may', short: 'may', num: '05' },
-  { name: 'june', short: 'jun', num: '06' },
-  { name: 'july', short: 'jul', num: '07' },
-  { name: 'august', short: 'aug', num: '08' },
-  { name: 'september', short: 'sep', num: '09' },
-  { name: 'october', short: 'oct', num: '10' },
-  { name: 'november', short: 'nov', num: '11' },
-  { name: 'december', short: 'dec', num: '12' },
-];
 
 const getCurrentMonthStr = (): string => {
   const now = new Date();
@@ -142,67 +129,6 @@ const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({
   );
 };
 
-function matchesDateFilter(dateStr: string | undefined | null, filterVal: string | undefined | null): boolean {
-  if (!filterVal || filterVal === 'All Dates' || filterVal === 'Custom Range') return true;
-  if (!dateStr || dateStr === 'N/A' || dateStr === 'Unbilled') return false;
-
-  const str = String(dateStr).trim().toLowerCase();
-  const f = String(filterVal).trim().toLowerCase();
-
-  // 1. Direct substring match
-  if (str.includes(f)) return true;
-
-  // 2. Year check if filter explicitly contains a 4-digit year like 2026
-  const filterYearMatch = f.match(/\b(202\d)\b/);
-  const filterYear = filterYearMatch ? filterYearMatch[1] : null;
-
-  const dateYearMatch = str.match(/\b(202\d)\b/);
-  const dateYear = dateYearMatch ? dateYearMatch[1] : null;
-
-  if (filterYear) {
-    if (dateYear && dateYear !== filterYear) return false;
-    if (!dateYear && !str.includes(filterYear)) return false;
-  }
-
-  // 3. Find target month from filterVal
-  let targetMonthIdx = -1;
-  for (let i = 0; i < MONTH_INFO.length; i++) {
-    const m = MONTH_INFO[i];
-    if (f.includes(m.name) || f.includes(m.short)) {
-      targetMonthIdx = i;
-      break;
-    }
-  }
-
-  if (targetMonthIdx === -1) {
-    return filterYear ? (dateYear === filterYear || str.includes(filterYear)) : true;
-  }
-
-  const targetMonthNum = targetMonthIdx + 1;
-  const targetMonthInfo = MONTH_INFO[targetMonthIdx];
-
-  // Match month in textual form (e.g. "august", "aug")
-  if (str.includes(targetMonthInfo.name) || str.includes(targetMonthInfo.short)) {
-    return true;
-  }
-
-  // Match month in numeric form (e.g. 5/8/2026, 2026-08-05, 05/08/2026)
-  const parts = str.split(/[\sT]+/)[0].split(/[-/.]/);
-  if (parts.length === 3) {
-    const p0 = parseInt(parts[0], 10);
-    const p1 = parseInt(parts[1], 10);
-    const p2 = parseInt(parts[2], 10);
-
-    if (p0 >= 2000 && p0 <= 2100) {
-      if (p1 === targetMonthNum) return true;
-    }
-    if (p2 >= 2000 && p2 <= 2100) {
-      if (p1 === targetMonthNum || p0 === targetMonthNum) return true;
-    }
-  }
-
-  return false;
-}
 
 export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   allRecords,
@@ -310,9 +236,25 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     return () => clearInterval(interval);
   }, [ordersUrl]);
 
+  const filteredProjects = useMemo(() => {
+    return projectRecords.filter(p => {
+      if (startDate && endDate) {
+        const pStart = p.startDate || '';
+        const pEnd = p.actualEndDate || p.plannedEndDate || '';
+        if (pStart && pEnd && (pEnd < startDate || pStart > endDate)) return false;
+      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+        const matchStart = matchesDateFilter(p.startDate, dateFilter);
+        const matchPlanned = matchesDateFilter(p.plannedEndDate, dateFilter);
+        const matchActual = matchesDateFilter(p.actualEndDate, dateFilter);
+        if (!matchStart && !matchPlanned && !matchActual) return false;
+      }
+      return true;
+    });
+  }, [projectRecords, dateFilter, startDate, endDate]);
+
   const projectKpis = useMemo(() => {
-    return calculateProjectKPIs(projectRecords, true);
-  }, [projectRecords]);
+    return calculateProjectKPIs(filteredProjects, true);
+  }, [filteredProjects]);
 
   // Fast Deal Map lookup by clean numeric dealId
   const bitrixMap = useMemo(() => {
@@ -476,35 +418,6 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       return true;
     };
 
-    // Bitrix Deals Created strictly in the filtered Date Period
-    const getDealCreationDate = (d: DealRecord): string => {
-      if (d.rawRecord?.DATE_CREATE) return String(d.rawRecord.DATE_CREATE);
-      if (d.rawRecord?.dateCreate) return String(d.rawRecord.dateCreate);
-      if (d.type === 'in_progress' && d.date) return String(d.date);
-      return d.date || '';
-    };
-
-    const matchBitrixCreatedWithDate = (d: DealRecord) => {
-      if (!matchDealFilterBase(d)) return false;
-      const creationDateStr = getDealCreationDate(d);
-      if (!creationDateStr) return false;
-
-      if (startDate && endDate) {
-        const dIso = creationDateStr.split(/[\sT]+/)[0];
-        if (dIso && (dIso < startDate || dIso > endDate)) return false;
-      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
-        if (!matchesDateFilter(creationDateStr, dateFilter)) return false;
-      }
-      return true;
-    };
-
-    const allBitrixDealsList = bitrixData ? [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress] : (allRecords || []);
-    const bitrixCreatedDeals = allBitrixDealsList.filter(matchBitrixCreatedWithDate);
-
-    const salesOrdersCreatedCount = bitrixData ? bitrixCreatedDeals.length : activeOrders.length;
-    const salesOrdersCreatedValue = bitrixData
-      ? bitrixCreatedDeals.reduce((s, d) => s + (d.netRevenue || (d.grossRevenue ? splitGst(d.grossRevenue, true).netRevenue : 0)), 0)
-      : activeOrders.reduce((s, o) => s + o.amount, 0);
 
     const wonList = bitrixData ? bitrixData.won.filter(matchDealFilterWithDate) : [];
     const lostList = bitrixData ? bitrixData.lost.filter(matchDealFilterWithDate) : [];
@@ -519,6 +432,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
     const dealsInProgressCount = progressList.length;
     const dealsInProgressValue = progressList.reduce((s, d) => s + d.netRevenue, 0);
+
+    // Sales Orders Created: matches Orders Sheet when present for the period, otherwise won deals
+    const salesOrdersCreatedCount = activeOrders.length > 0 ? activeOrders.length : dealsWonCount;
+    const salesOrdersCreatedValue = activeOrders.length > 0 ? activeOrders.reduce((s, o) => s + o.amount, 0) : dealsWonValue;
 
     // 3. Filtered Bitrix Leads (Qualified & Disqualified match Stage Change Date; In Progress leads exempt from date filter)
     const rawLeads = bitrixData ? (bitrixData.leads || []) : [];
@@ -612,8 +529,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     return `₹${val.toLocaleString('en-IN')}`;
   };
 
-  const totalOrdersValue = kpis.dealsWonValue;
-  const totalOrdersCount = kpis.dealsWonCount;
+  const totalOrdersValue = kpis.salesOrdersCreatedValue;
+  const totalOrdersCount = kpis.salesOrdersCreatedCount;
   const billedPct = totalOrdersValue > 0 ? Math.min(100, Math.round((kpis.ordersBilledValue / totalOrdersValue) * 100)) : 0;
 
   // Deal Target & Performance Achievement Metrics
@@ -630,10 +547,10 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
   // Project KPIs & Metrics
   const runningProjectsValue = useMemo(() => {
-    return projectRecords
+    return filteredProjects
       .filter(r => r.status === 'Running' || r.status.toLowerCase() === 'in progress')
       .reduce((sum, r) => sum + (r.plannedBudget || r.actualCost || 0), 0);
-  }, [projectRecords]);
+  }, [filteredProjects]);
 
   // Top Lead Source calculation
   const topLeadSource = useMemo(() => {
@@ -1469,7 +1386,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 onClick={() => setTableFilter('All')}
                 className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'All' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
               >
-                All ({combinedOrders.length})
+                All ({kpis.ordersBilledCount + kpis.unbilledOrdersCount})
               </button>
               <button
                 onClick={() => setTableFilter('Billed')}
