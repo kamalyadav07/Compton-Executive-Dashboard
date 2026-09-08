@@ -1,6 +1,14 @@
 import type { VercelRequest, VercelResponse } from '@vercel/node';
 import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
+
+let currentDir = process.cwd();
+try {
+  currentDir = path.dirname(fileURLToPath(import.meta.url));
+} catch {
+  currentDir = process.cwd();
+}
 
 // Cache deal sync result in memory across serverless warm starts
 let serverlessCache: any = null;
@@ -275,48 +283,54 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     return;
   }
 
-  // Attempt 1: In-memory warm cache across serverless warm requests
-  if (serverlessCache && Array.isArray(serverlessCache.won) && serverlessCache.won.length > 0) {
-    return res.status(200).json(serverlessCache);
-  }
-
-  // Attempt 2: Bundled disk cache from server/cached_bitrix_deals.json (Instant <5ms load on Vercel)
-  const candidateDiskPaths = [
-    path.join(process.cwd(), 'server', 'cached_bitrix_deals.json'),
-    path.resolve(__dirname, '..', 'server', 'cached_bitrix_deals.json'),
-    path.resolve(__dirname, '..', '..', 'server', 'cached_bitrix_deals.json'),
-    path.resolve(__dirname, 'server', 'cached_bitrix_deals.json'),
-    path.resolve(__dirname, 'cached_bitrix_deals.json'),
-    path.join(process.cwd(), 'cached_bitrix_deals.json')
-  ];
-
-  for (const diskCachePath of candidateDiskPaths) {
-    try {
-      if (fs.existsSync(diskCachePath)) {
-        const fileData = fs.readFileSync(diskCachePath, 'utf8');
-        const parsed = JSON.parse(fileData);
-        if (parsed && Array.isArray(parsed.won) && parsed.won.length > 0) {
-          console.log(`[api/deals] Loaded prebuilt cache from ${diskCachePath}`);
-          serverlessCache = parsed;
-          return res.status(200).json(parsed);
-        }
-      }
-    } catch (err: any) {
-      console.warn(`[api/deals] Failed to read ${diskCachePath}:`, err?.message);
-    }
-  }
-
-  // Attempt 3: Live Bitrix fetch fallback with pagination & lead sync
   try {
+    // Attempt 1: In-memory warm cache across serverless warm requests
+    if (serverlessCache && Array.isArray(serverlessCache.won) && serverlessCache.won.length > 0) {
+      return res.status(200).json(serverlessCache);
+    }
+
+    // Attempt 2: Bundled disk cache from server/cached_bitrix_deals.json (Instant <5ms load on Vercel)
+    const candidateDiskPaths = [
+      path.join(process.cwd(), 'public', 'cached_bitrix_deals.json'),
+      path.join(process.cwd(), 'server', 'cached_bitrix_deals.json'),
+      path.join(process.cwd(), 'cached_bitrix_deals.json'),
+      path.resolve(currentDir, '..', 'public', 'cached_bitrix_deals.json'),
+      path.resolve(currentDir, '..', 'server', 'cached_bitrix_deals.json'),
+      path.resolve(currentDir, '..', 'cached_bitrix_deals.json'),
+      path.resolve(currentDir, 'server', 'cached_bitrix_deals.json'),
+      path.resolve(currentDir, 'cached_bitrix_deals.json'),
+      '/var/task/public/cached_bitrix_deals.json',
+      '/var/task/server/cached_bitrix_deals.json',
+      '/var/task/cached_bitrix_deals.json'
+    ];
+
+    for (const diskCachePath of candidateDiskPaths) {
+      try {
+        if (fs.existsSync(diskCachePath)) {
+          const fileData = fs.readFileSync(diskCachePath, 'utf8');
+          const parsed = JSON.parse(fileData);
+          if (parsed && Array.isArray(parsed.won) && parsed.won.length > 0) {
+            console.log(`[api/deals] Loaded prebuilt cache from ${diskCachePath}`);
+            serverlessCache = parsed;
+            return res.status(200).json(parsed);
+          }
+        }
+      } catch (err: any) {
+        console.warn(`[api/deals] Failed to read ${diskCachePath}:`, err?.message);
+      }
+    }
+
+    // Attempt 3: Live Bitrix fetch fallback with pagination & lead sync
     const webhookUrl = (process.env.BITRIX_WEBHOOK_URL || process.env.VITE_BITRIX_WEBHOOK_URL || '').trim();
     if (!webhookUrl) {
-      return res.status(500).json({
-        status: 'error',
+      return res.status(200).json(serverlessCache || {
+        status: 'warning',
         message: 'BITRIX_WEBHOOK_URL environment variable is not configured on serverless environment.',
         won: [],
         lost: [],
         progress: [],
-        leads: []
+        leads: [],
+        lastSyncedAt: new Date().toISOString()
       });
     }
     const cleanBaseUrl = webhookUrl.endsWith('/') ? webhookUrl : `${webhookUrl}/`;
@@ -481,7 +495,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     serverlessCache = result;
     return res.status(200).json(result);
   } catch (err: any) {
-    return res.status(500).json({ status: 'error', message: err.message || 'Serverless deal sync failed' });
+    console.error("[api/deals] Handler error:", err);
+    return res.status(200).json(serverlessCache || {
+      status: 'error',
+      message: err?.message || 'Serverless deal sync failed',
+      won: [],
+      lost: [],
+      progress: [],
+      leads: [],
+      lastSyncedAt: new Date().toISOString()
+    });
   }
 }
 

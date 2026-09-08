@@ -81,7 +81,26 @@ export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
     console.warn('[apiClient] Backend server not available:', err.message);
   }
 
-  // Attempt 2: Browser localStorage cache (instant, offline-capable)
+  // Attempt 2: Try fetching bundled static cached_bitrix_deals.json from public CDN assets
+  try {
+    const staticRes = await fetch('/cached_bitrix_deals.json');
+    if (staticRes.ok) {
+      const staticData = await staticRes.json();
+      if (staticData && Array.isArray(staticData.won) && (staticData.won.length > 0 || staticData.progress?.length > 0)) {
+        console.log('[apiClient] Loaded deals from static CDN cache.');
+        const result: BitrixSyncResult = {
+          ...staticData,
+          lastSyncedAt: new Date(staticData.lastSyncedAt || Date.now())
+        };
+        saveBitrixCache(result);
+        return result;
+      }
+    }
+  } catch (staticErr: any) {
+    console.warn('[apiClient] Static CDN cache not available:', staticErr?.message);
+  }
+
+  // Attempt 3: Browser localStorage cache (instant, offline-capable)
   const storedCache = getStoredBitrixCache();
   if (storedCache && (storedCache.won.length > 0 || storedCache.progress.length > 0)) {
     console.log('[apiClient] Loaded deals from browser localStorage offline cache.');
