@@ -1,7 +1,8 @@
 {
   "functions": {
     "api/**/*.ts": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "server/cached_bitrix_deals.json"
     }
   },
   "rewrites": [
