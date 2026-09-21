@@ -1,5 +1,10 @@
 import type { DealRecord, GlobalFilterState, KPIMetrics } from '../types/sales';
-import { COMPANY_MONTHLY_TARGET, COMPANY_YEARLY_TARGET, INDIVIDUAL_REP_MONTHLY_TARGETS } from '../config/salesTargets';
+import { 
+  INDIVIDUAL_REP_MONTHLY_TARGETS,
+  getCompanyMonthlyTarget,
+  getCompanyYearlyTarget,
+  getIndividualRepMonthlyTargets
+} from '../config/salesTargets';
 import { getFYBounds } from './salesProjectionEngine';
 
 export { INDIVIDUAL_REP_MONTHLY_TARGETS };
@@ -121,17 +126,17 @@ export const calculateKPIs = (
     monthMultiplier = Math.max(1, closedMonths.length);
   }
 
-  // Check if a specific Sales Rep / Owner filter is selected
-  let baseTargetPerMonth = COMPANY_MONTHLY_TARGET; // Company Default Target = ₹1.6 Cr / month
-  let yearlyTarget = COMPANY_YEARLY_TARGET; // Company Default Target = ₹20 Cr / year
+  const repTargetsMap = getIndividualRepMonthlyTargets();
+  let baseTargetPerMonth = getCompanyMonthlyTarget();
+  let yearlyTarget = getCompanyYearlyTarget();
   if (filters?.salesRep && filters.salesRep !== 'All') {
-    baseTargetPerMonth = INDIVIDUAL_REP_MONTHLY_TARGETS[filters.salesRep] || 550000;
+    baseTargetPerMonth = repTargetsMap[filters.salesRep] || 550000;
     yearlyTarget = baseTargetPerMonth * 12;
   } else {
     // If all records belong to 1 single sales rep
     const uniqueReps = Array.from(new Set(records.map(r => r.salesRep))).filter(Boolean);
-    if (uniqueReps.length === 1 && INDIVIDUAL_REP_MONTHLY_TARGETS[uniqueReps[0]]) {
-      baseTargetPerMonth = INDIVIDUAL_REP_MONTHLY_TARGETS[uniqueReps[0]];
+    if (uniqueReps.length === 1 && repTargetsMap[uniqueReps[0]]) {
+      baseTargetPerMonth = repTargetsMap[uniqueReps[0]];
       yearlyTarget = baseTargetPerMonth * 12;
     }
   }
@@ -201,7 +206,7 @@ export const calculateKPIs = (
     : (pipelineNetValue > 0 ? 5.0 : 0.0);
 
   // Dynamic Sales Cycle Days & Benchmark Trend
-  const totalSalesCycleDays = wonDeals.reduce((acc, r) => acc + (r.salesCycleDays || 18), 0);
+  const totalSalesCycleDays = wonDeals.reduce((acc, r) => acc + (typeof r.salesCycleDays === 'number' ? r.salesCycleDays : 0), 0);
   const avgSalesCycleDays = totalWonCount > 0 ? Math.round(totalSalesCycleDays / totalWonCount) : 0;
   const benchmarkCycle = 22;
   const cycleDiff = benchmarkCycle - avgSalesCycleDays;

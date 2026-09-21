@@ -13,35 +13,8 @@ try {
 // Cache deal sync result in memory across serverless warm starts
 let serverlessCache: any = null;
 
-// Helper: Split and Reconcile GST
-const GST_RATE = 0.18;
-
-function splitGst(grossRevenue: number, isWon: boolean) {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
-  if (!isWon) return { netRevenue: gross, gstAmount: 0 };
-  const netRevenue = Math.round((gross / (1 + GST_RATE)) * 100) / 100;
-  const gstAmount = Math.round((gross - netRevenue) * 100) / 100;
-  return { netRevenue, gstAmount };
-}
-
-function reconcileGst(grossRevenue: number, isWon: boolean, bitrixTaxValue: any) {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
-  if (!isWon) return { netRevenue: gross, gstAmount: 0, source: 'computed' };
-
-  const taxVal = typeof bitrixTaxValue === 'string' ? parseFloat(bitrixTaxValue) : bitrixTaxValue;
-  if (taxVal && taxVal > 0 && gross > taxVal) {
-    const computed = splitGst(gross, isWon);
-    if (Math.abs(taxVal - computed.gstAmount) / computed.gstAmount <= 0.05) {
-      return {
-        netRevenue: Math.round((gross - taxVal) * 100) / 100,
-        gstAmount: Math.round(taxVal * 100) / 100,
-        source: 'bitrix'
-      };
-    }
-  }
-  const computed = splitGst(gross, isWon);
-  return { ...computed, source: 'computed' };
-}
+// Helper: Split and Reconcile GST (imported from single source of truth)
+import { GST_RATE, splitGst, reconcileGst } from '../src/utils/financeUtils';
 
 const BITRIX_INDUSTRY_ENUM_MAP: Record<string, string> = {
   '240': 'Banking & Financial Services',
@@ -297,6 +270,43 @@ function formatBitrixStage(type: 'won' | 'lost' | 'in_progress', stId: string): 
   return 'Need Analysis';
 }
 
+function calculateCalendarSalesCycleDays(
+  dateCreate?: string | null,
+  closeDate?: string | null,
+  dateModify?: string | null,
+  fallbackDate?: string | null
+): number {
+  const getYYYYMMDD = (val?: string | null): string | null => {
+    if (!val || typeof val !== 'string') return null;
+    const str = val.trim().replace(' ', 'T');
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    const mIso = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (mIso) {
+      return `${mIso[1]}-${String(mIso[2]).padStart(2, '0')}-${String(mIso[3]).padStart(2, '0')}`;
+    }
+    return null;
+  };
+
+  const createIso = getYYYYMMDD(dateCreate);
+  const closeIso = getYYYYMMDD(closeDate) || getYYYYMMDD(dateModify) || getYYYYMMDD(fallbackDate);
+
+  if (createIso && closeIso) {
+    const createTime = new Date(`${createIso}T00:00:00Z`).getTime();
+    const closeTime = new Date(`${closeIso}T00:00:00Z`).getTime();
+    if (!isNaN(createTime) && !isNaN(closeTime)) {
+      const diffDays = Math.round((closeTime - createTime) / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
+    }
+  }
+  return 0;
+}
+
 export default async function handler(req: VercelRequest, res: VercelResponse) {
   const allowedOrigins = (process.env.ALLOWED_ORIGINS || 'http://localhost:5173,http://localhost:3000,http://127.0.0.1:5173,http://127.0.0.1:3000')
     .split(',')
@@ -335,15 +345,11 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
     const candidateDiskPaths = [
       path.join(process.cwd(), 'public', 'cached_bitrix_deals.json'),
       path.join(process.cwd(), 'server', 'cached_bitrix_deals.json'),
-      path.join(process.cwd(), 'cached_bitrix_deals.json'),
       path.resolve(currentDir, '..', 'public', 'cached_bitrix_deals.json'),
       path.resolve(currentDir, '..', 'server', 'cached_bitrix_deals.json'),
-      path.resolve(currentDir, '..', 'cached_bitrix_deals.json'),
       path.resolve(currentDir, 'server', 'cached_bitrix_deals.json'),
-      path.resolve(currentDir, 'cached_bitrix_deals.json'),
       '/var/task/public/cached_bitrix_deals.json',
-      '/var/task/server/cached_bitrix_deals.json',
-      '/var/task/cached_bitrix_deals.json'
+      '/var/task/server/cached_bitrix_deals.json'
     ];
 
     for (const diskCachePath of candidateDiskPaths) {
@@ -463,6 +469,16 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
       const industry = normalizeBitrixIndustry(deal.UF_CRM_67E4FF8E84730 || deal.UF_CRM_CATEGORY, deal);
       const leadSource = normalizeBitrixSource(deal.SOURCE_ID);
 
+      // Calculate dynamic Sales Cycle Days for Bitrix deal using calendar dates
+
+      // Calculate dynamic Sales Cycle Days for Bitrix deal using calendar dates
+      const dealSalesCycleDays = calculateCalendarSalesCycleDays(
+        deal.DATE_CREATE,
+        deal.CLOSEDATE,
+        deal.DATE_MODIFY,
+        dateInfo.isoDate
+      );
+
       const probInfo = parseBitrixClosureProbability(deal.UF_CRM_1745298149375 ?? deal.closureProbability);
 
       const mappedDeal = {
@@ -478,7 +494,7 @@ export default async function handler(req: VercelRequest, res: VercelResponse) {
         type: dealType,
         date: dateInfo.isoDate,
         salesRep,
-        salesCycleDays: 14,
+        salesCycleDays: dealSalesCycleDays,
         monthYear: dateInfo.monthYear,
         quarter: dateInfo.quarter,
         year: dateInfo.year,

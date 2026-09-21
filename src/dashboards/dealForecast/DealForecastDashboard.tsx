@@ -11,7 +11,7 @@ import {
   type SalesProjection
 } from '../../engine/salesProjectionEngine';
 
-import { COMPANY_MONTHLY_TARGET, COMPANY_YEARLY_TARGET, INDIVIDUAL_REP_MONTHLY_TARGETS } from '../../config/salesTargets';
+import { COMPANY_MONTHLY_TARGET, COMPANY_YEARLY_TARGET, INDIVIDUAL_REP_MONTHLY_TARGETS, getTargets } from '../../config/salesTargets';
 
 // ── Types ──────────────────────────────────────────────────────────────
 
@@ -238,14 +238,14 @@ const FocusDeals: React.FC<{ projection: SalesProjection }> = ({ projection }) =
 
   return (
     <div className="space-y-3">
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-2.5">
         <Zap className="w-4 h-4 text-amber-400" />
-        <h2 className="text-sm font-extrabold text-slate-100 uppercase tracking-wider">Focus Deals — Call These Today</h2>
-        <span className="px-2 py-0.5 text-[10px] font-bold bg-amber-500/10 text-amber-400 border border-amber-500/20 rounded-md">
-          {deals.length} high-confidence
+        <h2 className="text-sm font-semibold text-slate-100">High-Probability Closing Deals</h2>
+        <span className="px-2.5 py-0.5 text-xs font-medium bg-amber-500/10 text-amber-300 border border-amber-500/25 rounded-md">
+          {deals.length} near term
         </span>
       </div>
-      <p className="text-xs text-slate-500">Win probability ≥ 60% AND meaningful close likelihood — the deals actually worth calling today.</p>
+      <p className="text-xs text-slate-400">Deals with high win probability (≥ 60%) scheduled for closing in the current cycle.</p>
       <div className="flex gap-3 overflow-x-auto pb-2 scrollbar-thin scrollbar-thumb-slate-700 scrollbar-track-transparent">
         {deals.map(deal => {
           const prob = deal.winProbabilityPct;
@@ -253,25 +253,25 @@ const FocusDeals: React.FC<{ projection: SalesProjection }> = ({ projection }) =
           return (
             <div
               key={deal.dealName}
-              className="shrink-0 w-60 bg-slate-900/80 border border-amber-500/20 rounded-xl p-3.5 space-y-2 hover:border-amber-500/40 transition-colors"
+              className="shrink-0 w-64 bg-slate-900/80 border border-slate-800 rounded-xl p-3.5 space-y-2 hover:border-slate-700 transition-colors"
             >
               <div>
-                <p className="text-xs font-bold text-slate-100 truncate" title={deal.dealName}>{deal.dealName}</p>
-                <p className="text-[11px] text-slate-400 truncate">{deal.company}</p>
+                <p className="text-xs font-semibold text-slate-100 truncate" title={deal.dealName}>{deal.dealName}</p>
+                <p className="text-xs text-slate-400 truncate">{deal.company}</p>
               </div>
-              <div className="text-base font-black text-emerald-400">{formatINRFull(deal.netValue)}</div>
+              <div className="text-base font-bold text-emerald-400 font-mono">{formatINRFull(deal.netValue)}</div>
               <div className="flex items-center justify-between">
-                <span className={`text-xs font-bold ${probColor}`}>{prob}% win prob</span>
+                <span className={`text-xs font-semibold ${probColor}`}>{prob}% win prob</span>
                 {deal.closureProbability !== null && deal.closureProbability !== undefined && (
-                  <span className="text-[10px] px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 font-mono border border-teal-500/30" title={`Rep Closure Prob: ${deal.closureProbabilityLabel || deal.closureProbability + '%'}`}>
+                  <span className="text-[11px] px-1.5 py-0.5 rounded bg-slate-800 text-teal-300 font-mono border border-teal-500/20" title={`Rep Assessment: ${deal.closureProbabilityLabel || deal.closureProbability + '%'}`}>
                     Rep: {deal.closureProbability}%
                   </span>
                 )}
-                <span className="text-[11px] text-slate-500">{deal.expectedCloseDate}</span>
+                <span className="text-xs text-slate-400 font-mono">{deal.expectedCloseDate}</span>
               </div>
               <div className="w-full bg-slate-800 rounded-full h-1.5">
                 <div
-                  className="h-1.5 rounded-full transition-all"
+                  className="h-1.5 rounded-full transition-all duration-500"
                   style={{ width: `${prob}%`, background: attainmentColor(prob) }}
                 />
               </div>
@@ -293,8 +293,11 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
   const [targets, setTargets] = useState<Targets>(DEFAULT_TARGETS);
   const [snapshots, setSnapshots] = useState<ProjectionSnapshot[]>([]);
 
-  // Fetch targets from server (if server API exists; else falls back to DEFAULT_TARGETS)
+  // Fetch targets from server or local config, and listen for updates
   useEffect(() => {
+    const initial = getTargets();
+    if (initial && initial.monthlyTarget) setTargets(initial);
+
     fetch('/api/targets')
       .then(r => {
         const ct = r.headers.get('content-type') || '';
@@ -305,14 +308,26 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
         if (data && data.monthlyTarget) setTargets(data);
       })
       .catch(() => {});
+
+    const onTargetsUpdated = () => {
+      setTargets(getTargets());
+    };
+    window.addEventListener('salesTargetsUpdated', onTargetsUpdated);
+    return () => window.removeEventListener('salesTargetsUpdated', onTargetsUpdated);
   }, []);
 
   // Fetch trend snapshots
   useEffect(() => {
     fetch('/api/projection/snapshots')
-      .then(r => r.json())
-      .then(setSnapshots)
-      .catch(console.error);
+      .then(r => {
+        const ct = r.headers.get('content-type') || '';
+        if (r.ok && ct.includes('application/json')) return r.json();
+        return [];
+      })
+      .then(data => {
+        if (Array.isArray(data)) setSnapshots(data);
+      })
+      .catch(() => {});
   }, []);
 
   // ── Engine computations — NO arithmetic in UI code below this line ──
@@ -503,14 +518,14 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
       {/* ── Page Header ── */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <div className="flex items-center gap-2">
-            <h1 className="text-2xl font-black tracking-tight text-white">Deal Forecast & Projections</h1>
-            <span className="px-2.5 py-0.5 rounded-full text-[10px] font-bold bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 uppercase tracking-wider">
-              AI Forecast Engine
+          <div className="flex items-center gap-2.5">
+            <h1 className="text-2xl font-bold tracking-tight text-white">Deal Forecast & Projections</h1>
+            <span className="px-2.5 py-0.5 rounded-full text-xs font-medium bg-blue-500/10 text-blue-300 border border-blue-500/20">
+              Predictive Pipeline Model
             </span>
           </div>
           <p className="text-slate-400 text-xs mt-1">
-            Predictive sales pipeline analytics grounded in Bitrix24 historical win rates and empirical cycle curves.
+            Pipeline analytics grounded in Bitrix24 historical win rates and empirical cycle curves.
           </p>
         </div>
       </div>
@@ -592,43 +607,43 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
       <div className="glass-panel rounded-2xl border border-slate-800/80 overflow-hidden bg-slate-900/60 shadow-xl">
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left text-xs min-w-[1150px] border-collapse">
-            <thead className="bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 text-[11px] font-bold text-slate-400 uppercase tracking-wider border-b border-slate-800/80 select-none">
+            <thead className="bg-slate-950/90 backdrop-blur-md sticky top-0 z-10 text-xs font-semibold text-slate-400 border-b border-slate-800 select-none">
               <tr>
                 <th
-                  className={`py-3.5 px-4 w-[120px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[120px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'dealId' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('dealId')}
                 >
                   <div className="inline-flex items-center gap-1.5">
-                    <span>Bitrix ID</span>
+                    <span>Deal ID</span>
                     <SortIcon col="dealId" />
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 min-w-[280px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 min-w-[280px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'customer' || sortKey === 'dealTitle' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('customer')}
                 >
                   <div className="inline-flex items-center gap-1.5">
-                    <span>Customer & Deal</span>
+                    <span>Customer & Opportunity</span>
                     <SortIcon col="customer" />
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[165px] text-right cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[165px] text-right cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'amount' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('amount')}
                 >
                   <div className="flex items-center justify-end gap-1.5 w-full">
-                    <span>Amount (Gross/Net)</span>
+                    <span>Value (₹)</span>
                     <SortIcon col="amount" />
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[150px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[150px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'salesRep' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('salesRep')}
@@ -639,7 +654,7 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[140px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[140px] cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'stage' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('stage')}
@@ -650,46 +665,46 @@ export const DealForecastDashboard: React.FC<DealForecastDashboardProps> = ({ al
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[140px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[140px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'closureProbability' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('closureProbability')}
                 >
                   <div className="flex items-center justify-center gap-1.5 w-full">
-                    <span>Closure Prob (Rep)</span>
+                    <span>Rep Estimate</span>
                     <SortIcon col="closureProbability" />
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[135px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[135px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'winProbabilityPct' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('winProbabilityPct')}
                 >
                   <div className="flex items-center justify-center gap-1.5 w-full">
-                    <span>Win Prob % (AI)</span>
+                    <span>Model Prob</span>
                     <SortIcon col="winProbabilityPct" />
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[135px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[135px] text-center cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'expectedCloseDate' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('expectedCloseDate')}
                 >
                   <div className="flex items-center justify-center gap-1.5 w-full">
-                    <span>Expected Close</span>
+                    <span>Target Date</span>
                     <SortIcon col="expectedCloseDate" />
                   </div>
                 </th>
                 <th
-                  className={`py-3.5 px-4 w-[100px] text-right cursor-pointer transition-colors select-none whitespace-nowrap group ${
+                  className={`py-3 px-3.5 w-[100px] text-right cursor-pointer transition-colors select-none whitespace-nowrap group ${
                     sortKey === 'ageDays' ? 'text-cyan-300 bg-cyan-500/[0.05]' : 'hover:text-slate-200 hover:bg-slate-800/40'
                   }`}
                   onClick={() => toggleSort('ageDays')}
                 >
                   <div className="flex items-center justify-end gap-1.5 w-full">
-                    <span>Age (Days)</span>
+                    <span>Age</span>
                     <SortIcon col="ageDays" />
                   </div>
                 </th>

@@ -2,9 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { 
   Trophy, 
-  Medal, 
-  Award, 
-  Crown, 
   FileSpreadsheet, 
   Search, 
   X, 
@@ -19,7 +16,7 @@ import {
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
 import type { DealRecord, KPIMetrics, SalesRepMetric } from '../../types/sales';
-import { INDIVIDUAL_REP_MONTHLY_TARGETS } from '../../config/salesTargets';
+import { INDIVIDUAL_REP_MONTHLY_TARGETS, getIndividualRepMonthlyTargets } from '../../config/salesTargets';
 
 interface LeaderboardProps {
   records: DealRecord[];
@@ -43,6 +40,14 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
   const [selectedRep, setSelectedRep] = useState<SalesRepMetric | null>(null);
   const [modalSearch, setModalSearch] = useState<string>('');
   const [modalStageTab, setModalStageTab] = useState<'all' | 'won' | 'lost' | 'in_progress'>('all');
+
+  const [, setTargetsVersion] = useState<number>(0);
+
+  useEffect(() => {
+    const handleTargetsUpdated = () => setTargetsVersion(v => v + 1);
+    window.addEventListener('salesTargetsUpdated', handleTargetsUpdated);
+    return () => window.removeEventListener('salesTargetsUpdated', handleTargetsUpdated);
+  }, []);
 
   useEffect(() => {
     if (selectedRep) {
@@ -96,7 +101,8 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
     const uniqueMonths = Array.from(new Set(records.map(r => r.monthYear))).filter(Boolean);
     const monthMultiplier = Math.max(1, uniqueMonths.length);
 
-    const repBaseTarget = INDIVIDUAL_REP_MONTHLY_TARGETS[name] || 550000;
+    const repTargets = getIndividualRepMonthlyTargets();
+    const repBaseTarget = repTargets[name] || INDIVIDUAL_REP_MONTHLY_TARGETS[name] || 550000;
     const repTarget = repBaseTarget * monthMultiplier;
     const targetPct = repTarget > 0 ? Math.round((netRevenue / repTarget) * 1000) / 10 : 0;
 
@@ -200,17 +206,17 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
 
       <div className="w-full overflow-x-auto rounded-xl border border-slate-800/80 bg-slate-950/60">
         <table className="w-full text-left text-xs text-slate-300">
-          <thead className="bg-slate-900/90 text-slate-400 uppercase text-[10px] font-bold tracking-wider">
+          <thead className="bg-slate-950/80 text-slate-400 text-xs font-semibold border-b border-slate-800">
             <tr>
-              <th className="p-3">Rank</th>
-              <th className="p-3">Sales Representative</th>
-              <th className="p-3">Won Deal Value</th>
-              <th className="p-3">Won / Lost</th>
-              <th className="p-3">Win Rate %</th>
-              <th className="p-3">Active Pipeline</th>
-              <th className="p-3">Avg Deal Size</th>
-              <th className="p-3">Largest Deal</th>
-              <th className="p-3">Action</th>
+              <th className="py-3 px-3.5">Rank</th>
+              <th className="py-3 px-3.5">Sales Representative</th>
+              <th className="py-3 px-3.5">Closed Revenue</th>
+              <th className="py-3 px-3.5">Won / Lost</th>
+              <th className="py-3 px-3.5">Win Rate</th>
+              <th className="py-3 px-3.5">Pipeline Value</th>
+              <th className="py-3 px-3.5">Avg Deal Size</th>
+              <th className="py-3 px-3.5">Largest Deal</th>
+              <th className="py-3 px-3.5 text-center">Action</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-slate-800/60 font-medium">
@@ -218,73 +224,70 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
               <tr 
                 key={rep.name} 
                 onClick={() => { setSelectedRep(rep); setModalSearch(''); setModalStageTab('all'); }}
-                className="hover:bg-slate-800/80 transition-colors cursor-pointer group"
+                className="hover:bg-slate-800/50 transition-colors cursor-pointer group"
               >
-                <td className="p-3 font-bold">
+                <td className="py-3 px-3.5 font-bold">
                   {rep.medal === 'gold' && (
-                    <span className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-500/20 text-amber-400 border border-amber-500/40 w-fit">
-                      <Crown className="w-3.5 h-3.5" />
-                      <span>#1 Gold</span>
+                    <span className="px-2 py-0.5 rounded-md bg-amber-500/15 text-amber-300 border border-amber-500/30 text-xs font-mono font-semibold">
+                      #1
                     </span>
                   )}
                   {rep.medal === 'silver' && (
-                    <span className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-slate-400/20 text-slate-300 border border-slate-400/40 w-fit">
-                      <Medal className="w-3.5 h-3.5" />
-                      <span>#2 Silver</span>
+                    <span className="px-2 py-0.5 rounded-md bg-slate-400/15 text-slate-200 border border-slate-400/30 text-xs font-mono font-semibold">
+                      #2
                     </span>
                   )}
                   {rep.medal === 'bronze' && (
-                    <span className="flex items-center space-x-1 px-2 py-1 rounded-lg bg-amber-700/20 text-amber-500 border border-amber-700/40 w-fit">
-                      <Award className="w-3.5 h-3.5" />
-                      <span>#3 Bronze</span>
+                    <span className="px-2 py-0.5 rounded-md bg-amber-700/15 text-amber-400 border border-amber-700/30 text-xs font-mono font-semibold">
+                      #3
                     </span>
                   )}
-                  {!rep.medal && <span className="text-slate-500 font-mono pl-3">#{rep.rank}</span>}
+                  {!rep.medal && <span className="text-slate-400 font-mono text-xs px-2">#{rep.rank}</span>}
                 </td>
 
-                <td className="p-3">
+                <td className="py-3 px-3.5">
                   <div>
-                    <span className="font-bold text-slate-100 group-hover:text-blue-400 transition-colors flex items-center gap-1">
+                    <span className="font-semibold text-slate-100 group-hover:text-blue-400 transition-colors flex items-center gap-1.5">
                       {rep.name}
                       <ExternalLink className="w-3 h-3 opacity-0 group-hover:opacity-100 transition-opacity text-blue-400" />
                     </span>
-                    <span className="text-[10px] text-slate-400 font-mono">Click to view deals</span>
+                    <span className="text-[11px] text-slate-400">Click to view deals</span>
                   </div>
                 </td>
 
-                <td className="p-3 font-extrabold text-emerald-400 font-mono text-sm">
+                <td className="py-3 px-3.5 font-bold text-emerald-400 font-mono text-xs">
                   {formatVal(rep.netRevenue)}
                 </td>
 
-                <td className="p-3">
+                <td className="py-3 px-3.5">
                   <div className="flex items-center space-x-2">
-                    <span className="text-emerald-400 font-bold">{rep.wonCount} Won</span>
+                    <span className="text-emerald-400 font-medium">{rep.wonCount} Won</span>
                     <span className="text-slate-600">•</span>
-                    <span className="text-rose-400">{rep.lostCount} Lost</span>
+                    <span className="text-rose-400 font-medium">{rep.lostCount} Lost</span>
                   </div>
                 </td>
 
-                <td className="p-3 font-bold">
-                  <span className={`px-2 py-0.5 rounded-md text-[11px] ${
-                    rep.winRatePct >= 65 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
+                <td className="py-3 px-3.5 font-medium">
+                  <span className={`px-2 py-0.5 rounded-md text-xs font-mono ${
+                    rep.winRatePct >= 65 ? 'bg-emerald-500/15 text-emerald-300 border border-emerald-500/25' : 'bg-amber-500/15 text-amber-300 border border-amber-500/25'
                   }`}>
                     {rep.winRatePct}%
                   </span>
                 </td>
 
-                <td className="p-3 text-blue-400 font-mono font-semibold">
+                <td className="py-3 px-3.5 text-blue-400 font-mono font-semibold">
                   {formatVal(rep.pipelineValue)}
                 </td>
 
-                <td className="p-3 font-mono text-slate-300">
+                <td className="py-3 px-3.5 font-mono text-slate-300">
                   {formatVal(rep.avgDealSize)}
                 </td>
 
-                <td className="p-3 font-mono text-amber-400 font-bold">
+                <td className="py-3 px-3.5 font-mono text-amber-400 font-semibold">
                   {formatVal(rep.largestDeal)}
                 </td>
 
-                <td className="p-3">
+                <td className="py-3 px-3.5 text-center">
                   <button
                     onClick={(e) => {
                       e.stopPropagation();
@@ -292,10 +295,10 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                       setModalSearch('');
                       setModalStageTab('all');
                     }}
-                    className="flex items-center space-x-1.5 px-3 py-1.5 rounded-xl bg-blue-600/20 hover:bg-blue-600 text-blue-400 hover:text-white border border-blue-500/30 text-[11px] font-bold transition-all shadow-sm active:scale-95 whitespace-nowrap"
+                    className="inline-flex items-center space-x-1.5 px-3 py-1.5 rounded-lg bg-blue-600/15 hover:bg-blue-600 text-blue-300 hover:text-white border border-blue-500/25 text-xs font-medium transition-all shadow-sm active:scale-95 whitespace-nowrap"
                   >
                     <FileSpreadsheet className="w-3.5 h-3.5" />
-                    <span>View Rep Deals</span>
+                    <span>View Deals</span>
                   </button>
                 </td>
               </tr>
@@ -317,11 +320,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                 </div>
                 <div>
                   <div className="flex items-center space-x-2">
-                    <h3 className="text-lg font-extrabold text-slate-100">
-                      {selectedRep.name} — Deal Worksheet
+                    <h3 className="text-base font-semibold text-slate-100">
+                      {selectedRep.name} — Deal Register
                     </h3>
-                    <span className="px-2.5 py-0.5 text-[10px] font-bold bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md">
-                      {selectedRepAllDeals.length} Total Assigned Deals
+                    <span className="px-2.5 py-0.5 text-xs font-medium bg-blue-500/15 text-blue-300 border border-blue-500/25 rounded-md">
+                      {selectedRepAllDeals.length} Assigned Deals
                     </span>
                   </div>
                   <p className="text-xs text-slate-400 flex flex-wrap items-center gap-3 mt-1">
@@ -413,13 +416,13 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
             {/* Modal Table Content */}
             <div className="flex-1 overflow-y-auto overflow-x-auto my-3 rounded-xl border border-slate-800 bg-slate-950/90 shadow-inner">
               <table className="w-full text-left text-xs text-slate-300 border-collapse min-w-[1100px]">
-                <thead className="bg-slate-900 sticky top-0 z-10 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
+                <thead className="bg-slate-900 sticky top-0 z-10 text-slate-400 text-xs font-semibold border-b border-slate-800">
                   <tr>
                     <th className="p-3.5 whitespace-nowrap min-w-[90px]">Deal ID</th>
                     <th className="p-3.5 whitespace-nowrap min-w-[120px]">Status / Stage</th>
                     <th className="p-3.5 whitespace-nowrap min-w-[180px]">Company / Client</th>
                     <th className="p-3.5 min-w-[300px]">Deal Name / Opportunity</th>
-                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Income / Value (₹)</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Net Value (₹)</th>
                     <th className="p-3.5 whitespace-nowrap min-w-[120px]">Lead Source</th>
                     <th className="p-3.5 whitespace-nowrap min-w-[130px]">Industry</th>
                     <th className="p-3.5 whitespace-nowrap min-w-[170px]">Solution Type</th>
@@ -432,15 +435,15 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
                       const fullDealName = deal.rawRecord?.['Deal Name'] || `${deal.customer} - ${deal.solution}`;
                       return (
                         <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
-                          <td className="p-3.5 font-mono font-bold text-blue-400 whitespace-nowrap">{deal.id}</td>
+                          <td className="p-3.5 font-mono font-medium text-cyan-400 whitespace-nowrap">#{deal.id}</td>
                           
                           <td className="p-3.5 whitespace-nowrap">
-                            <span className={`px-2.5 py-1 rounded-lg text-[10px] font-bold border ${
+                            <span className={`px-2.5 py-1 rounded-md text-xs font-medium border ${
                               deal.type === 'won' 
-                                ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' 
+                                ? 'bg-emerald-500/15 text-emerald-300 border-emerald-500/25' 
                                 : deal.type === 'lost' 
-                                ? 'bg-rose-500/20 text-rose-400 border-rose-500/30'
-                                : 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30'
+                                ? 'bg-rose-500/15 text-rose-300 border-rose-500/25'
+                                : 'bg-cyan-500/15 text-cyan-300 border-cyan-500/25'
                             }`}>
                               {deal.stage}
                             </span>
@@ -503,9 +506,9 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
               </div>
               <button
                 onClick={() => setSelectedRep(null)}
-                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors w-fit"
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold transition-colors w-fit"
               >
-                Close Worksheet
+                Close Register
               </button>
             </div>
 
@@ -520,13 +523,11 @@ export const Leaderboard: React.FC<LeaderboardProps> = ({ records, kpis }) => {
 const topPerformerBanner = (topRep?: SalesRepMetric) => {
   if (!topRep) return null;
   return (
-    <div className="flex items-center space-x-3 px-3.5 py-2 rounded-xl bg-gradient-to-r from-amber-500/10 via-amber-500/20 to-yellow-500/10 border border-amber-500/30 text-xs">
-      <Crown className="w-4 h-4 text-amber-400" />
-      <span className="text-slate-300 font-medium">
-        Top Sales Rep: <strong className="text-amber-400 font-bold">{topRep.name}</strong>
-      </span>
+    <div className="flex items-center space-x-2.5 px-3.5 py-1.5 rounded-lg bg-slate-900 border border-slate-800 text-xs">
+      <span className="text-slate-400">Leading Revenue:</span>
+      <span className="text-slate-200 font-medium">{topRep.name}</span>
       <span className="text-slate-600">•</span>
-      <span className="font-mono text-emerald-400 font-extrabold">
+      <span className="font-mono text-emerald-400 font-semibold">
         {formatVal(topRep.netRevenue)}
       </span>
     </div>

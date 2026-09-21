@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import ReactECharts from 'echarts-for-react';
 import {
   CheckCircle2,
@@ -17,12 +17,14 @@ import {
   Share2,
   FolderKanban,
   TrendingDown,
-  Target
+  Target,
+  FileSpreadsheet
 } from 'lucide-react';
+import { SalesAnalyticsDetailModal, type SalesAnalyticsChartType } from './SalesAnalyticsDetailModal';
 import {
-  COMPANY_MONTHLY_TARGET,
-  COMPANY_YEARLY_TARGET,
-  INDIVIDUAL_REP_MONTHLY_TARGETS
+  getCompanyMonthlyTarget,
+  getCompanyYearlyTarget,
+  getIndividualRepMonthlyTargets
 } from '../../config/salesTargets';
 import type { OrderRecord, OperationalKPIMetrics } from '../../types/orders';
 import type { DealRecord } from '../../types/sales';
@@ -39,7 +41,7 @@ import {
   type ProjectRecord
 } from '../../engine/projectSheetsService';
 import { splitGst } from '../../utils/financeUtils';
-import { matchesDateFilter } from '../../utils/dateUtils';
+import { matchesDateFilter, getCurrentMonthStr } from '../../utils/dateUtils';
 
 interface SalesDashboardProps {
   allRecords?: DealRecord[];
@@ -65,11 +67,7 @@ interface SalesDashboardProps {
 }
 
 
-const getCurrentMonthStr = (): string => {
-  const now = new Date();
-  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${shortMonthNames[now.getMonth()]} ${now.getFullYear()}`;
-};
+
 
 const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({
   percentage,
@@ -77,27 +75,20 @@ const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({
 }) => {
   const clamped = Math.min(100, Math.max(0, percentage));
   const radius = 44;
-  const strokeWidth = 8.5;
+  const strokeWidth = 8;
   const arcLength = Math.PI * radius; // ~138.23
   const strokeDashoffset = arcLength - (arcLength * clamped) / 100;
-  const glowColor = clamped >= 75 ? 'rgba(16,185,129,0.35)' : clamped >= 25 ? 'rgba(6,182,212,0.35)' : 'rgba(16,185,129,0.35)';
+  const strokeColor = clamped >= 75 ? '#10b981' : clamped >= 25 ? '#0284c7' : '#f59e0b';
 
   return (
     <div className="flex flex-col items-center justify-center relative select-none w-36 px-1">
       <div className="relative w-36 h-20 flex items-end justify-center overflow-visible">
         <svg className="w-full h-full overflow-visible" viewBox="0 0 108 58">
-          <defs>
-            <linearGradient id="halfGaugeGrad" x1="0%" y1="0%" x2="100%" y2="0%">
-              <stop offset="0%" stopColor="#06b6d4" />
-              <stop offset="50%" stopColor="#10b981" />
-              <stop offset="100%" stopColor="#34d399" />
-            </linearGradient>
-          </defs>
           {/* Background Track Arc */}
           <path
             d="M 10 50 A 44 44 0 0 1 98 50"
             fill="none"
-            stroke="#1e293b"
+            stroke="#334155"
             strokeWidth={strokeWidth}
             strokeLinecap="round"
           />
@@ -105,22 +96,21 @@ const HalfGaugeArc: React.FC<{ percentage: number; label?: string }> = ({
           <path
             d="M 10 50 A 44 44 0 0 1 98 50"
             fill="none"
-            stroke="url(#halfGaugeGrad)"
+            stroke={strokeColor}
             strokeWidth={strokeWidth}
             strokeDasharray={arcLength}
             strokeDashoffset={strokeDashoffset}
             strokeLinecap="round"
-            className="transition-all duration-1000 ease-out"
-            style={{ filter: `drop-shadow(0 0 8px ${glowColor})` }}
+            className="transition-all duration-700 ease-out"
           />
         </svg>
 
         {/* Centered Metric inside arch */}
         <div className="absolute inset-0 flex flex-col items-center justify-end pb-1 text-center">
-          <span className="text-2xl font-black text-white font-mono tracking-tight leading-none drop-shadow-md">
+          <span className="text-2xl font-bold text-white font-mono tracking-tight leading-none">
             {clamped.toFixed(0)}%
           </span>
-          <span className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">
+          <span className="text-[11px] text-slate-400 font-medium capitalize mt-1">
             {label}
           </span>
         </div>
@@ -183,16 +173,36 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const sourceFilter = propSourceFilter !== undefined ? propSourceFilter : localSourceFilter;
   const companyFilter = propCompanyFilter !== undefined ? propCompanyFilter : localCompanyFilter;
 
-  const setSearchQuery = (q: string) => {
-    if (_onSearchQueryChange) _onSearchQueryChange(q);
-    else _setLocalSearchQuery(q);
-  };
   const setTableFilter = (s: 'All' | 'Billed' | 'Unbilled') => {
     if (_onTableFilterChange) _onTableFilterChange(s);
     else _setLocalTableFilter(s);
   };
 
+  const setSearchQuery = (q: string) => {
+    if (_onSearchQueryChange) _onSearchQueryChange(q);
+    else _setLocalSearchQuery(q);
+  };
+
   const [projectRecords, setProjectRecords] = useState<ProjectRecord[]>(INITIAL_SAMPLE_PROJECTS);
+
+  // Interactive Excel Data Register Modal State
+  const [activeExcelModal, setActiveExcelModal] = useState<SalesAnalyticsChartType | null>(null);
+  const [modalInitialCategory, setModalInitialCategory] = useState<string | null>(null);
+
+  const handleChartElementClick = useCallback((type: SalesAnalyticsChartType, params: any) => {
+    let category: string | null = null;
+    if (params) {
+      if (params.data && typeof params.data.name === 'string') {
+        category = params.data.name;
+      } else if (typeof params.name === 'string' && params.name) {
+        category = params.name;
+      } else if (typeof params.value === 'string' && params.value) {
+        category = params.value;
+      }
+    }
+    setActiveExcelModal(type);
+    setModalInitialCategory(category ? category.trim() : null);
+  }, []);
 
   // Sync orders sheet data on mount
   const loadAllData = async () => {
@@ -341,10 +351,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     });
   }, [sheetOrders, bitrixData, bitrixMap, allRecords]);
 
-  // Operational KPI Calculations dynamically filtered by Date Filter, Sales Rep Filter & Search Query
-  const kpis: OperationalKPIMetrics = useMemo(() => {
-    // 1. Filtered Orders
-    const activeOrders = combinedOrders.filter(ord => {
+  // Filtered Orders matching active Date Filter, Rep Filter, Source Filter, Company Filter & Search Query
+  const filteredActiveOrders = useMemo(() => {
+    return combinedOrders.filter(ord => {
       if (repFilter !== 'All' && ord.salesRep !== repFilter) return false;
 
       if (companyFilter !== 'All' && ord.customerName.toLowerCase() !== companyFilter.toLowerCase()) return false;
@@ -375,6 +384,12 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
 
       return true;
     });
+  }, [combinedOrders, repFilter, companyFilter, sourceFilter, startDate, endDate, dateFilter, searchQuery, bitrixMap]);
+
+  // Operational KPI Calculations dynamically filtered by Date Filter, Sales Rep Filter & Search Query
+  const kpis: OperationalKPIMetrics = useMemo(() => {
+    // 1. Filtered Orders
+    const activeOrders = filteredActiveOrders;
 
     const billedList = activeOrders.filter(o => o.status === 'Billed');
     const unbilledList = activeOrders.filter(o => o.status === 'Unbilled');
@@ -487,38 +502,62 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       leadsInProgressCount,
       totalLeadsGeneratedCount
     };
-  }, [combinedOrders, bitrixData, dateFilter, startDate, endDate, repFilter, sourceFilter, companyFilter, searchQuery, bitrixMap]);
+  }, [filteredActiveOrders, bitrixData, dateFilter, startDate, endDate, repFilter, sourceFilter, companyFilter, searchQuery]);
 
-  // Filtered Orders Table List
-  const filteredOrdersTable = useMemo(() => {
-    return combinedOrders.filter(ord => {
-      if (tableFilter === 'Billed' && ord.status !== 'Billed') return false;
-      if (tableFilter === 'Unbilled' && ord.status !== 'Unbilled') return false;
-      if (repFilter !== 'All' && ord.salesRep.toLowerCase() !== repFilter.toLowerCase()) return false;
-      if (companyFilter !== 'All' && ord.customerName.toLowerCase() !== companyFilter.toLowerCase()) return false;
+  // Reusable Date Matching for Deals across Charts & Excel Modal
+  const matchDealDate = useCallback((d: DealRecord) => {
+    if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
+    if (companyFilter !== 'All' && (d.customer || '').toLowerCase() !== companyFilter.toLowerCase()) return false;
+    if (sourceFilter !== 'All' && d.leadSource && d.leadSource !== sourceFilter) return false;
 
-      if (startDate && endDate) {
-        const ordDateStr = ord.orderDate || ord.isoCreationDate || '';
-        if (ordDateStr && (ordDateStr < startDate || ordDateStr > endDate)) return false;
-      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
-        const matchOrd = matchesDateFilter(ord.orderDate, dateFilter);
-        const matchIso = matchesDateFilter(ord.isoCreationDate, dateFilter);
-        const matchBill = matchesDateFilter(ord.billedDate, dateFilter);
-        if (!matchOrd && !matchIso && !matchBill) return false;
-      }
+    if (startDate && endDate) {
+      const dDateStr = d.date || d.monthYear || '';
+      if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
+    } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+      const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
+      if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
+    }
 
-      if (searchQuery.trim().length > 0) {
-        const q = searchQuery.toLowerCase();
-        const matchId = (ord.dealId || '').toLowerCase().includes(q);
-        const matchCust = ord.customerName.toLowerCase().includes(q);
-        const matchTitle = ord.dealName.toLowerCase().includes(q);
-        const matchRep = ord.salesRep.toLowerCase().includes(q);
-        if (!matchId && !matchCust && !matchTitle && !matchRep) return false;
-      }
+    if (searchQuery.trim().length > 0) {
+      const q = searchQuery.toLowerCase();
+      const matchCust = (d.customer || '').toLowerCase().includes(q);
+      const matchTitle = (d.solution || '').toLowerCase().includes(q);
+      const matchRep = (d.salesRep || '').toLowerCase().includes(q);
+      const matchId = (d.id || '').toLowerCase().includes(q);
+      if (!matchCust && !matchTitle && !matchRep && !matchId) return false;
+    }
 
-      return true;
-    });
-  }, [combinedOrders, tableFilter, searchQuery, dateFilter, startDate, endDate, repFilter, companyFilter]);
+    return true;
+  }, [repFilter, companyFilter, sourceFilter, startDate, endDate, dateFilter, searchQuery]);
+
+  // Active Filtered Won Deals
+  const filteredWonDeals = useMemo(() => {
+    const rawWon = bitrixData ? bitrixData.won : (allRecords ? allRecords.filter(r => r.type === 'won') : []);
+    return rawWon.filter(matchDealDate);
+  }, [bitrixData, allRecords, matchDealDate]);
+
+  // Active Filtered All Deals (Won, Lost, Progress - strictly filtered by date, rep, etc.)
+  const filteredAllDeals = useMemo(() => {
+    const rawAll = bitrixData ? [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress] : (allRecords || []);
+    return rawAll.filter(matchDealDate);
+  }, [bitrixData, allRecords, matchDealDate]);
+
+  // Active Filtered Leads (strictly adheres to date filter and rep filter)
+  const matchLeadDate = useCallback((l: any) => {
+    if (repFilter !== 'All' && l.salesRep !== repFilter) return false;
+    const stageChangeDate = l.dateClosed || l.dateModify || l.dateCreate || l.date || '';
+    if (startDate && endDate) {
+      if (stageChangeDate && (stageChangeDate < startDate || stageChangeDate > endDate)) return false;
+    } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
+      if (!matchesDateFilter(stageChangeDate, dateFilter)) return false;
+    }
+    return true;
+  }, [repFilter, startDate, endDate, dateFilter]);
+
+  const filteredActiveLeads = useMemo(() => {
+    const rawLeads = bitrixData ? (bitrixData.leads || []) : [];
+    return rawLeads.filter(matchLeadDate);
+  }, [bitrixData, matchLeadDate]);
 
   const formatLakhs = (val: number) => {
     if (val >= 10000000) {
@@ -534,14 +573,22 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
   const billedPct = totalOrdersValue > 0 ? Math.min(100, Math.round((kpis.ordersBilledValue / totalOrdersValue) * 100)) : 0;
 
   // Deal Target & Performance Achievement Metrics
+  const [targetsVersion, setTargetsVersion] = useState(0);
+  useEffect(() => {
+    const handleTargetsUpdated = () => setTargetsVersion(v => v + 1);
+    window.addEventListener('salesTargetsUpdated', handleTargetsUpdated);
+    return () => window.removeEventListener('salesTargetsUpdated', handleTargetsUpdated);
+  }, []);
+
   const isMonthFilter = Boolean(dateFilter && dateFilter !== 'All Dates' && dateFilter !== 'Custom Range');
   const targetValue = useMemo(() => {
+    const repTargets = getIndividualRepMonthlyTargets();
     if (repFilter !== 'All') {
-      const repMonthly = INDIVIDUAL_REP_MONTHLY_TARGETS[repFilter] || 4000000;
+      const repMonthly = repTargets[repFilter] || 4000000;
       return isMonthFilter ? repMonthly : repMonthly * 12;
     }
-    return isMonthFilter ? COMPANY_MONTHLY_TARGET : COMPANY_YEARLY_TARGET;
-  }, [repFilter, isMonthFilter]);
+    return isMonthFilter ? getCompanyMonthlyTarget() : getCompanyYearlyTarget();
+  }, [repFilter, isMonthFilter, targetsVersion]);
 
   const dealAchievementPct = targetValue > 0 ? Math.min(100, Math.round((kpis.dealsWonValue / targetValue) * 100)) : 0;
 
@@ -552,26 +599,20 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       .reduce((sum, r) => sum + (r.plannedBudget || r.actualCost || 0), 0);
   }, [filteredProjects]);
 
-  // Top Lead Source calculation
+  // Top Lead Source calculation (Strictly Leads only)
   const topLeadSource = useMemo(() => {
     const srcMap: Record<string, number> = {};
-    if (bitrixData?.leads && bitrixData.leads.length > 0) {
-      bitrixData.leads.forEach((l: any) => {
+    const leadList = filteredActiveLeads.length > 0 ? filteredActiveLeads : (bitrixData?.leads || []);
+    if (leadList && leadList.length > 0) {
+      leadList.forEach((l: any) => {
         const rawSrc = l.sourceId || l.rawRecord?.SOURCE_ID || l.rawRecord?.UTM_SOURCE || '';
-        const srcName = normalizeBitrixSource(rawSrc);
-        srcMap[srcName] = (srcMap[srcName] || 0) + 1;
-      });
-    } else if (bitrixData) {
-      const allDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress];
-      allDeals.forEach(d => {
-        const rawSrc = d.leadSource || d.rawRecord?.SOURCE_ID || d.rawRecord?.UTM_SOURCE || '';
         const srcName = normalizeBitrixSource(rawSrc);
         srcMap[srcName] = (srcMap[srcName] || 0) + 1;
       });
     }
     const sorted = Object.entries(srcMap).sort((a, b) => b[1] - a[1]);
-    return sorted.length > 0 ? sorted[0][0] : 'India Mart';
-  }, [bitrixData]);
+    return sorted.length > 0 ? sorted[0][0] : 'Google Ads';
+  }, [filteredActiveLeads, bitrixData]);
 
   // -------------------------------------------------------------
   // Executive Operational Visual Analytics Configurations
@@ -718,67 +759,30 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
     };
   }, [kpis]);
 
-  // 4. NEW UNIQUE: Lead Source Acquisition Breakdown Donut
+  // Filtered Orders Table List (matching active tableFilter 'All' | 'Billed' | 'Unbilled')
+  const filteredOrdersTable = useMemo(() => {
+    return filteredActiveOrders.filter(ord => {
+      if (tableFilter === 'Billed' && ord.status !== 'Billed') return false;
+      if (tableFilter === 'Unbilled' && ord.status !== 'Unbilled') return false;
+      return true;
+    });
+  }, [filteredActiveOrders, tableFilter]);
+
+  // 4. NEW UNIQUE: Lead Source Acquisition Breakdown Donut (Strictly Leads Only)
   const leadSourceChartOption = useMemo(() => {
     const sourceMap: Record<string, number> = {};
 
-    const matchLeadRep = (l: any) => {
-      if (repFilter !== 'All' && l.salesRep !== repFilter) return false;
-      return true;
-    };
-
-    const matchLeadDate = (l: any) => {
-      if (!matchLeadRep(l)) return false;
-      const stageChangeDate = l.dateClosed || l.dateModify || l.dateCreate || l.date || '';
-      if (startDate && endDate) {
-        if (stageChangeDate && (stageChangeDate < startDate || stageChangeDate > endDate)) return false;
-      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
-        if (!matchesDateFilter(stageChangeDate, dateFilter)) return false;
-      }
-      return true;
-    };
-
-    const matchDealDate = (d: DealRecord) => {
-      if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
-      if (companyFilter !== 'All' && (d.customer || '').toLowerCase() !== companyFilter.toLowerCase()) return false;
-      if (startDate && endDate) {
-        const dDateStr = d.date || d.monthYear || '';
-        if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
-      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
-        const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
-        if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
-      }
-      return true;
-    };
-
-    if (bitrixData?.leads && bitrixData.leads.length > 0) {
-      const activeLeads = [
-        ...bitrixData.leads.filter((l: any) => l.statusType === 'qualified' && matchLeadDate(l)),
-        ...bitrixData.leads.filter((l: any) => l.statusType === 'disqualified' && matchLeadDate(l)),
-        ...bitrixData.leads.filter((l: any) => (l.statusType === 'in_progress' || !l.statusType) && matchLeadRep(l))
-      ];
-      activeLeads.forEach(l => {
-        const rawSrc = l.sourceId || l.rawRecord?.SOURCE_ID || l.rawRecord?.UTM_SOURCE || '';
-        const srcName = normalizeBitrixSource(rawSrc);
-        sourceMap[srcName] = (sourceMap[srcName] || 0) + 1;
-      });
-    } else if (bitrixData) {
-      const allDeals = [...bitrixData.won, ...bitrixData.lost, ...bitrixData.progress].filter(matchDealDate);
-      allDeals.forEach(d => {
-        const rawSrc = d.leadSource || d.rawRecord?.SOURCE_ID || d.rawRecord?.UTM_SOURCE || '';
-        const srcName = normalizeBitrixSource(rawSrc);
-        sourceMap[srcName] = (sourceMap[srcName] || 0) + 1;
-      });
-    }
+    filteredActiveLeads.forEach(l => {
+      const rawSrc = l.sourceId || l.rawRecord?.SOURCE_ID || l.rawRecord?.UTM_SOURCE || '';
+      const srcName = normalizeBitrixSource(rawSrc);
+      sourceMap[srcName] = (sourceMap[srcName] || 0) + 1;
+    });
 
     if (Object.keys(sourceMap).length === 0 && (!dateFilter || dateFilter === 'All Dates')) {
-      sourceMap['India Mart'] = 195;
-      sourceMap['Google Ads'] = 148;
-      sourceMap['Reference'] = 112;
-      sourceMap['LinkedIn'] = 86;
-      sourceMap['Existing Client'] = 54;
-      sourceMap['Self Generated'] = 32;
-      sourceMap['E-Mail'] = 18;
+      sourceMap['Google Ads'] = 5;
+      sourceMap['Existing Client'] = 3;
+      sourceMap['Self Generated'] = 2;
+      sourceMap['Reference'] = 1;
     }
 
     const chartData = Object.entries(sourceMap)
@@ -825,43 +829,14 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             }
           },
           data: chartData.map((d, idx) => ({
-            ...d,
+            name: d.name,
+            value: d.value,
             itemStyle: { color: colorPalette[idx % colorPalette.length] }
           }))
         }
       ]
     };
-  }, [bitrixData, dateFilter, startDate, endDate, repFilter, companyFilter]);
-
-  // Won deals filtered by active Date Filter, Rep Filter, Source Filter, Company Filter & Search Query
-  const filteredWonDeals = useMemo(() => {
-    const rawWon = bitrixData ? bitrixData.won : (allRecords ? allRecords.filter(r => r.type === 'won') : []);
-
-    return rawWon.filter(d => {
-      if (repFilter !== 'All' && d.salesRep !== repFilter) return false;
-      if (companyFilter !== 'All' && (d.customer || '').toLowerCase() !== companyFilter.toLowerCase()) return false;
-      if (sourceFilter !== 'All' && d.leadSource && d.leadSource !== sourceFilter) return false;
-
-      if (startDate && endDate) {
-        const dDateStr = d.date || d.monthYear || '';
-        if (dDateStr && (dDateStr < startDate || dDateStr > endDate)) return false;
-      } else if (dateFilter !== 'All Dates' && dateFilter !== 'Custom Range') {
-        const fullDateStr = `${d.date || ''} ${d.monthYear || ''} ${d.quarter || ''} ${d.year || ''}`;
-        if (!matchesDateFilter(fullDateStr, dateFilter)) return false;
-      }
-
-      if (searchQuery.trim().length > 0) {
-        const q = searchQuery.toLowerCase();
-        const matchCust = (d.customer || '').toLowerCase().includes(q);
-        const matchTitle = (d.solution || '').toLowerCase().includes(q);
-        const matchRep = (d.salesRep || '').toLowerCase().includes(q);
-        const matchId = (d.id || '').toLowerCase().includes(q);
-        if (!matchCust && !matchTitle && !matchRep && !matchId) return false;
-      }
-
-      return true;
-    });
-  }, [bitrixData, allRecords, dateFilter, startDate, endDate, repFilter, sourceFilter, companyFilter, searchQuery]);
+  }, [filteredActiveLeads, dateFilter]);
 
   // 5. Sales Rep Revenue Performance Leaderboard (Won Deals for Selected Month)
   const salesRepPerformanceOption = useMemo(() => {
@@ -917,8 +892,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           name: 'Won Revenue',
           type: 'bar',
           barWidth: '45%',
-          data: values.map(v => ({
+          data: values.map((v, idx) => ({
             value: v,
+            name: names[idx],
             itemStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
@@ -945,6 +921,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       .sort((a, b) => b[1] - a[1])
       .slice(0, 5);
 
+    const fullNames = sorted.map(s => s[0]).reverse();
     const names = sorted.map(s => s[0].length > 16 ? s[0].slice(0, 14) + '...' : s[0]).reverse();
     const values = sorted.map(s => s[1]).reverse();
 
@@ -958,7 +935,8 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         textStyle: { color: '#f8fafc', fontSize: 12 },
         formatter: (params: any) => {
           const item = params[0];
-          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${item.name}</div>
+          const fullName = item.data?.name || item.name || '';
+          return `<div class="font-bold border-b border-slate-700 pb-1 mb-1 text-slate-200">${fullName}</div>
             <div class="flex items-center justify-between gap-4 text-xs mt-1">
               <span style="color:#0ea5e9">● Total Won Account Value:</span>
               <span class="font-mono font-bold">${formatLakhs(item.value)}</span>
@@ -986,8 +964,9 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           name: 'Won Revenue',
           type: 'bar',
           barWidth: '45%',
-          data: values.map(v => ({
+          data: values.map((v, idx) => ({
             value: v,
+            name: fullNames[idx],
             itemStyle: {
               color: {
                 type: 'linear', x: 0, y: 0, x2: 1, y2: 0,
@@ -1016,18 +995,18 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
                   <Package className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Finance Health</h3>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Finance Health</h3>
               </div>
             </div>
 
             {/* Top Section: Hero Metric (Left) + Half Gauge Arc (Right) */}
             <div className="flex items-center justify-between gap-4">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL SALES ORDERS CREATED</span>
+                <span className="text-xs font-medium text-slate-400">Total Sales Orders</span>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">{formatLakhs(totalOrdersValue)}</span>
-                  <span className="text-lg font-medium text-slate-500">/</span>
-                  <span className="text-xl font-bold text-slate-300">{totalOrdersCount}</span>
+                  <span className="text-3xl font-bold text-white tracking-tight">{formatLakhs(totalOrdersValue)}</span>
+                  <span className="text-base font-normal text-slate-500">/</span>
+                  <span className="text-xl font-semibold text-slate-300 font-mono">{totalOrdersCount}</span>
                 </div>
               </div>
 
@@ -1042,15 +1021,15 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               {/* Billed Sub-Card */}
               <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-emerald-500/40 transition-all">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400 truncate">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400 truncate">
                     <CheckCircle2 className="w-4 h-4 shrink-0" />
-                    <span>Billed</span>
+                    <span>Billed Orders</span>
                   </div>
-                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0">
+                  <span className="text-xs font-semibold font-mono px-2 py-0.5 rounded-md bg-emerald-500/10 text-emerald-300 border border-emerald-500/20 shrink-0">
                     {kpis.ordersBilledCount}
                   </span>
                 </div>
-                <div className="text-xl font-bold text-emerald-400 tracking-tight">
+                <div className="text-xl font-bold text-emerald-400 tracking-tight font-mono">
                   {formatLakhs(kpis.ordersBilledValue)}
                 </div>
               </div>
@@ -1058,15 +1037,15 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               {/* Unbilled Sub-Card */}
               <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-amber-500/40 transition-all">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400 truncate">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-amber-400 truncate">
                     <Clock className="w-4 h-4 shrink-0" />
-                    <span>Unbilled</span>
+                    <span>Unbilled Orders</span>
                   </div>
-                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
+                  <span className="text-xs font-semibold font-mono px-2 py-0.5 rounded-md bg-amber-500/10 text-amber-300 border border-amber-500/20 shrink-0">
                     {kpis.unbilledOrdersCount}
                   </span>
                 </div>
-                <div className="text-xl font-bold text-amber-400 tracking-tight">
+                <div className="text-xl font-bold text-amber-400 tracking-tight font-mono">
                   {formatLakhs(kpis.unbilledOrdersValue)}
                 </div>
               </div>
@@ -1081,18 +1060,18 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 <div className="w-8 h-8 rounded-xl bg-emerald-500/10 text-emerald-400 flex items-center justify-center border border-emerald-500/20">
                   <Target className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Sales Deal Health</h3>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Deal Performance</h3>
               </div>
             </div>
 
             {/* Top Section: Hero Metric (Left) + Half Gauge Arc (Right) */}
             <div className="flex items-center justify-between gap-4">
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL DEAL CLOSURE</span>
+                <span className="text-xs font-medium text-slate-400">Closed Won Deals</span>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">{formatLakhs(kpis.dealsWonValue)}</span>
-                  <span className="text-lg font-medium text-slate-500">/</span>
-                  <span className="text-xl font-bold text-slate-300">{kpis.dealsWonCount}</span>
+                  <span className="text-3xl font-bold text-white tracking-tight">{formatLakhs(kpis.dealsWonValue)}</span>
+                  <span className="text-base font-normal text-slate-500">/</span>
+                  <span className="text-xl font-semibold text-slate-300 font-mono">{kpis.dealsWonCount}</span>
                 </div>
               </div>
 
@@ -1107,15 +1086,15 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               {/* In Progress Sub-Card */}
               <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-cyan-500/40 transition-all">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400 truncate">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-400 truncate">
                     <RefreshCw className="w-4 h-4 shrink-0" />
-                    <span>In Progress</span>
+                    <span>In Pipeline</span>
                   </div>
-                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shrink-0">
+                  <span className="text-xs font-semibold font-mono px-2 py-0.5 rounded-md bg-cyan-500/10 text-cyan-300 border border-cyan-500/20 shrink-0">
                     {kpis.dealsInProgressCount}
                   </span>
                 </div>
-                <div className="text-xl font-bold text-cyan-400 tracking-tight">
+                <div className="text-xl font-bold text-cyan-400 tracking-tight font-mono">
                   {formatLakhs(kpis.dealsInProgressValue)}
                 </div>
               </div>
@@ -1123,15 +1102,15 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               {/* Lost Deals Sub-Card */}
               <div className="glass-panel p-3.5 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-2 hover:border-rose-500/40 transition-all">
                 <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400 truncate">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-rose-400 truncate">
                     <AlertCircle className="w-4 h-4 shrink-0" />
-                    <span>Lost Deals</span>
+                    <span>Lost Opportunities</span>
                   </div>
-                  <span className="text-xs font-bold font-mono px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 shrink-0">
+                  <span className="text-xs font-semibold font-mono px-2 py-0.5 rounded-md bg-rose-500/10 text-rose-300 border border-rose-500/20 shrink-0">
                     {kpis.dealsLostCount}
                   </span>
                 </div>
-                <div className="text-xl font-bold text-rose-400 tracking-tight">
+                <div className="text-xl font-bold text-rose-400 tracking-tight font-mono">
                   {formatLakhs(kpis.dealsLostValue)}
                 </div>
               </div>
@@ -1142,60 +1121,117 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
         {/* Row 2: Sales Lead Health & Project Health Compound KPI Cards */}
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
           {/* 1. SALES LEAD HEALTH Executive Compound Card */}
-          <div className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-slate-700/80 transition-all">
+          <div
+            onClick={() => {
+              setActiveExcelModal('lead_qualification');
+              setModalInitialCategory(null);
+            }}
+            className="lg:col-span-6 bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 flex flex-col justify-between space-y-4 hover:border-purple-500/50 hover:shadow-purple-950/20 transition-all cursor-pointer group relative"
+            title="Click to view Lead Pipeline register & export Excel"
+          >
             {/* Card Header */}
             <div className="flex items-center justify-between pb-3 border-b border-slate-800/80">
               <div className="flex items-center space-x-2.5">
-                <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20">
+                <div className="w-8 h-8 rounded-xl bg-purple-500/10 text-purple-400 flex items-center justify-center border border-purple-500/20 group-hover:scale-105 transition-transform">
                   <Users className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Sales Lead Health</h3>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Lead Pipeline</h3>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveExcelModal('lead_qualification');
+                    setModalInitialCategory(null);
+                  }}
+                  className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-purple-500/10 hover:bg-purple-500/20 text-purple-400 border border-purple-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                  title="View Lead Pipeline Excel data register"
+                >
+                  <FileSpreadsheet className="w-3.5 h-3.5" />
+                  <span>View Sheet</span>
+                </button>
+                <span className="text-xs font-medium text-purple-300 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+                  Lead Health
+                </span>
               </div>
             </div>
 
             {/* Main Content Layout: Left Stack */}
             <div className="space-y-3">
               {/* Top: Total Leads Health Count */}
-              <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">TOTAL LEADS HEALTH</span>
+              <div
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('lead_qualification');
+                  setModalInitialCategory('qualified');
+                }}
+                className="cursor-pointer group/lead hover:opacity-90 transition-opacity"
+                title="Click to view Qualified leads in Excel register"
+              >
+                <span className="text-xs font-medium text-slate-400 group-hover/lead:text-purple-300 transition-colors">Qualified Leads</span>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">{kpis.leadsQualifiedCount}</span>
-                  <span className="text-lg font-medium text-slate-500">/</span>
-                  <span className="text-xl font-bold text-slate-300">{kpis.totalLeadsGeneratedCount}</span>
+                  <span className="text-3xl font-bold text-white tracking-tight font-mono">{kpis.leadsQualifiedCount}</span>
+                  <span className="text-base font-normal text-slate-500">/</span>
+                  <span className="text-xl font-semibold text-slate-300 font-mono">{kpis.totalLeadsGeneratedCount} total</span>
                 </div>
               </div>
 
               {/* Sub-cards Grid: In Progress, Disqualified, Top Source */}
               <div className="grid grid-cols-3 gap-3 pt-1">
                 {/* In Progress */}
-                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-purple-500/40 transition-all">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-purple-400">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveExcelModal('lead_qualification');
+                    setModalInitialCategory('in_progress');
+                  }}
+                  className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-purple-500/60 hover:bg-purple-950/20 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group/sub"
+                  title="Click to view In Review leads in Excel register"
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-purple-400">
                     <RefreshCw className="w-3.5 h-3.5" />
-                    <span>In Progress</span>
+                    <span>In Review</span>
                   </div>
-                  <div className="text-2xl font-bold text-white tracking-tight">
+                  <div className="text-2xl font-bold text-white tracking-tight font-mono">
                     {kpis.leadsInProgressCount}
                   </div>
                 </div>
 
                 {/* Disqualified */}
-                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-rose-500/40 transition-all">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveExcelModal('lead_qualification');
+                    setModalInitialCategory('disqualified');
+                  }}
+                  className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-rose-500/60 hover:bg-rose-950/20 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group/sub"
+                  title="Click to view Disqualified leads in Excel register"
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-rose-400">
                     <AlertCircle className="w-3.5 h-3.5" />
                     <span>Disqualified</span>
                   </div>
-                  <div className="text-2xl font-bold text-rose-400 tracking-tight">
+                  <div className="text-2xl font-bold text-rose-400 tracking-tight font-mono">
                     {kpis.leadsDisqualifiedCount}
                   </div>
                 </div>
 
                 {/* Top Source */}
-                <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-amber-500/40 transition-all">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-amber-400">
+                <div
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setActiveExcelModal('acquisition_channels');
+                    setModalInitialCategory(topLeadSource || null);
+                  }}
+                  className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-amber-500/60 hover:bg-amber-950/20 cursor-pointer transition-all hover:scale-[1.02] active:scale-95 group/sub"
+                  title={`Click to view leads from ${topLeadSource} in Excel register`}
+                >
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-amber-400">
                     <Share2 className="w-3.5 h-3.5" />
                     <span>Top Source</span>
                   </div>
-                  <div className="text-sm font-bold text-amber-300 truncate tracking-tight pt-0.5">
+                  <div className="text-sm font-semibold text-amber-300 truncate tracking-tight pt-0.5">
                     {topLeadSource}
                   </div>
                 </div>
@@ -1211,7 +1247,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
                 <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
                   <FolderKanban className="w-4 h-4" />
                 </div>
-                <h3 className="text-xs font-bold text-white tracking-wide uppercase">Project Health</h3>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Project Delivery</h3>
               </div>
             </div>
 
@@ -1219,11 +1255,11 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
             <div className="space-y-3">
               {/* Top: Running Projects Value & Count */}
               <div>
-                <span className="text-[10px] uppercase font-bold text-slate-400 tracking-wider">RUNNING PROJECTS</span>
+                <span className="text-xs font-medium text-slate-400">Active Projects</span>
                 <div className="flex items-baseline gap-2 mt-1">
-                  <span className="text-3xl font-extrabold text-white tracking-tight">{formatLakhs(runningProjectsValue)}</span>
-                  <span className="text-lg font-medium text-slate-500">/</span>
-                  <span className="text-xl font-bold text-slate-300">{projectKpis.projectsRunning}</span>
+                  <span className="text-3xl font-bold text-white tracking-tight font-mono">{formatLakhs(runningProjectsValue)}</span>
+                  <span className="text-base font-normal text-slate-500">/</span>
+                  <span className="text-xl font-semibold text-slate-300 font-mono">{projectKpis.projectsRunning}</span>
                 </div>
               </div>
 
@@ -1231,33 +1267,33 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
               <div className="grid grid-cols-3 gap-3 pt-1">
                 {/* On-Time */}
                 <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-emerald-500/40 transition-all">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-emerald-400">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-emerald-400">
                     <Clock className="w-3.5 h-3.5" />
-                    <span>On-Time</span>
+                    <span>On Schedule</span>
                   </div>
-                  <div className="text-2xl font-bold text-white tracking-tight">
+                  <div className="text-2xl font-bold text-white tracking-tight font-mono">
                     {projectKpis.onTimeProjects}
                   </div>
                 </div>
 
                 {/* Under Budget */}
                 <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-cyan-500/40 transition-all">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-cyan-400">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-cyan-400">
                     <TrendingDown className="w-3.5 h-3.5" />
                     <span>Under Budget</span>
                   </div>
-                  <div className="text-2xl font-bold text-cyan-400 tracking-tight">
+                  <div className="text-2xl font-bold text-cyan-400 tracking-tight font-mono">
                     {projectKpis.underBudgetProjects}
                   </div>
                 </div>
 
                 {/* Over Budget */}
                 <div className="glass-panel p-3 rounded-xl border border-slate-800/80 bg-slate-950/70 space-y-1.5 hover:border-rose-500/40 transition-all">
-                  <div className="flex items-center gap-1.5 text-xs font-semibold text-rose-400">
+                  <div className="flex items-center gap-1.5 text-xs font-medium text-rose-400">
                     <TrendingUp className="w-3.5 h-3.5" />
                     <span>Over Budget</span>
                   </div>
-                  <div className="text-2xl font-bold text-rose-400 tracking-tight">
+                  <div className="text-2xl font-bold text-rose-400 tracking-tight font-mono">
                     {projectKpis.overBudgetProjects}
                   </div>
                 </div>
@@ -1271,98 +1307,266 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-5">
 
         {/* Chart 1: Orders Billed vs Unbilled Value */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
+        <div
+          onClick={() => {
+            setActiveExcelModal('billing_operations');
+            setModalInitialCategory(null);
+          }}
+          className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-emerald-500/50 hover:shadow-emerald-950/20 transition-all cursor-pointer group relative"
+          title="Click to view underlying Excel data register"
+        >
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
               <DollarSign className="w-4 h-4 text-emerald-400" />
-              <span>Billing Operations (Billed vs Unbilled Revenue)</span>
+              <span>Billing Operations (Billed vs. Unbilled)</span>
             </h3>
-            <span className="text-[11px] font-mono text-blue-300 px-2.5 py-0.5 rounded-md bg-blue-500/10 border border-blue-500/20">
-              Orders Volume
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('billing_operations');
+                  setModalInitialCategory(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                title="View Excel spreadsheet data"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>View Sheet</span>
+              </button>
+              <span className="text-xs font-medium text-blue-300 px-2.5 py-0.5 rounded-full bg-blue-500/10 border border-blue-500/20">
+                Revenue Split
+              </span>
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ReactECharts option={ordersBilledVsUnbilledOption} style={{ height: '100%', width: '100%' }} />
+          <div className="h-[280px] w-full" onClick={(e) => e.stopPropagation()}>
+            <ReactECharts
+              option={ordersBilledVsUnbilledOption}
+              style={{ height: '100%', width: '100%' }}
+              onEvents={{
+                click: (params: any) => handleChartElementClick('billing_operations', params)
+              }}
+            />
           </div>
         </div>
 
         {/* Chart 2: Bitrix Deals Pipeline Throughput */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
+        <div
+          onClick={() => {
+            setActiveExcelModal('pipeline_stages');
+            setModalInitialCategory(null);
+          }}
+          className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-emerald-500/50 hover:shadow-emerald-950/20 transition-all cursor-pointer group relative"
+          title="Click to view underlying Excel data register"
+        >
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
               <BarChart3 className="w-4 h-4 text-cyan-400" />
-              <span>Deals Pipeline Stage Volume</span>
+              <span>Pipeline Deals by Stage</span>
             </h3>
-            <span className="text-[11px] font-mono text-cyan-300 px-2.5 py-0.5 rounded-md bg-cyan-500/10 border border-cyan-500/20">
-              Bitrix Deals
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('pipeline_stages');
+                  setModalInitialCategory(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                title="View Excel spreadsheet data"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>View Sheet</span>
+              </button>
+              <span className="text-xs font-medium text-cyan-300 px-2.5 py-0.5 rounded-full bg-cyan-500/10 border border-cyan-500/20">
+                Deal Pipeline
+              </span>
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ReactECharts option={pipelineHealthOption} style={{ height: '100%', width: '100%' }} />
+          <div className="h-[280px] w-full" onClick={(e) => e.stopPropagation()}>
+            <ReactECharts
+              option={pipelineHealthOption}
+              style={{ height: '100%', width: '100%' }}
+              onEvents={{
+                click: (params: any) => handleChartElementClick('pipeline_stages', params)
+              }}
+            />
           </div>
         </div>
 
         {/* Chart 3: Lead Qualification Conversion Funnel */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
+        <div
+          onClick={() => {
+            setActiveExcelModal('lead_qualification');
+            setModalInitialCategory(null);
+          }}
+          className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-emerald-500/50 hover:shadow-emerald-950/20 transition-all cursor-pointer group relative"
+          title="Click to view underlying Excel data register"
+        >
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
               <PieChart className="w-4 h-4 text-purple-400" />
-              <span>Lead Qualification & Conversion Ratio</span>
+              <span>Lead Qualification & Funnel</span>
             </h3>
-            <span className="text-[11px] font-mono text-purple-300 px-2.5 py-0.5 rounded-md bg-purple-500/10 border border-purple-500/20">
-              Lead Health
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('lead_qualification');
+                  setModalInitialCategory(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                title="View Excel spreadsheet data"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>View Sheet</span>
+              </button>
+              <span className="text-xs font-medium text-purple-300 px-2.5 py-0.5 rounded-full bg-purple-500/10 border border-purple-500/20">
+                Conversion Funnel
+              </span>
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ReactECharts option={leadConversionOption} style={{ height: '100%', width: '100%' }} />
+          <div className="h-[280px] w-full" onClick={(e) => e.stopPropagation()}>
+            <ReactECharts
+              option={leadConversionOption}
+              style={{ height: '100%', width: '100%' }}
+              onEvents={{
+                click: (params: any) => handleChartElementClick('lead_qualification', params)
+              }}
+            />
           </div>
         </div>
 
         {/* Chart 4: Lead Source Acquisition Breakdown */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
+        <div
+          onClick={() => {
+            setActiveExcelModal('acquisition_channels');
+            setModalInitialCategory(null);
+          }}
+          className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-emerald-500/50 hover:shadow-emerald-950/20 transition-all cursor-pointer group relative"
+          title="Click to view underlying Excel data register"
+        >
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
               <Share2 className="w-4 h-4 text-sky-400" />
-              <span>Lead Source Acquisition Breakdown</span>
+              <span>Acquisition Channels</span>
             </h3>
-            <span className="text-[11px] font-mono text-sky-300 px-2.5 py-0.5 rounded-md bg-sky-500/10 border border-sky-500/20">
-              Lead Channels
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('acquisition_channels');
+                  setModalInitialCategory(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                title="View Excel spreadsheet data"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>View Sheet</span>
+              </button>
+              <span className="text-xs font-medium text-sky-300 px-2.5 py-0.5 rounded-full bg-sky-500/10 border border-sky-500/20">
+                Lead Sources
+              </span>
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ReactECharts option={leadSourceChartOption} style={{ height: '100%', width: '100%' }} />
+          <div className="h-[280px] w-full" onClick={(e) => e.stopPropagation()}>
+            <ReactECharts
+              option={leadSourceChartOption}
+              style={{ height: '100%', width: '100%' }}
+              onEvents={{
+                click: (params: any) => handleChartElementClick('acquisition_channels', params)
+              }}
+            />
           </div>
         </div>
 
         {/* Chart 5: Sales Rep Revenue Leaderboard */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
+        <div
+          onClick={() => {
+            setActiveExcelModal('sales_reps');
+            setModalInitialCategory(null);
+          }}
+          className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-emerald-500/50 hover:shadow-emerald-950/20 transition-all cursor-pointer group relative"
+          title="Click to view underlying Excel data register"
+        >
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
               <Sparkles className="w-4 h-4 text-amber-400" />
-              <span>Sales Rep Revenue Performance Leaderboard</span>
+              <span>Sales Team Revenue Performance</span>
             </h3>
-            <span className="text-[11px] font-mono text-amber-300 px-2.5 py-0.5 rounded-md bg-amber-500/10 border border-amber-500/20">
-              Team Performance
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('sales_reps');
+                  setModalInitialCategory(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                title="View Excel spreadsheet data"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>View Sheet</span>
+              </button>
+              <span className="text-xs font-medium text-amber-300 px-2.5 py-0.5 rounded-full bg-amber-500/10 border border-amber-500/20">
+                Leaderboard
+              </span>
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ReactECharts option={salesRepPerformanceOption} style={{ height: '100%', width: '100%' }} />
+          <div className="h-[280px] w-full" onClick={(e) => e.stopPropagation()}>
+            <ReactECharts
+              option={salesRepPerformanceOption}
+              style={{ height: '100%', width: '100%' }}
+              onEvents={{
+                click: (params: any) => handleChartElementClick('sales_reps', params)
+              }}
+            />
           </div>
         </div>
 
         {/* Chart 6: Customer Revenue Concentration (Top Accounts) */}
-        <div className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-slate-700/80 transition-all">
+        <div
+          onClick={() => {
+            setActiveExcelModal('top_accounts');
+            setModalInitialCategory(null);
+          }}
+          className="bg-[#0f172a]/90 backdrop-blur-md p-5 rounded-2xl border border-slate-800/90 shadow-xl shadow-slate-950/40 space-y-3 flex flex-col justify-between hover:border-emerald-500/50 hover:shadow-emerald-950/20 transition-all cursor-pointer group relative"
+          title="Click to view underlying Excel data register"
+        >
           <div className="flex items-center justify-between border-b border-slate-800/80 pb-3">
-            <h3 className="text-xs font-bold text-white flex items-center space-x-2">
+            <h3 className="text-sm font-semibold text-white flex items-center space-x-2">
               <Building2 className="w-4 h-4 text-indigo-400" />
               <span>Top Account Revenue Concentration</span>
             </h3>
-            <span className="text-[11px] font-mono text-indigo-300 px-2.5 py-0.5 rounded-md bg-indigo-500/10 border border-indigo-500/20">
-              Key Accounts
-            </span>
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setActiveExcelModal('top_accounts');
+                  setModalInitialCategory(null);
+                }}
+                className="flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 border border-emerald-500/25 text-xs font-semibold transition-all group-hover:scale-105 cursor-pointer shadow-sm"
+                title="View Excel spreadsheet data"
+              >
+                <FileSpreadsheet className="w-3.5 h-3.5" />
+                <span>View Sheet</span>
+              </button>
+              <span className="text-xs font-medium text-indigo-300 px-2.5 py-0.5 rounded-full bg-indigo-500/10 border border-indigo-500/20">
+                Account Concentration
+              </span>
+            </div>
           </div>
-          <div className="h-[280px] w-full">
-            <ReactECharts option={topCustomersChartOption} style={{ height: '100%', width: '100%' }} />
+          <div className="h-[280px] w-full" onClick={(e) => e.stopPropagation()}>
+            <ReactECharts
+              option={topCustomersChartOption}
+              style={{ height: '100%', width: '100%' }}
+              onEvents={{
+                click: (params: any) => handleChartElementClick('top_accounts', params)
+              }}
+            />
           </div>
         </div>
 
@@ -1372,7 +1576,7 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
       <div className="glass-panel rounded-2xl border border-[var(--border-color)] bg-[#0f172a]/90 p-6 shadow-xl space-y-4">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-slate-800 pb-4">
           <div>
-            <h3 className="text-lg font-bold text-white tracking-tight">Billed & Unbilled</h3>
+            <h3 className="text-base font-semibold text-white tracking-tight">Orders Register</h3>
             <p className="text-xs text-slate-400 mt-0.5">
               {sheetStatusMessage || `Displaying ${filteredOrdersTable.length} order records.`}
             </p>
@@ -1381,77 +1585,81 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           {/* Controls: Filter & Search */}
           <div className="flex flex-wrap items-center gap-3">
             {/* Filter Tabs */}
-            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-semibold">
+            <div className="flex items-center bg-slate-950 p-1 rounded-xl border border-slate-800 text-xs font-medium">
               <button
                 onClick={() => setTableFilter('All')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'All' ? 'bg-blue-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'All' ? 'bg-blue-600 text-white shadow-sm font-semibold' : 'text-slate-400 hover:text-white'}`}
               >
                 All ({kpis.ordersBilledCount + kpis.unbilledOrdersCount})
               </button>
               <button
                 onClick={() => setTableFilter('Billed')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'Billed' ? 'bg-emerald-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'Billed' ? 'bg-emerald-600 text-white shadow-sm font-semibold' : 'text-slate-400 hover:text-white'}`}
               >
                 Billed ({kpis.ordersBilledCount})
               </button>
               <button
                 onClick={() => setTableFilter('Unbilled')}
-                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'Unbilled' ? 'bg-amber-600 text-white shadow-md' : 'text-slate-400 hover:text-white'}`}
+                className={`px-3 py-1.5 rounded-lg transition-all ${tableFilter === 'Unbilled' ? 'bg-amber-600 text-white shadow-sm font-semibold' : 'text-slate-400 hover:text-white'}`}
               >
                 Unbilled ({kpis.unbilledOrdersCount})
               </button>
             </div>
 
             {/* Search Input */}
-            <div className="relative w-56">
+            <div className="relative">
               <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-2.5" />
               <input
                 type="text"
                 placeholder="Search orders..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full pl-9 pr-3 py-1.5 bg-slate-950 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500"
+                onChange={e => setSearchQuery(e.target.value)}
+                className="pl-8 pr-3 py-1.5 bg-slate-900 border border-slate-800 rounded-xl text-xs text-white placeholder-slate-500 focus:outline-none focus:border-blue-500 w-48 transition-colors"
               />
             </div>
           </div>
         </div>
 
         {/* Table View */}
-        <div className="overflow-x-auto rounded-xl border border-slate-800/80">
-          <table className="w-full text-left text-xs">
-            <thead className="bg-slate-950 text-slate-400 uppercase text-[10px] font-extrabold tracking-wider border-b border-slate-800">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs text-slate-400">
+            <thead className="bg-slate-950/80 text-[11px] uppercase tracking-wider text-slate-400 border-b border-slate-800 font-semibold">
               <tr>
-                <th className="p-3">#</th>
-                <th className="p-3">Deal ID</th>
-                <th className="p-3">Customer Name</th>
-                <th className="p-3">Deal / Order Title</th>
-                <th className="p-3">Sales Rep</th>
-                <th className="p-3 text-right">Order Amount (₹)</th>
-                <th className="p-3">Creation Date (Bitrix ISO)</th>
-                <th className="p-3 text-center">Billing Status</th>
+                <th className="py-3 px-3.5">#</th>
+                <th className="py-3 px-3.5">Deal ID</th>
+                <th className="py-3 px-3.5">Customer Name</th>
+                <th className="py-3 px-3.5">Deal Name / Solution</th>
+                <th className="py-3 px-3.5">Assigned Rep</th>
+                <th className="py-3 px-3.5 text-right">Amount</th>
+                <th className="py-3 px-3.5">Order / ISO Date</th>
+                <th className="py-3 px-3.5 text-center">Billing Status</th>
               </tr>
             </thead>
-            <tbody className="divide-y divide-slate-800/60 bg-slate-900/50">
+            <tbody className="divide-y divide-slate-800/60">
               {filteredOrdersTable.length > 0 ? (
-                filteredOrdersTable.map((ord, i) => (
-                  <tr key={ord.id || i} className="hover:bg-slate-800/50 transition-colors">
-                    <td className="p-3 font-mono text-slate-500">{ord.sNo || i + 1}</td>
-                    <td className="p-3 font-mono font-bold text-cyan-400">#{ord.dealId}</td>
-                    <td className="p-3 font-bold text-white">{ord.customerName}</td>
-                    <td className="p-3 text-slate-300 max-w-xs truncate">{ord.dealName}</td>
-                    <td className="p-3 text-slate-300 font-semibold">{ord.salesRep}</td>
-                    <td className="p-3 text-right font-mono font-bold text-emerald-400">
+                filteredOrdersTable.map((ord, idx) => (
+                  <tr key={ord.id || idx} className="hover:bg-slate-800/40 transition-colors">
+                    <td className="py-3 px-3.5 text-slate-500 font-mono">{idx + 1}</td>
+                    <td className="py-3 px-3.5 font-mono text-blue-400 font-medium">
+                      {ord.dealId || 'N/A'}
+                    </td>
+                    <td className="py-3 px-3.5 font-medium text-white">{ord.customerName}</td>
+                    <td className="py-3 px-3.5 text-slate-300 max-w-[200px] truncate" title={ord.dealName}>
+                      {ord.dealName}
+                    </td>
+                    <td className="py-3 px-3.5 text-slate-300">{ord.salesRep}</td>
+                    <td className="py-3 px-3.5 text-right font-mono font-semibold text-emerald-400">
                       ₹{ord.amount.toLocaleString('en-IN')}
                     </td>
-                    <td className="p-3 font-mono text-slate-300">{ord.isoCreationDate || ord.orderDate}</td>
-                    <td className="p-3 text-center">
+                    <td className="py-3 px-3.5 font-mono text-slate-300">{ord.isoCreationDate || ord.orderDate}</td>
+                    <td className="py-3 px-3.5 text-center">
                       {ord.status === 'Billed' ? (
-                        <span className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 rounded-md inline-flex items-center gap-1">
-                          <CheckCircle2 className="w-3 h-3" /> Billed
+                        <span className="px-2.5 py-1 text-xs font-medium bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 rounded-md inline-flex items-center gap-1.5">
+                          <CheckCircle2 className="w-3.5 h-3.5" /> Billed
                         </span>
                       ) : (
-                        <span className="px-2.5 py-1 text-[10px] font-extrabold uppercase tracking-wider bg-amber-500/20 text-amber-400 border border-amber-500/30 rounded-md inline-flex items-center gap-1">
-                          <Clock className="w-3 h-3" /> Unbilled
+                        <span className="px-2.5 py-1 text-xs font-medium bg-amber-500/15 text-amber-300 border border-amber-500/25 rounded-md inline-flex items-center gap-1.5">
+                          <Clock className="w-3.5 h-3.5" /> Unbilled
                         </span>
                       )}
                     </td>
@@ -1468,6 +1676,24 @@ export const SalesDashboard: React.FC<SalesDashboardProps> = ({
           </table>
         </div>
       </div>
+
+      {/* 4. INTERACTIVE EXCEL DATA REGISTER MODAL */}
+      <SalesAnalyticsDetailModal
+        isOpen={Boolean(activeExcelModal)}
+        onClose={() => {
+          setActiveExcelModal(null);
+          setModalInitialCategory(null);
+        }}
+        chartType={activeExcelModal}
+        initialCategory={modalInitialCategory}
+        leads={filteredActiveLeads}
+        wonDeals={filteredWonDeals}
+        allDeals={filteredAllDeals}
+        orders={filteredActiveOrders}
+        kpis={kpis}
+        dateFilter={dateFilter}
+        repFilter={repFilter}
+      />
 
     </div>
   );

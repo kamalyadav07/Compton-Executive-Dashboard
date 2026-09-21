@@ -47,8 +47,8 @@ export const DASHBOARDS: DashboardConfig[] = [
     shortName: 'Service',
     iconName: 'Headphones',
     description: 'Customer support SLAs, ticket analytics & CSAT scores',
-    status: 'coming_soon',
-    badge: 'SOON',
+    status: 'active',
+    badge: 'LIVE',
     category: 'operations'
   }
 ];

@@ -36,6 +36,10 @@ const entries = [
     in:  path.join(rootDir, 'src/utils/textUtils.ts'),
     out: path.join(__dirname, 'engines/textUtils.js'),
   },
+  {
+    in:  path.join(rootDir, 'src/config/salesTargets.ts'),
+    out: path.join(__dirname, 'salesTargets.js'),
+  },
 ];
 
 async function buildAll() {

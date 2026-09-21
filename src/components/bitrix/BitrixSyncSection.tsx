@@ -47,9 +47,9 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
           </div>
           <div>
             <div className="flex items-center space-x-2">
-              <h2 className="text-lg font-black text-white tracking-tight">Bitrix24 CRM REST Webhooks (Deals & Leads)</h2>
-              <span className="px-2 py-0.5 text-[10px] font-extrabold uppercase bg-blue-500/20 text-blue-400 border border-blue-500/30 rounded-md">
-                100% Direct Data Pipeline
+              <h2 className="text-lg font-bold text-white tracking-tight">Bitrix24 CRM REST Webhooks (Deals & Leads)</h2>
+              <span className="px-2.5 py-0.5 text-xs font-medium bg-blue-500/10 text-blue-400 border border-blue-500/20 rounded-full">
+                Direct Data Pipeline
               </span>
             </div>
             <p className="text-xs text-slate-400">
@@ -127,8 +127,8 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
       {syncResult && (
         <div className="grid grid-cols-1 md:grid-cols-5 gap-3 pt-2">
           <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Total Deals</span>
-            <div className="text-xl font-black text-white flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">Total Deals</span>
+            <div className="text-xl font-bold font-mono text-white flex items-center justify-between">
               <span>{syncResult.totalFetchedDeals.toLocaleString('en-IN')}</span>
               <ShieldCheck className="w-4 h-4 text-blue-400" />
             </div>
@@ -136,8 +136,8 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
           </div>
 
           <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Bitrix Leads</span>
-            <div className="text-xl font-black text-cyan-400 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">Bitrix Leads</span>
+            <div className="text-xl font-bold font-mono text-cyan-400 flex items-center justify-between">
               <span>{syncResult.totalFetchedLeads.toLocaleString('en-IN')}</span>
               <Users className="w-4 h-4 text-cyan-400" />
             </div>
@@ -145,8 +145,8 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
           </div>
 
           <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Bitrix Won Deals</span>
-            <div className="text-xl font-black text-emerald-400 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">Closed Won Deals</span>
+            <div className="text-xl font-bold font-mono text-emerald-400 flex items-center justify-between">
               <span>{syncResult.won.length.toLocaleString('en-IN')}</span>
               <CheckCircle2 className="w-4 h-4 text-emerald-400" />
             </div>
@@ -154,8 +154,8 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
           </div>
 
           <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Bitrix Lost Deals</span>
-            <div className="text-xl font-black text-rose-400 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">Lost Deals</span>
+            <div className="text-xl font-bold font-mono text-rose-400 flex items-center justify-between">
               <span>{syncResult.lost.length.toLocaleString('en-IN')}</span>
               <AlertCircle className="w-4 h-4 text-rose-400" />
             </div>
@@ -163,8 +163,8 @@ export const BitrixSyncSection: React.FC<BitrixSyncSectionProps> = ({
           </div>
 
           <div className="p-3 bg-slate-950/60 rounded-xl border border-slate-800 space-y-1">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">In Progress Pipeline</span>
-            <div className="text-xl font-black text-amber-400 flex items-center justify-between">
+            <span className="text-xs font-medium text-slate-400">Active Pipeline</span>
+            <div className="text-xl font-bold font-mono text-amber-400 flex items-center justify-between">
               <span>{syncResult.progress.length.toLocaleString('en-IN')}</span>
               <RefreshCw className="w-4 h-4 text-amber-400" />
             </div>

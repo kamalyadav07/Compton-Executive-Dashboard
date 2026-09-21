@@ -6,7 +6,6 @@ import { getStoredSheetsConfig, saveSheetsConfig, type GoogleSheetsConfig } from
 import { getStoredBitrixConfig, saveBitrixConfig, type BitrixConfig } from './config/bitrixConfig';
 import { getStoredBitrixCache, type BitrixSyncResult } from './engine/bitrixService';
 import { fetchDealsFromServer, fetchServerDashboardSummary, isServerKPIsEnabled } from './engine/apiClient';
-import { globalPlatform } from './platform/EventDrivenPlatform';
 
 import { Navbar } from './components/common/Navbar';
 import { SidebarNav } from './components/navigation/SidebarNav';
@@ -20,16 +19,10 @@ import { DealForecastDashboard } from './dashboards/dealForecast/DealForecastDas
 
 import { AIChatbotDrawer } from './components/chatbot/AIChatbotDrawer';
 import { ExportModal } from './components/export/ExportModal';
-import { PlatformControlCenter } from './components/platform/PlatformControlCenter';
 
 import type { ProjectFilterState } from './types/project';
 import { INITIAL_SAMPLE_PROJECTS } from './engine/projectSheetsService';
-
-const getCurrentMonthStr = (): string => {
-  const now = new Date();
-  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  return `${shortMonthNames[now.getMonth()]} ${now.getFullYear()}`;
-};
+import { getCurrentMonthStr } from './utils/dateUtils';
 
 const initialFilters: GlobalFilterState = {
   startDate: '',
@@ -59,7 +52,6 @@ export function App() {
     setActiveDashboardIdState(id);
   }, []);
 
-  const [isDarkMode, setIsDarkMode] = useState(true);
   const [isSyncing, setIsSyncing] = useState(false);
 
   const initialCache = getStoredBitrixCache();
@@ -119,9 +111,25 @@ export function App() {
     setProjectFilters(initialProjectFilters);
   }, [initialProjectFilters]);
 
+  // Service Dashboard Filters State (passed to Navbar header and ServiceDashboard)
+  const [serviceSearchQuery, setServiceSearchQuery] = useState<string>('');
+  const [serviceDateFilter, setServiceDateFilter] = useState<string>('month');
+  const [serviceStartDate, setServiceStartDate] = useState<string>('');
+  const [serviceEndDate, setServiceEndDate] = useState<string>('');
+  const [serviceEngineerFilter, setServiceEngineerFilter] = useState<string>('All');
+  const [serviceCompanyFilter, setServiceCompanyFilter] = useState<string>('All');
+
+  const handleResetServiceFilters = useCallback(() => {
+    setServiceSearchQuery('');
+    setServiceDateFilter('month');
+    setServiceStartDate('');
+    setServiceEndDate('');
+    setServiceEngineerFilter('All');
+    setServiceCompanyFilter('All');
+  }, []);
+
   const [isChatbotOpen, setIsChatbotOpen] = useState(false);
   const [isExportModalOpen, setIsExportModalOpen] = useState(false);
-  const [isPlatformOpen, setIsPlatformOpen] = useState(false);
 
   // Sync Bitrix24 Deals & Leads Data in Background (Stale-While-Revalidate)
   const handleSyncBitrix = useCallback(async (_currentConfig = bitrixConfig) => {
@@ -134,9 +142,6 @@ export function App() {
         setLostRecords(res.lost);
         setProgressRecords(res.progress);
         setLastSyncedAt(res.lastSyncedAt);
-
-        const allRaw = [...res.won, ...res.lost, ...res.progress];
-        await globalPlatform.processSheetIngestion('Bitrix24 CRM Webhook', allRaw, 'manual');
       }
     } catch (err) {
       console.error("Failed to sync Bitrix24:", err);
@@ -195,19 +200,26 @@ export function App() {
     }
   }, [filters, bitrixSyncResult]);
 
+  const [targetsVersion, setTargetsVersion] = useState(0);
+
+  useEffect(() => {
+    const handleTargetsUpdated = () => {
+      setTargetsVersion(v => v + 1);
+    };
+    window.addEventListener('salesTargetsUpdated', handleTargetsUpdated);
+    return () => window.removeEventListener('salesTargetsUpdated', handleTargetsUpdated);
+  }, []);
+
   const clientKPIs: KPIMetrics = useMemo(() => {
     return calculateKPIs(filteredRecords, filters, undefined, allRecords);
-  }, [filteredRecords, filters, allRecords]);
+  }, [filteredRecords, filters, allRecords, targetsVersion]);
 
   const kpis: KPIMetrics = (isServerKPIsEnabled() && serverKPIs) ? serverKPIs : clientKPIs;
 
   return (
-    <div className={`h-screen flex flex-col overflow-hidden ${isDarkMode ? 'dark bg-[#0a0e1a]' : 'light-theme'}`}>
+    <div className="h-screen flex flex-col overflow-hidden dark bg-[#0a0e1a]">
       <Navbar
-        isDarkMode={isDarkMode}
-        onToggleTheme={() => setIsDarkMode(!isDarkMode)}
         onOpenChatbot={() => setIsChatbotOpen(true)}
-        hasData={allRecords.length > 0}
         activeDashboardId={activeDashboardId}
         filters={filters}
         onFilterChange={setFilters}
@@ -234,6 +246,19 @@ export function App() {
         onProjectFilterChange={setProjectFilters}
         onResetProjectFilters={handleResetProjectFilters}
         allProjects={INITIAL_SAMPLE_PROJECTS}
+        serviceSearchQuery={serviceSearchQuery}
+        onServiceSearchQueryChange={setServiceSearchQuery}
+        serviceDateFilter={serviceDateFilter}
+        onServiceDateFilterChange={setServiceDateFilter}
+        serviceStartDate={serviceStartDate}
+        onServiceStartDateChange={setServiceStartDate}
+        serviceEndDate={serviceEndDate}
+        onServiceEndDateChange={setServiceEndDate}
+        serviceEngineerFilter={serviceEngineerFilter}
+        onServiceEngineerFilterChange={setServiceEngineerFilter}
+        serviceCompanyFilter={serviceCompanyFilter}
+        onServiceCompanyFilterChange={setServiceCompanyFilter}
+        onResetServiceFilters={handleResetServiceFilters}
       />
 
       <div className="flex-1 flex overflow-hidden relative">
@@ -249,9 +274,6 @@ export function App() {
         <main id="main-dashboard-content" className="flex-1 overflow-y-auto max-w-[1600px] mx-auto px-4 lg:px-8 py-6 w-full">
           {activeDashboardId === 'deal' && (
             <DealDashboard
-              filters={filters}
-              onFilterChange={setFilters}
-              onResetFilters={() => setFilters(initialFilters)}
               allRecords={allRecords}
               filteredRecords={filteredRecords}
               kpis={kpis}
@@ -294,7 +316,17 @@ export function App() {
               onResetFilters={handleResetProjectFilters}
             />
           )}
-          {activeDashboardId === 'service' && <ServiceDashboard />}
+          {activeDashboardId === 'service' && (
+            <ServiceDashboard
+              searchQuery={serviceSearchQuery}
+              dateFilter={serviceDateFilter}
+              startDate={serviceStartDate}
+              endDate={serviceEndDate}
+              engineerFilter={serviceEngineerFilter}
+              companyFilter={serviceCompanyFilter}
+              onResetFilters={handleResetServiceFilters}
+            />
+          )}
           
           {activeDashboardId === 'data-sync' && (
             <DataSyncScreen
@@ -330,11 +362,6 @@ export function App() {
         records={filteredRecords}
         kpis={kpis}
         activeDashboardId={activeDashboardId}
-      />
-
-      <PlatformControlCenter
-        isOpen={isPlatformOpen}
-        onClose={() => setIsPlatformOpen(false)}
       />
     </div>
   );

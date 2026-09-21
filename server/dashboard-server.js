@@ -63,11 +63,16 @@ const isLocalOrigin = (origin) => {
   return /^https?:\/\/(localhost|127\.0\.0\.1|192\.168\.\d+\.\d+|10\.\d+\.\d+\.\d+|172\.(1[6-9]|2\d|3[0-1])\.\d+\.\d+)(:\d+)?$/.test(origin);
 };
 
+// Compton domains pattern (e.g. compton.in, backendhelpdesk.compton.in, servicedesk.compton.in)
+const isComptonOrigin = (origin) => {
+  return /^https?:\/\/([a-z0-9-]+\.)*compton\.in(:\d+)?$/i.test(origin);
+};
+
 app.use(cors({
   origin: (origin, callback) => {
     // Allow non-browser / server-to-server requests without Origin header
     if (!origin) return callback(null, true);
-    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*') || isLocalOrigin(origin)) {
+    if (allowedOrigins.includes(origin) || allowedOrigins.includes('*') || isLocalOrigin(origin) || isComptonOrigin(origin)) {
       return callback(null, true);
     }
     return callback(null, false);
@@ -127,40 +132,17 @@ app.use('/api/telemetry', telemetryRoutes);
 const modelMonitoringRoutes = require('./routes/modelMonitoringRoutes');
 app.use('/api/model-monitoring', modelMonitoringRoutes);
 
+// ── Compton Service Dashboard Routes (Tenant ID: 13) ──────────────────────
+const serviceRoutes = require('./routes/serviceRoutes');
+app.use('/api/service', serviceRoutes);
+
+
 
 // =====================================================================
-// 1.  GST SPLIT & RECONCILIATION (from src/utils/financeUtils.ts)
+// 1.  GST SPLIT & RECONCILIATION (single source of truth: server/engines/financeUtils.js)
 // =====================================================================
 
-const GST_RATE = 0.18;
-
-function splitGst(grossRevenue, isWon) {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
-  if (!isWon) return { netRevenue: gross, gstAmount: 0 };
-  const netRevenue = Math.round((gross / (1 + GST_RATE)) * 100) / 100;
-  const gstAmount  = Math.round((gross - netRevenue) * 100) / 100;
-  return { netRevenue, gstAmount };
-}
-
-function reconcileGst(grossRevenue, isWon, bitrixTaxValue) {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
-  if (!isWon) return { netRevenue: gross, gstAmount: 0, source: 'computed' };
-
-  const taxVal = typeof bitrixTaxValue === 'string' ? parseFloat(bitrixTaxValue) : bitrixTaxValue;
-  if (taxVal && taxVal > 0 && gross > taxVal) {
-    const computed = splitGst(gross, isWon);
-    // If Bitrix's tax value is within 5% of 18%, trust Bitrix tax value
-    if (Math.abs(taxVal - computed.gstAmount) / computed.gstAmount <= 0.05) {
-      return {
-        netRevenue: Math.round((gross - taxVal) * 100) / 100,
-        gstAmount: Math.round(taxVal * 100) / 100,
-        source: 'bitrix'
-      };
-    }
-  }
-  const { netRevenue, gstAmount } = splitGst(gross, isWon);
-  return { netRevenue, gstAmount, source: 'computed' };
-}
+const { splitGst, reconcileGst, GST_RATE } = require('./engines/financeUtils');
 
 // =====================================================================
 // 2.  RATE-LIMITED QUEUE  (from src/engine/bitrixFetchQueue.ts)
@@ -901,17 +883,50 @@ async function syncBitrix() {
       const industry = normalizeBitrixIndustry(deal.UF_CRM_67E4FF8E84730 || deal.UF_CRM_CATEGORY, deal);
       const leadSource = normalizeBitrixSource(deal.SOURCE_ID);
 
+function calculateCalendarSalesCycleDays(
+  dateCreate,
+  closeDate,
+  dateModify,
+  fallbackDate
+) {
+  const getYYYYMMDD = (val) => {
+    if (!val || typeof val !== 'string') return null;
+    const str = val.trim().replace(' ', 'T');
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    const mIso = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (mIso) {
+      return `${mIso[1]}-${String(mIso[2]).padStart(2, '0')}-${String(mIso[3]).padStart(2, '0')}`;
+    }
+    return null;
+  };
+
+  const createIso = getYYYYMMDD(dateCreate);
+  const closeIso = getYYYYMMDD(closeDate) || getYYYYMMDD(dateModify) || getYYYYMMDD(fallbackDate);
+
+  if (createIso && closeIso) {
+    const createTime = new Date(`${createIso}T00:00:00Z`).getTime();
+    const closeTime = new Date(`${closeIso}T00:00:00Z`).getTime();
+    if (!isNaN(createTime) && !isNaN(closeTime)) {
+      const diffDays = Math.round((closeTime - createTime) / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
+    }
+  }
+  return 0;
+}
+
       // Sales cycle days
-      let dealSalesCycleDays = 14;
-      if (deal.DATE_CREATE) {
-        const createTs = new Date(deal.DATE_CREATE).getTime();
-        const closeDateStr = deal.CLOSEDATE || deal.DATE_MODIFY;
-        const closeTs = closeDateStr ? new Date(closeDateStr).getTime() : NaN;
-        if (!isNaN(createTs) && !isNaN(closeTs) && closeTs >= createTs) {
-          const diffDays = Math.round((closeTs - createTs) / (1000 * 60 * 60 * 24));
-          dealSalesCycleDays = Math.max(1, diffDays);
-        }
-      }
+      const dealSalesCycleDays = calculateCalendarSalesCycleDays(
+        deal.DATE_CREATE,
+        deal.CLOSEDATE,
+        deal.DATE_MODIFY,
+        dateInfo.isoDate
+      );
 
       const record = {
         id: deal.ID ? `BITRIX-${deal.ID}` : `B24-${idx + 1000}`,
@@ -1591,8 +1606,41 @@ app.get('/api/health', (_req, res) => {
 // Single source of truth for company targets. Both the AI agent tools
 // (server-side) and the Deal Forecast dashboard (client-side) read from here.
 app.get('/api/targets', (_req, res) => {
+  const configPath = path.join(__dirname, 'targets_config.json');
+  if (fs.existsSync(configPath)) {
+    try {
+      const data = JSON.parse(fs.readFileSync(configPath, 'utf8'));
+      return res.json(data);
+    } catch (_) {}
+  }
   const { getTargets, INDIVIDUAL_REP_MONTHLY_TARGETS } = require('./salesTargets');
   res.json({ ...getTargets(), repTargets: INDIVIDUAL_REP_MONTHLY_TARGETS });
+});
+
+app.post('/api/targets', (req, res) => {
+  try {
+    const configPath = path.join(__dirname, 'targets_config.json');
+    const { reset, monthlyTarget, yearlyTarget, repTargets } = req.body || {};
+    if (reset) {
+      if (fs.existsSync(configPath)) {
+        fs.unlinkSync(configPath);
+      }
+      const { getTargets, INDIVIDUAL_REP_MONTHLY_TARGETS } = require('./salesTargets');
+      return res.json({ success: true, targets: { ...getTargets(), repTargets: INDIVIDUAL_REP_MONTHLY_TARGETS } });
+    }
+    const payload = {
+      monthlyTarget: Math.round(Number(monthlyTarget) || 16000000),
+      yearlyTarget: Math.round(Number(yearlyTarget) || 200000000),
+      repTargets: repTargets || {},
+      repMonthlyTargets: repTargets || {},
+      isCustomized: true,
+      lastUpdated: new Date().toISOString()
+    };
+    fs.writeFileSync(configPath, JSON.stringify(payload, null, 2), 'utf8');
+    res.json({ success: true, targets: payload });
+  } catch (err) {
+    res.status(500).json({ error: err.message });
+  }
 });
 
 // ── Projection Snapshots ─────────────────────────────────────────────

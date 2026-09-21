@@ -314,20 +314,20 @@ export const AIDealCommandCenterModal: React.FC<AIDealCommandCenterModalProps> =
         {/* Top Header */}
         <div className="px-6 py-4 border-b border-slate-800 flex flex-col md:flex-row md:items-center justify-between gap-4 bg-slate-900/90 shrink-0">
           <div className="flex items-center space-x-3">
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-cyan-500/20">
-              <Rocket className="w-5 h-5 text-white animate-pulse" />
+            <div className="w-10 h-10 rounded-xl bg-slate-800 border border-slate-700/60 flex items-center justify-center text-blue-400 shadow-sm">
+              <Rocket className="w-5 h-5" />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h2 className="text-xl font-black text-slate-100 tracking-tight">
-                  AI DEAL ANALYSIS
+                <h2 className="text-lg font-bold text-slate-100 tracking-tight">
+                  Deal Intelligence & Predictive Analysis
                 </h2>
-                <span className="px-2.5 py-0.5 text-[10px] font-extrabold uppercase tracking-wider bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-md">
-                  Active Analysis
+                <span className="px-2.5 py-0.5 text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 rounded-full">
+                  Predictive Pipeline Model
                 </span>
               </div>
               <p className="text-xs text-slate-400 mt-0.5">
-                Multi-Engine Predictive Scoring, Expected Business Impact Ranking, ROI Optimization & What-If Simulator
+                Multi-factor scoring, revenue impact ranking, risk modeling & pipeline simulation
               </p>
             </div>
           </div>
@@ -345,28 +345,28 @@ export const AIDealCommandCenterModal: React.FC<AIDealCommandCenterModalProps> =
         {/* Executive Summary Top Cards (Phase 5) */}
         <div className="px-4 md:px-6 py-3 bg-slate-900/60 border-b border-slate-800/80 grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2.5 md:gap-3 text-xs shrink-0 font-sans">
           <div className="p-2.5 rounded-xl bg-slate-900 border border-slate-800">
-            <span className="text-[10px] font-bold text-slate-400 uppercase">Pipeline Value</span>
-            <div className="text-base font-black text-slate-100 font-mono">₹{(summary.totalPipelineValue / 10000000).toFixed(2)} Cr</div>
+            <span className="text-xs font-medium text-slate-400 block mb-1">Pipeline Value</span>
+            <div className="text-base font-bold text-slate-100 font-mono">₹{(summary.totalPipelineValue / 10000000).toFixed(2)} Cr</div>
           </div>
           <div className="p-2.5 rounded-xl bg-emerald-500/10 border border-emerald-500/20">
-            <span className="text-[10px] font-bold text-emerald-400 uppercase">Expected Revenue</span>
-            <div className="text-base font-black text-emerald-400 font-mono">₹{(summary.expectedRevenue / 10000000).toFixed(2)} Cr</div>
+            <span className="text-xs font-medium text-emerald-400 block mb-1">Expected Revenue</span>
+            <div className="text-base font-bold text-emerald-400 font-mono">₹{(summary.expectedRevenue / 10000000).toFixed(2)} Cr</div>
           </div>
           <div className="p-2.5 rounded-xl bg-rose-500/10 border border-rose-500/20">
-            <span className="text-[10px] font-bold text-rose-400 uppercase">Immediate Attention</span>
-            <div className="text-base font-black text-rose-400 font-mono">{summary.dealsImmediateAttentionCount} Deals</div>
+            <span className="text-xs font-medium text-rose-400 block mb-1">Attention Required</span>
+            <div className="text-base font-bold text-rose-400 font-mono">{summary.dealsImmediateAttentionCount} Deals</div>
           </div>
           <div className="p-2.5 rounded-xl bg-blue-500/10 border border-blue-500/20">
-            <span className="text-[10px] font-bold text-blue-400 uppercase">High Prob (&gt;80%)</span>
-            <div className="text-base font-black text-blue-400 font-mono">{summary.highProbabilityCount} Deals</div>
+            <span className="text-xs font-medium text-blue-400 block mb-1">High Probability (&gt;80%)</span>
+            <div className="text-base font-bold text-blue-400 font-mono">{summary.highProbabilityCount} Deals</div>
           </div>
           <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/20">
-            <span className="text-[10px] font-bold text-amber-400 uppercase">Revenue at Risk</span>
-            <div className="text-base font-black text-amber-400 font-mono">₹{(summary.revenueAtRisk / 10000000).toFixed(2)} Cr</div>
+            <span className="text-xs font-medium text-amber-400 block mb-1">Revenue at Risk</span>
+            <div className="text-base font-bold text-amber-400 font-mono">₹{(summary.revenueAtRisk / 10000000).toFixed(2)} Cr</div>
           </div>
           <div className="p-2.5 rounded-xl bg-purple-500/10 border border-purple-500/20">
-            <span className="text-[10px] font-bold text-purple-400 uppercase">Target Gap</span>
-            <div className="text-base font-black text-purple-300 font-mono">₹{(summary.revenueGap / 100000).toFixed(1)}L</div>
+            <span className="text-xs font-medium text-purple-300 block mb-1">Target Gap</span>
+            <div className="text-base font-bold text-purple-300 font-mono">₹{(summary.revenueGap / 100000).toFixed(1)}L</div>
           </div>
         </div>
 

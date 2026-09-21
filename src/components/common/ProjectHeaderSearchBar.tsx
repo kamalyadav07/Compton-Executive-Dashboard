@@ -1,6 +1,7 @@
 import React, { useState, useRef, useEffect, useMemo } from 'react';
 import { Search, X, Calendar, Package, Clock, DollarSign, Layers, Building2, RotateCcw } from 'lucide-react';
 import type { ProjectFilterState, ProjectRecord } from '../../types/project';
+import { getMonthYearTime } from '../../utils/dateUtils';
 
 interface ProjectHeaderSearchBarProps {
   filters: ProjectFilterState;
@@ -56,24 +57,7 @@ export const ProjectHeaderSearchBar: React.FC<ProjectHeaderSearchBarProps> = ({
     return Array.from(set).filter(Boolean).sort();
   }, [allProjects]);
 
-  const monthMap: Record<string, number> = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
-  };
 
-  const getMonthYearTime = (str: string): number => {
-    if (!str) return 0;
-    const parts = str.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      const mStr = parts[0].toLowerCase().substring(0, 3);
-      const yNum = parseInt(parts[1], 10);
-      const mNum = monthMap[mStr] !== undefined ? monthMap[mStr] : 0;
-      if (!isNaN(yNum)) {
-        return new Date(yNum, mNum, 1).getTime();
-      }
-    }
-    return 0;
-  };
 
   const monthYearList = useMemo(() => {
     const set = new Set<string>();
@@ -361,14 +345,14 @@ export const ProjectHeaderSearchBar: React.FC<ProjectHeaderSearchBarProps> = ({
 
           {/* DATE PERIOD SECTION */}
           <div className="pt-2 border-t border-[#1a263d] space-y-2">
-            <label className="text-xs font-extrabold uppercase tracking-wider text-slate-200 flex items-center gap-1.5">
-              <Calendar className="w-4 h-4 text-emerald-400" /> CREATED / UPDATED DATE PERIOD
+            <label className="text-xs font-semibold text-slate-200 flex items-center gap-1.5">
+              <Calendar className="w-4 h-4 text-emerald-400" /> Date Period
             </label>
 
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-2.5">
               {/* Start Date */}
               <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold block">Start Date</span>
+                <span className="text-[10px] text-slate-400 font-medium block">Start Date</span>
                 <input
                   type="date"
                   value={startDate}
@@ -379,7 +363,7 @@ export const ProjectHeaderSearchBar: React.FC<ProjectHeaderSearchBarProps> = ({
 
               {/* End Date */}
               <div className="space-y-1">
-                <span className="text-[10px] text-slate-400 font-bold block">End Date</span>
+                <span className="text-[10px] text-slate-400 font-medium block">End Date</span>
                 <input
                   type="date"
                   value={endDate}
@@ -390,7 +374,7 @@ export const ProjectHeaderSearchBar: React.FC<ProjectHeaderSearchBarProps> = ({
 
               {/* Month & Year Combined Selector */}
               <div className="space-y-1 sm:col-span-2">
-                <span className="text-[10px] text-slate-400 font-bold block">Specific Month & Year</span>
+                <span className="text-[10px] text-slate-400 font-medium block">Specific Month & Year</span>
                 <select
                   value={filters.dateFilter}
                   onChange={e => handleFieldChange('dateFilter', e.target.value)}

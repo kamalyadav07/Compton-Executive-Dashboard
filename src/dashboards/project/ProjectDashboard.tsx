@@ -638,22 +638,22 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
               <div className="flex-1 min-w-0">
                 {/* Badge row */}
                 <div className="flex items-center gap-2 mb-1 flex-wrap">
-                  <span className={`text-[10px] font-extrabold uppercase tracking-widest px-2.5 py-0.5 rounded-full border ${
+                  <span className={`text-xs font-semibold px-2.5 py-0.5 rounded-full border ${
                     isCritical
-                      ? 'bg-rose-500/20 text-rose-300 border-rose-500/30'
-                      : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
+                      ? 'bg-rose-500/15 text-rose-300 border-rose-500/30'
+                      : 'bg-amber-500/15 text-amber-300 border-amber-500/30'
                   }`}>
-                    ⚡ {sig.riskLevel}
+                    {isCritical ? 'Critical Overrun Risk' : 'Budget Variance Warning'}
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400 font-bold">
-                    Spend pace: <strong className={isCritical ? 'text-rose-300' : 'text-amber-300'}>
+                  <span className="text-xs font-mono text-slate-400">
+                    Spend rate: <strong className={isCritical ? 'text-rose-300' : 'text-amber-300'}>
                       {sig.spendPaceRatio.toFixed(2)}×
-                    </strong> planned rate
+                    </strong> planned pace
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">
-                    Forecast final cost: <strong className="text-white">₹{sig.forecastFinalCost.toLocaleString('en-IN')}</strong>
+                  <span className="text-xs font-mono text-slate-400">
+                    Forecast cost: <strong className="text-white">₹{sig.forecastFinalCost.toLocaleString('en-IN')}</strong>
                   </span>
-                  <span className="text-[10px] font-mono text-slate-400">
+                  <span className="text-xs font-mono text-slate-400">
                     Overrun: <strong className={isCritical ? 'text-rose-300' : 'text-amber-300'}>
                       +₹{sig.forecastOverrunAmount.toLocaleString('en-IN')} ({sig.forecastOverrunPct}%)
                     </strong>
@@ -679,21 +679,19 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-5">
         
         {/* GROUP 1: TOTAL PROJECT SUMMARY CARD (Running | Completed) */}
-        <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-blue-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-28 h-28 bg-blue-500/10 rounded-full blur-2xl pointer-events-none" />
-          
+        <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between hover:border-slate-700/80 transition-all">
           {/* Card Header */}
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center border border-blue-500/30">
-                <FolderKanban className="w-4.5 h-4.5" />
+              <div className="w-8 h-8 rounded-xl bg-blue-500/10 text-blue-400 flex items-center justify-center border border-blue-500/20">
+                <FolderKanban className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">Total Project</h3>
-                <p className="text-[10px] text-slate-400 font-mono">Portfolio status</p>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Portfolio Overview</h3>
+                <p className="text-xs text-slate-400">Execution Status</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-blue-500/20 text-blue-300 border border-blue-500/30">
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-blue-500/10 text-blue-300 border border-blue-500/20">
               {kpis.totalProjects} Total
             </span>
           </div>
@@ -701,44 +699,42 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
           {/* Sub-cards Grid: Running vs Completed */}
           <div className="grid grid-cols-2 gap-3">
             {/* Running Sub-Card */}
-            <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-cyan-500/30 relative overflow-hidden group hover:border-cyan-400/60 transition-all shadow-inner">
+            <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 group hover:border-cyan-500/40 transition-all">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-cyan-300">Running</span>
-                <PlayCircle className="w-3.5 h-3.5 text-cyan-400 animate-spin-slow" />
+                <span className="text-xs font-medium text-cyan-300">Active</span>
+                <PlayCircle className="w-3.5 h-3.5 text-cyan-400" />
               </div>
-              <div className="text-2xl font-black text-white font-mono">{kpis.projectsRunning}</div>
-              <div className="text-[10px] text-cyan-400/90 font-medium mt-1 truncate">Active execution</div>
+              <div className="text-2xl font-bold text-white font-mono">{kpis.projectsRunning}</div>
+              <div className="text-xs text-slate-400 mt-1 truncate">In Progress</div>
             </div>
 
             {/* Completed Sub-Card */}
-            <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
+            <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 group hover:border-emerald-500/40 transition-all">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Completed</span>
+                <span className="text-xs font-medium text-emerald-300">Completed</span>
                 <CheckCircle2 className="w-3.5 h-3.5 text-emerald-400" />
               </div>
-              <div className="text-2xl font-black text-white font-mono">{kpis.totalProjects - kpis.projectsRunning}</div>
-              <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">Delivered</div>
+              <div className="text-2xl font-bold text-white font-mono">{kpis.totalProjects - kpis.projectsRunning}</div>
+              <div className="text-xs text-slate-400 mt-1 truncate">Delivered</div>
             </div>
           </div>
         </div>
 
         {/* GROUP 2: RUNNING PROJECTS SCHEDULE CARD (Delayed | Ontime) */}
-        <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-cyan-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-28 h-28 bg-cyan-500/10 rounded-full blur-2xl pointer-events-none" />
-          
+        <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between hover:border-slate-700/80 transition-all">
           {/* Card Header */}
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-cyan-500/20 text-cyan-400 flex items-center justify-center border border-cyan-500/30">
-                <PlayCircle className="w-4.5 h-4.5" />
+              <div className="w-8 h-8 rounded-xl bg-cyan-500/10 text-cyan-400 flex items-center justify-center border border-cyan-500/20">
+                <Clock className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">Running Projects</h3>
-                <p className="text-[10px] text-slate-400 font-mono">Timeline schedule</p>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Timeline Schedule</h3>
+                <p className="text-xs text-slate-400">Milestone Compliance</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-cyan-500/20 text-cyan-300 border border-cyan-500/30">
-              {kpis.projectsRunning} Running
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-cyan-500/10 text-cyan-300 border border-cyan-500/20">
+              {kpis.projectsRunning} Active
             </span>
           </div>
 
@@ -746,44 +742,42 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
           <div className="grid grid-cols-2 gap-3">
             
             {/* Delayed (X) */}
-            <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-rose-500/30 relative overflow-hidden group hover:border-rose-400/60 transition-all shadow-inner">
+            <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 group hover:border-rose-500/40 transition-all">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-rose-300">Delayed</span>
+                <span className="text-xs font-medium text-rose-300">Delayed</span>
                 <AlertTriangle className="w-3.5 h-3.5 text-rose-400" />
               </div>
-              <div className="text-2xl font-black text-rose-400 font-mono">{kpis.delayedProjects}</div>
-              <div className="text-[10px] text-rose-400/90 font-medium mt-1 truncate">Intervention needed</div>
+              <div className="text-2xl font-bold text-rose-400 font-mono">{kpis.delayedProjects}</div>
+              <div className="text-xs text-slate-400 mt-1 truncate">Needs Attention</div>
             </div>
 
             {/* On Time (Y) */}
-            <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-emerald-500/30 relative overflow-hidden group hover:border-emerald-400/60 transition-all shadow-inner">
+            <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 group hover:border-emerald-500/40 transition-all">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-emerald-300">Ontime</span>
+                <span className="text-xs font-medium text-emerald-300">On Schedule</span>
                 <Clock className="w-3.5 h-3.5 text-emerald-400" />
               </div>
-              <div className="text-2xl font-black text-white font-mono">{kpis.onTimeProjects}</div>
-              <div className="text-[10px] text-emerald-400/90 font-medium mt-1 truncate">{kpis.onTimeRatePct}% Compliance</div>
+              <div className="text-2xl font-bold text-white font-mono">{kpis.onTimeProjects}</div>
+              <div className="text-xs text-slate-400 mt-1 truncate">{kpis.onTimeRatePct}% Compliance</div>
             </div>
 
           </div>
         </div>
 
         {/* GROUP 3: BUDGET STATUS CARD (Under Budget | Over Budget) */}
-        <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-teal-500/30 relative overflow-hidden shadow-xl flex flex-col justify-between">
-          <div className="absolute top-0 right-0 w-28 h-28 bg-teal-500/10 rounded-full blur-2xl pointer-events-none" />
-          
+        <div className="lg:col-span-4 bg-[#0f172a]/95 backdrop-blur-md p-5 rounded-2xl border border-slate-800 shadow-xl flex flex-col justify-between hover:border-slate-700/80 transition-all">
           {/* Card Header */}
           <div className="flex items-center justify-between pb-3 mb-4 border-b border-slate-800/80">
             <div className="flex items-center space-x-2.5">
-              <div className="w-8 h-8 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center border border-teal-500/30">
-                <TrendingDown className="w-4.5 h-4.5" />
+              <div className="w-8 h-8 rounded-xl bg-teal-500/10 text-teal-400 flex items-center justify-center border border-teal-500/20">
+                <TrendingDown className="w-4 h-4" />
               </div>
               <div>
-                <h3 className="text-xs font-extrabold text-white tracking-wide uppercase">Budget Status</h3>
-                <p className="text-[10px] text-slate-400 font-mono">Cost health analysis</p>
+                <h3 className="text-sm font-semibold text-white tracking-tight">Budget Variance</h3>
+                <p className="text-xs text-slate-400">Financial Performance</p>
               </div>
             </div>
-            <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-teal-500/20 text-teal-300 border border-teal-500/30">
+            <span className="text-xs font-medium px-2.5 py-0.5 rounded-full bg-teal-500/10 text-teal-300 border border-teal-500/20">
               Budget Health
             </span>
           </div>
@@ -792,23 +786,23 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
           <div className="grid grid-cols-2 gap-3">
             
             {/* Under Budget (Z) */}
-            <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-teal-500/30 relative overflow-hidden group hover:border-teal-400/60 transition-all shadow-inner">
+            <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 group hover:border-teal-500/40 transition-all">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-teal-300">Under Budget</span>
+                <span className="text-xs font-medium text-teal-300">Under Budget</span>
                 <TrendingDown className="w-3.5 h-3.5 text-teal-400" />
               </div>
-              <div className="text-2xl font-black text-white font-mono">{kpis.underBudgetProjects}</div>
-              <div className="text-[10px] text-teal-400/90 font-medium mt-1 truncate">{kpis.underBudgetRatePct}% Cost Saving</div>
+              <div className="text-2xl font-bold text-white font-mono">{kpis.underBudgetProjects}</div>
+              <div className="text-xs text-slate-400 mt-1 truncate">{kpis.underBudgetRatePct}% Savings</div>
             </div>
 
             {/* Over Budget */}
-            <div className="bg-[#172033]/90 p-3.5 rounded-xl border border-amber-500/30 relative overflow-hidden group hover:border-amber-400/60 transition-all shadow-inner">
+            <div className="bg-slate-900/80 p-3.5 rounded-xl border border-slate-800 group hover:border-amber-500/40 transition-all">
               <div className="flex items-center justify-between mb-1">
-                <span className="text-[11px] font-bold uppercase tracking-wider text-amber-300">Over Budget</span>
+                <span className="text-xs font-medium text-amber-300">Over Budget</span>
                 <TrendingUp className="w-3.5 h-3.5 text-amber-400" />
               </div>
-              <div className="text-2xl font-black text-amber-400 font-mono">{kpis.overBudgetProjects}</div>
-              <div className="text-[10px] text-amber-400/90 font-medium mt-1 truncate">Variance: {formatCurrency(kpis.netBudgetVariance)}</div>
+              <div className="text-2xl font-bold text-amber-400 font-mono">{kpis.overBudgetProjects}</div>
+              <div className="text-xs text-slate-400 mt-1 truncate">Variance: {formatCurrency(kpis.netBudgetVariance)}</div>
             </div>
 
           </div>
@@ -932,8 +926,8 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
         <div className="overflow-x-auto custom-scrollbar">
           <table className="w-full text-left border-collapse">
             <thead>
-              <tr className="bg-[#0b1329] text-slate-400 text-[11px] uppercase tracking-wider font-extrabold border-b border-slate-800 select-none sticky top-0 z-10">
-                <th onClick={() => handleSort('sNo')} className="py-3.5 px-4 cursor-pointer hover:text-white transition-colors">
+              <tr className="bg-slate-950/90 backdrop-blur-md text-slate-400 text-xs font-semibold border-b border-slate-800 select-none sticky top-0 z-10">
+                <th onClick={() => handleSort('sNo')} className="py-3 px-3.5 cursor-pointer hover:text-white transition-colors">
                   <div className="flex items-center space-x-1">
                     <span>S.No</span>
                     <ArrowUpDown className={`w-3 h-3 ${sortField === 'sNo' ? 'text-blue-400 opacity-100' : 'opacity-40'}`} />
@@ -1024,7 +1018,7 @@ export const ProjectDashboard: React.FC<ProjectDashboardProps> = ({
                             : 'bg-amber-500/20 text-amber-300 border-amber-500/30'
                         }`}>
                           {p.status === 'Running' && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 animate-ping inline-block mr-1.5" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-cyan-400 inline-block mr-1.5" />
                           )}
                           {p.status}
                         </span>

@@ -34,7 +34,7 @@ module.exports = __toCommonJS(salesProjectionEngine_exports);
 // src/utils/financeUtils.ts
 var GST_RATE = 0.18;
 function splitGst(grossRevenue, isWon) {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
+  const gross = Number.isFinite(grossRevenue) ? Math.max(0, grossRevenue) : 0;
   if (!isWon) {
     return { netRevenue: gross, gstAmount: 0 };
   }
@@ -60,6 +60,126 @@ function formatDealLabel(title, dealId) {
     return `${clean} (${dealId})`;
   }
   return clean;
+}
+
+// src/config/bitrixConfig.ts
+var envWebhookUrl = (process.env.VITE_BITRIX_WEBHOOK_URL || process.env.BITRIX_WEBHOOK_URL || "").trim();
+var DEFAULT_BITRIX_CONFIG = {
+  webhookBaseUrl: envWebhookUrl ? envWebhookUrl.endsWith("/") ? envWebhookUrl : `${envWebhookUrl}/` : "",
+  dealsWebhookUrl: envWebhookUrl ? `${envWebhookUrl.replace(/\/+$/, "")}/crm.deal.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*` : "",
+  leadsWebhookUrl: envWebhookUrl ? `${envWebhookUrl.replace(/\/+$/, "")}/crm.lead.list.json?SELECT%5B%5D=*&SELECT%5B%5D=UF_*` : "",
+  autoSync: true,
+  minDate: "2019-01-01"
+};
+
+// src/engine/bitrixFetchQueue.ts
+var RateLimitedQueue = class {
+  concurrency;
+  minIntervalMs;
+  maxRetries;
+  active = 0;
+  lastStart = 0;
+  queue = [];
+  constructor(opts = {}) {
+    this.concurrency = opts.concurrency ?? 4;
+    this.minIntervalMs = opts.minIntervalMs ?? 550;
+    this.maxRetries = opts.maxRetries ?? 4;
+  }
+  /** Schedule a fetch. Resolves with the parsed JSON, or throws after retries are exhausted. */
+  async run(taskFn, label = "request") {
+    await this.acquireSlot();
+    try {
+      return await this.withRetry(taskFn, label);
+    } finally {
+      this.releaseSlot();
+    }
+  }
+  acquireSlot() {
+    return new Promise((resolve) => {
+      const tryStart = () => {
+        const now = Date.now();
+        const waitForRate = Math.max(0, this.minIntervalMs - (now - this.lastStart));
+        if (this.active < this.concurrency && waitForRate === 0) {
+          this.active++;
+          this.lastStart = Date.now();
+          resolve();
+        } else {
+          setTimeout(tryStart, Math.max(20, waitForRate));
+        }
+      };
+      this.queue.push(tryStart);
+      if (this.queue.length === 1 || this.active < this.concurrency) tryStart();
+    });
+  }
+  releaseSlot() {
+    this.active = Math.max(0, this.active - 1);
+    this.queue.shift();
+    if (this.queue.length > 0) this.queue[0]();
+  }
+  async withRetry(taskFn, label) {
+    let lastErr;
+    for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
+      try {
+        const result = await taskFn();
+        if (result && typeof result === "object" && "error" in result) {
+          const errCode = result.error;
+          if (errCode === "QUERY_LIMIT_EXCEEDED" || errCode === "OPERATION_TIME_LIMIT") {
+            throw new Error(`Bitrix throttled: ${errCode}`);
+          }
+        }
+        return result;
+      } catch (err) {
+        lastErr = err;
+        const backoff = Math.min(8e3, 400 * Math.pow(2, attempt)) + Math.random() * 250;
+        console.warn(`[bitrixFetchQueue] ${label} failed (attempt ${attempt + 1}/${this.maxRetries + 1}), retrying in ${Math.round(backoff)}ms`, err);
+        await new Promise((r) => setTimeout(r, backoff));
+      }
+    }
+    throw new Error(`[bitrixFetchQueue] ${label} permanently failed after ${this.maxRetries + 1} attempts: ${String(lastErr)}`);
+  }
+};
+
+// src/engine/bitrixService.ts
+var bitrixQueue = new RateLimitedQueue({ concurrency: 3, minIntervalMs: 300, maxRetries: 4 });
+var BITRIX_CLOSURE_PROBABILITY_MAP = {
+  "384": { value: 0, label: "Very Low - 0 %" },
+  "386": { value: 25, label: "Low - 25 %" },
+  "388": { value: 50, label: "Medium - 50 %" },
+  "390": { value: 75, label: "High - 75 %" },
+  "392": { value: 100, label: "Very High - 100 %" }
+};
+function parseBitrixClosureProbability(val) {
+  if (val === void 0 || val === null || val === "" || val === false) {
+    return { value: null, label: null };
+  }
+  const str = String(val).trim();
+  if (BITRIX_CLOSURE_PROBABILITY_MAP[str]) {
+    return BITRIX_CLOSURE_PROBABILITY_MAP[str];
+  }
+  const lower = str.toLowerCase();
+  if (lower.includes("not selected") || lower === "none" || lower === "null") {
+    return { value: null, label: null };
+  }
+  if (lower.includes("very high") || lower.includes("100")) {
+    return { value: 100, label: "Very High - 100 %" };
+  }
+  if (lower.includes("high") || lower.includes("75")) {
+    return { value: 75, label: "High - 75 %" };
+  }
+  if (lower.includes("medium") || lower.includes("50")) {
+    return { value: 50, label: "Medium - 50 %" };
+  }
+  if (lower.includes("very low") || lower.includes("0 %") || lower === "0") {
+    return { value: 0, label: "Very Low - 0 %" };
+  }
+  if (lower.includes("low") || lower.includes("25")) {
+    return { value: 25, label: "Low - 25 %" };
+  }
+  const num = parseFloat(str);
+  if (!isNaN(num) && num >= 0 && num <= 100) {
+    return { value: num, label: `${num}%` };
+  }
+  return { value: null, label: null };
 }
 
 // src/engine/qualitativeRiskEngine.ts
@@ -156,6 +276,9 @@ function extractQualitativeRiskSignals(deal, documentChunks = []) {
   const combinedText = (commentText + " " + documentChunks.join(" ")).toLowerCase();
   const quietDays = computeRealCommentQuietDays(deal);
   const customerWentQuiet = deal.type === "in_progress" && quietDays > 14;
+  const created = deal.rawRecord?.DATE_CREATE || deal.date;
+  const dealAgeDays = created ? Math.max(0, Math.round((Date.now() - new Date(created).getTime()) / 864e5)) : 0;
+  const dealStalled = deal.type === "in_progress" && dealAgeDays > 60 && quietDays >= 14;
   const competitorMentioned = COMPETITOR_PATTERNS.some((p) => combinedText.includes(p));
   const decisionMakerChanged = DECISION_MAKER_PATTERNS.some((p) => combinedText.includes(p));
   const scopeOrPriceChangedRecently = SCOPE_PRICE_PATTERNS.some((p) => combinedText.includes(p));
@@ -167,7 +290,8 @@ function extractQualitativeRiskSignals(deal, documentChunks = []) {
   }
   const notesParts = [];
   if (competitorMentioned) notesParts.push("Competitor/third-party vendor discussed in comments.");
-  if (customerWentQuiet) notesParts.push(`Customer quiet for ${quietDays} days with no CRM update.`);
+  if (dealStalled) notesParts.push(`Deal stalled: age ${dealAgeDays}d with no activity for ${quietDays}d.`);
+  else if (customerWentQuiet) notesParts.push(`Customer quiet for ${quietDays} days with no CRM update.`);
   if (decisionMakerChanged) notesParts.push("Mention of contact or decision maker change.");
   if (scopeOrPriceChangedRecently) notesParts.push("Price negotiation or scope revision noted.");
   if (urgencyLanguageDetected) notesParts.push(`Customer indicated urgent timeline${extractedUrgencyDate ? ` (${extractedUrgencyDate})` : ""}.`);
@@ -176,7 +300,9 @@ function extractQualitativeRiskSignals(deal, documentChunks = []) {
     competitorMentioned,
     decisionMakerChanged,
     customerWentQuiet,
+    dealStalled,
     quietDays,
+    dealAgeDays,
     scopeOrPriceChangedRecently,
     urgencyLanguageDetected,
     extractedUrgencyDate,
@@ -196,7 +322,17 @@ function ensembleAdjustWinProbability(baseProbabilityPct, signals) {
       description: "Competitor / third-party vendor mentioned in deal activity."
     });
   }
-  if (signals.customerWentQuiet) {
+  if (signals.dealStalled) {
+    const stallMult = signals.dealAgeDays > 180 ? 0.6 : 0.75;
+    multiplier *= stallMult;
+    activeSignals.push({
+      key: "dealStalled",
+      label: signals.dealAgeDays > 180 ? `\u{1F6D1} Dormant (${signals.dealAgeDays}d)` : `\u23F3 Stalled (${signals.dealAgeDays}d)`,
+      multiplier: stallMult,
+      badgeStyle: signals.dealAgeDays > 180 ? "bg-rose-500/20 text-rose-300 border-rose-500/40" : "bg-amber-500/20 text-amber-300 border-amber-500/40",
+      description: `Deal is ${signals.dealAgeDays} days old with no CRM activity for ${signals.quietDays} days.`
+    });
+  } else if (signals.customerWentQuiet) {
     multiplier *= 0.8;
     activeSignals.push({
       key: "customerWentQuiet",
@@ -322,8 +458,9 @@ function standardize(vectors) {
     means[d] = vectors.reduce((s, v) => s + v[d], 0) / n;
   }
   for (let d = 0; d < dims; d++) {
-    const variance = vectors.reduce((s, v) => s + (v[d] - means[d]) ** 2, 0) / n;
-    stds[d] = Math.sqrt(variance) || 1;
+    const variance = vectors.reduce((s2, v) => s2 + (v[d] - means[d]) ** 2, 0) / n;
+    const s = Math.sqrt(variance);
+    stds[d] = isNaN(s) || s < 1e-4 ? 1 : s;
   }
   const normed = vectors.map((v) => v.map((val, d) => (val - means[d]) / stds[d]));
   return { normed, means, stds };
@@ -387,22 +524,49 @@ function probabilityCloseWithinDays(deal, distribution, horizonDays) {
   let sample = distribution[stageKey];
   if (!sample || sample.length < 8) sample = distribution["__all__"] || [];
   const ageDays = computeRealAgeDays(deal);
+  const quietDays = computeRealDaysSinceUpdate(deal);
   const stillAlive = sample.filter((c) => c >= ageDays);
   const sampleSize = stillAlive.length;
   let probabilityPct;
-  if (sampleSize < 5) {
-    probabilityPct = 35;
+  if (ageDays > 180) {
+    probabilityPct = 2;
+  } else if (ageDays > 90) {
+    probabilityPct = 5;
+  } else if (ageDays > 60) {
+    probabilityPct = 10;
+  } else if (sampleSize < 5) {
+    probabilityPct = 25;
   } else {
     const closesInWindow = stillAlive.filter((c) => c <= ageDays + horizonDays).length;
     probabilityPct = Math.round(closesInWindow / sampleSize * 100);
   }
-  const medianRemaining = sampleSize > 0 ? median(stillAlive.map((c) => Math.max(0, c - ageDays))) : 14;
-  const expectedClose = /* @__PURE__ */ new Date();
-  expectedClose.setDate(expectedClose.getDate() + medianRemaining);
+  if (quietDays >= 21) {
+    probabilityPct = Math.round(probabilityPct * 0.1);
+  } else if (quietDays >= 14) {
+    probabilityPct = Math.round(probabilityPct * 0.25);
+  }
+  const today = /* @__PURE__ */ new Date();
+  today.setHours(0, 0, 0, 0);
+  const rawCloseDate = deal.rawRecord?.CLOSEDATE ? deal.rawRecord.CLOSEDATE.slice(0, 10) : null;
+  const isFuturePlanned = rawCloseDate && new Date(rawCloseDate) >= today;
+  let expectedCloseStr;
+  if (isFuturePlanned && rawCloseDate) {
+    expectedCloseStr = rawCloseDate;
+  } else {
+    const expectedClose = /* @__PURE__ */ new Date();
+    if (ageDays > 60 || quietDays >= 14) {
+      const pushOutDays = Math.max(30, Math.min(90, Math.round(ageDays * 0.2) + quietDays));
+      expectedClose.setDate(expectedClose.getDate() + pushOutDays);
+    } else {
+      const medianRemaining = sampleSize >= 5 ? median(stillAlive.map((c) => Math.max(0, c - ageDays))) : 14;
+      expectedClose.setDate(expectedClose.getDate() + Math.max(3, medianRemaining));
+    }
+    expectedCloseStr = expectedClose.toISOString().slice(0, 10);
+  }
   return {
     probabilityPct,
     sampleSize,
-    expectedCloseDate: expectedClose.toISOString().slice(0, 10)
+    expectedCloseDate: expectedCloseStr
   };
 }
 function median(arr) {
@@ -550,32 +714,6 @@ function findAnalogousDeals(targetDeal, closedDeals, topK = 10, docSummary) {
     analogousDeals: topMatches
   };
 }
-var BITRIX_CLOSURE_PROBABILITY_MAP = {
-  '384': { value: 0, label: 'Very Low - 0 %' },
-  '386': { value: 25, label: 'Low - 25 %' },
-  '388': { value: 50, label: 'Medium - 50 %' },
-  '390': { value: 75, label: 'High - 75 %' },
-  '392': { value: 100, label: 'Very High - 100 %' }
-};
-
-function parseBitrixClosureProbability(val) {
-  if (val === void 0 || val === null || val === '' || val === false) {
-    return { value: null, label: null };
-  }
-  const str = String(val).trim();
-  if (BITRIX_CLOSURE_PROBABILITY_MAP[str]) return BITRIX_CLOSURE_PROBABILITY_MAP[str];
-  const lower = str.toLowerCase();
-  if (lower.includes('not selected') || lower === 'none' || lower === 'null') return { value: null, label: null };
-  if (lower.includes('very high') || lower.includes('100')) return { value: 100, label: 'Very High - 100 %' };
-  if (lower.includes('high') || lower.includes('75')) return { value: 75, label: 'High - 75 %' };
-  if (lower.includes('medium') || lower.includes('50')) return { value: 50, label: 'Medium - 50 %' };
-  if (lower.includes('very low') || lower.includes('0 %') || lower === '0') return { value: 0, label: 'Very Low - 0 %' };
-  if (lower.includes('low') || lower.includes('25')) return { value: 25, label: 'Low - 25 %' };
-  const num = parseFloat(str);
-  if (!isNaN(num) && num >= 0 && num <= 100) return { value: num, label: `${num}%` };
-  return { value: null, label: null };
-}
-
 var LOGISTIC_WEIGHT = 0.6;
 var ANALOGOUS_WEIGHT = 0.25;
 var QUALITATIVE_WEIGHT = 0.15;
@@ -583,8 +721,8 @@ function blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, en
   const qualWinProb = Math.max(5, Math.min(95, ensembleScore.adjustedWinProbabilityPct));
   if (repClosureProbability !== null && repClosureProbability !== void 0 && !isNaN(repClosureProbability)) {
     const repProb = Math.max(0, Math.min(100, repClosureProbability));
-    const blended = (0.40 * repProb) + (0.35 * baseWinProbabilityPct) + (0.15 * analogousWinRate) + (0.10 * qualWinProb);
-    return Math.round(Math.max(5, Math.min(98, blended)));
+    const blended2 = 0.4 * repProb + 0.35 * baseWinProbabilityPct + 0.15 * analogousWinRate + 0.1 * qualWinProb;
+    return Math.round(Math.max(5, Math.min(98, blended2)));
   }
   const blended = LOGISTIC_WEIGHT * baseWinProbabilityPct + ANALOGOUS_WEIGHT * analogousWinRate + QUALITATIVE_WEIGHT * qualWinProb;
   return Math.round(Math.max(5, Math.min(95, blended)));
@@ -602,10 +740,13 @@ function runDealIntelligence(allDeals, documentChunksMap = {}) {
     const qualitativeSignals = extractQualitativeRiskSignals(deal, docChunks);
     const ensembleScore = ensembleAdjustWinProbability(baseWinProbabilityPct, qualitativeSignals);
     const { analogousWinRate, analogousDeals } = findAnalogousDeals(deal, closedDeals, 10, docSummary);
-    const probInfo = (deal.closureProbability !== void 0 && deal.closureProbability !== null)
-      ? { value: deal.closureProbability, label: deal.closureProbabilityLabel || `${deal.closureProbability}%` }
-      : parseBitrixClosureProbability(deal.rawRecord?.UF_CRM_1745298149375);
-    const finalWinProbPct = blendEnsembleWinProbability(baseWinProbabilityPct, analogousWinRate, ensembleScore, probInfo.value);
+    const probInfo = deal.closureProbability !== void 0 && deal.closureProbability !== null ? { value: deal.closureProbability, label: deal.closureProbabilityLabel || `${deal.closureProbability}%` } : parseBitrixClosureProbability(deal.rawRecord?.UF_CRM_1745298149375);
+    const finalWinProbPct = blendEnsembleWinProbability(
+      baseWinProbabilityPct,
+      analogousWinRate,
+      ensembleScore,
+      probInfo.value
+    );
     const p7 = probabilityCloseWithinDays(deal, distribution, 7);
     const p15 = probabilityCloseWithinDays(deal, distribution, 15);
     return {

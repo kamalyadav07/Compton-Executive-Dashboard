@@ -11,6 +11,7 @@ import {
   Calendar
 } from 'lucide-react';
 import type { GlobalFilterState, DealRecord } from '../../types/sales';
+import { getCurrentMonthStr, getMonthYearTime } from '../../utils/dateUtils';
 
 interface ExecutiveHeaderSearchBarProps {
   filters: GlobalFilterState;
@@ -75,29 +76,7 @@ export const ExecutiveHeaderSearchBar: React.FC<ExecutiveHeaderSearchBarProps> =
   // Month & Year calculations
   const now = new Date();
   const currentYear = now.getFullYear();
-  const currentMonthIdx = now.getMonth();
-  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-  const currentShortMonthStr = `${shortMonthNames[currentMonthIdx]} ${currentYear}`;
-
-  // Helper to parse Month-Year strings into timestamp for chronological sorting
-  const monthMap: Record<string, number> = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
-  };
-
-  const getMonthYearTime = (str: string): number => {
-    if (!str) return 0;
-    const parts = str.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      const mStr = parts[0].toLowerCase().substring(0, 3);
-      const yNum = parseInt(parts[1], 10);
-      const mNum = monthMap[mStr] !== undefined ? monthMap[mStr] : 0;
-      if (!isNaN(yNum)) {
-        return new Date(yNum, mNum, 1).getTime();
-      }
-    }
-    return 0;
-  };
+  const currentShortMonthStr = getCurrentMonthStr();
 
   const allMonthSet = new Set([currentShortMonthStr, ...allRecords.map(r => r.monthYear)]);
   const uniqueMonths = Array.from(allMonthSet)
@@ -398,8 +377,8 @@ export const ExecutiveHeaderSearchBar: React.FC<ExecutiveHeaderSearchBarProps> =
 
             {/* Date Filters Section */}
             <div className="pt-2 border-t border-slate-800 space-y-2">
-              <label className="block text-[11px] font-extrabold uppercase tracking-wider text-slate-300 flex items-center gap-1.5">
-                <Calendar className="w-3.5 h-3.5 text-cyan-400" /> Created / Updated Date Period
+              <label className="block text-xs font-semibold text-slate-300 flex items-center gap-1.5">
+                <Calendar className="w-3.5 h-3.5 text-cyan-400" /> Date Period
               </label>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
                 <div>

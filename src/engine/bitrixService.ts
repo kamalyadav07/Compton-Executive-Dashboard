@@ -304,14 +304,51 @@ export function parseBitrixClosureProbability(val: any): { value: number | null;
   return { value: null, label: null };
 }
 
+export function calculateCalendarSalesCycleDays(
+  dateCreate?: string | null,
+  closeDate?: string | null,
+  dateModify?: string | null,
+  fallbackDate?: string | null
+): number {
+  const getYYYYMMDD = (val?: string | null): string | null => {
+    if (!val || typeof val !== 'string') return null;
+    const str = val.trim().replace(' ', 'T');
+    const d = new Date(str);
+    if (!isNaN(d.getTime())) {
+      const y = d.getFullYear();
+      const m = String(d.getMonth() + 1).padStart(2, '0');
+      const day = String(d.getDate()).padStart(2, '0');
+      return `${y}-${m}-${day}`;
+    }
+    const mIso = str.match(/^(\d{4})[-/.](\d{1,2})[-/.](\d{1,2})/);
+    if (mIso) {
+      return `${mIso[1]}-${String(mIso[2]).padStart(2, '0')}-${String(mIso[3]).padStart(2, '0')}`;
+    }
+    return null;
+  };
+
+  const createIso = getYYYYMMDD(dateCreate);
+  const closeIso = getYYYYMMDD(closeDate) || getYYYYMMDD(dateModify) || getYYYYMMDD(fallbackDate);
+
+  if (createIso && closeIso) {
+    const createTime = new Date(`${createIso}T00:00:00Z`).getTime();
+    const closeTime = new Date(`${closeIso}T00:00:00Z`).getTime();
+    if (!isNaN(createTime) && !isNaN(closeTime)) {
+      const diffDays = Math.round((closeTime - createTime) / (1000 * 60 * 60 * 24));
+      return Math.max(0, diffDays);
+    }
+  }
+  return 0;
+}
+
 export const getStoredBitrixCache = (): BitrixSyncResult | null => {
   try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw);
+    const data = localStorage.getItem(CACHE_KEY);
+    if (data) {
+      const parsed: BitrixSyncResult = JSON.parse(data);
       const sanitizeRecords = (records: DealRecord[]) => (records || []).map(r => {
-        const grossRev = parseFloat(String(r.grossRevenue || r.netRevenue || '0')) || 0;
-        const isWonDeal = r.type === 'won';
+        const isWonDeal = r.type === 'won' || r.stage === 'Won';
+        const grossRev = Number.isFinite(r.grossRevenue) ? r.grossRevenue : (r.netRevenue || 0);
         const gstInfo = reconcileGst(grossRev, isWonDeal, r.rawRecord?.TAX_VALUE);
         const rawSrc = r.leadSource || r.rawRecord?.SOURCE_ID || '';
         const rawInd = r.rawRecord?.UF_CRM_67E4FF8E84730 || r.industry || '';
@@ -324,6 +361,12 @@ export const getStoredBitrixCache = (): BitrixSyncResult | null => {
           : lostReasonText) || undefined;
 
         const probInfo = parseBitrixClosureProbability(r.rawRecord?.UF_CRM_1745298149375 ?? r.closureProbability);
+        const cycleDays = calculateCalendarSalesCycleDays(
+          r.rawRecord?.DATE_CREATE,
+          r.rawRecord?.CLOSEDATE,
+          r.rawRecord?.DATE_MODIFY,
+          r.date
+        );
 
         return {
           ...r,
@@ -336,6 +379,7 @@ export const getStoredBitrixCache = (): BitrixSyncResult | null => {
           solution: normalizeBitrixSolutionType(rawSol, r.rawRecord),
           leadSource: normalizeBitrixSource(rawSrc),
           salesRep: normalizeSalesRep(r.salesRep, JSON.stringify(r.rawRecord || {})),
+          salesCycleDays: typeof r.salesCycleDays === 'number' ? r.salesCycleDays : cycleDays,
           lostReason
         };
       });
@@ -749,17 +793,13 @@ export const fetchBitrixDeals = async (customConfig?: BitrixConfig): Promise<Bit
         return 'Need Analysis';
       };
 
-      // Calculate dynamic Sales Cycle Days for Bitrix deal using DATE_CREATE and CLOSEDATE / DATE_MODIFY
-      let dealSalesCycleDays = 14;
-      if (deal.DATE_CREATE) {
-        const createTs = new Date(deal.DATE_CREATE).getTime();
-        const closeDateStr = deal.CLOSEDATE || deal.DATE_MODIFY;
-        const closeTs = closeDateStr ? new Date(closeDateStr).getTime() : NaN;
-        if (!isNaN(createTs) && !isNaN(closeTs) && closeTs >= createTs) {
-          const diffDays = Math.round((closeTs - createTs) / (1000 * 60 * 60 * 24));
-          dealSalesCycleDays = Math.max(1, diffDays);
-        }
-      }
+      // Calculate dynamic Sales Cycle Days for Bitrix deal using calendar dates
+      const dealSalesCycleDays = calculateCalendarSalesCycleDays(
+        deal.DATE_CREATE,
+        deal.CLOSEDATE,
+        deal.DATE_MODIFY,
+        dateInfo.isoDate
+      );
 
       const probInfo = parseBitrixClosureProbability(deal.UF_CRM_1745298149375 ?? deal.closureProbability);
 

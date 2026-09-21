@@ -63,8 +63,8 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         isCollapsed ? 'justify-center px-2' : ''
       }`}>
         {!isCollapsed && (
-          <span className="text-[10px] font-extrabold uppercase tracking-widest text-slate-400 px-1">
-            WORKSPACES
+          <span className="text-xs font-semibold uppercase tracking-wider text-slate-400 px-1">
+            Workspaces
           </span>
         )}
         <button
@@ -86,15 +86,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         {/* SECTION 1: CORE DASHBOARDS */}
         <div>
           {!isCollapsed ? (
-            <div className="px-2 pb-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400 flex items-center justify-between">
-              <span>Analytics Dashboards</span>
-              <span className="w-1.5 h-1.5 rounded-full bg-cyan-400/80 animate-ping" />
+            <div className="px-2 pb-2 text-xs font-semibold text-slate-400 flex items-center justify-between">
+              <span>Dashboards</span>
+              <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
             </div>
           ) : (
             <div className="w-full border-t border-slate-800/80 my-1" />
           )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {DASHBOARDS.map((dash) => {
               const isActive = activeDashboardId === dash.id;
 
@@ -102,20 +102,20 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                 <button
                   key={dash.id}
                   onClick={() => onSelectDashboard(dash.id)}
-                  className={`w-full flex items-center transition-all duration-200 text-xs group cursor-pointer relative overflow-hidden ${
+                  className={`w-full flex items-center transition-all duration-150 text-xs group cursor-pointer relative overflow-hidden ${
                     isCollapsed 
                       ? 'justify-center h-10 px-0 rounded-xl' 
                       : 'justify-between px-3 py-2.5 rounded-xl'
                   } ${
                     isActive
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold shadow-lg shadow-blue-600/25 border border-blue-400/30'
+                      ? 'bg-blue-500/15 text-blue-300 font-semibold border border-blue-500/30 shadow-xs'
                       : 'text-slate-300 hover:bg-[#131b2e] hover:text-white border border-transparent'
                   }`}
                   title={dash.name}
                 >
-                  {/* Left Active Glow Bar (Expanded mode only) */}
+                  {/* Left Active Accent Bar */}
                   {isActive && !isCollapsed && (
-                    <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-cyan-400 shadow-[0_0_8px_#38bdf8]" />
+                    <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-blue-500" />
                   )}
 
                   <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 overflow-hidden'}`}>
@@ -123,7 +123,7 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                       {getDashboardIcon(dash.iconName, isActive)}
                     </div>
                     {!isCollapsed && (
-                      <span className="font-bold text-xs whitespace-nowrap tracking-wide">
+                      <span className="font-medium text-xs whitespace-nowrap">
                         {dash.name}
                       </span>
                     )}
@@ -132,15 +132,15 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
                   {!isCollapsed && (
                     <div className="shrink-0 ml-1.5">
                       {dash.badge && (
-                        <span className={`px-2 py-0.5 text-[9px] font-mono font-extrabold rounded-md tracking-wider inline-flex items-center space-x-1 ${
+                        <span className={`px-2 py-0.5 text-[10px] font-medium rounded-md inline-flex items-center space-x-1 ${
                           isActive
-                            ? 'bg-white/20 text-white border border-white/20'
+                            ? 'bg-blue-500/20 text-blue-200 border border-blue-400/30'
                             : dash.badge === 'LIVE'
-                            ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/30'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                             : 'bg-slate-800 text-slate-400 border border-slate-700'
                         }`}>
                           {dash.badge === 'LIVE' && (
-                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse inline-block mr-1" />
+                            <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 inline-block mr-1" />
                           )}
                           <span>{dash.badge}</span>
                         </span>
@@ -156,53 +156,53 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
         {/* SECTION 2: INTELLIGENCE & TOOLS */}
         <div>
           {!isCollapsed ? (
-            <div className="px-2 pb-2 text-[10px] font-extrabold uppercase tracking-widest text-slate-400">
-              Intelligence & Data
+            <div className="px-2 pb-2 text-xs font-semibold text-slate-400">
+              Tools & Data
             </div>
           ) : (
             <div className="w-full border-t border-slate-800/80 my-1" />
           )}
 
-          <div className="space-y-1.5">
+          <div className="space-y-1">
             {/* Reports & Export Item */}
             <button
               onClick={onOpenExportModal}
-              className={`w-full flex items-center transition-all duration-200 text-xs font-semibold group cursor-pointer border border-transparent hover:border-slate-800 text-slate-300 hover:bg-[#131b2e] hover:text-white ${
+              className={`w-full flex items-center transition-all duration-150 text-xs font-medium group cursor-pointer border border-transparent hover:border-slate-800 text-slate-300 hover:bg-[#131b2e] hover:text-white ${
                 isCollapsed 
                   ? 'justify-center h-10 px-0 rounded-xl' 
                   : 'space-x-3 px-3 py-2.5 rounded-xl'
               }`}
               title="Reports & Export"
             >
-              <FileText className="w-4.5 h-4.5 text-slate-400 group-hover:text-cyan-300 shrink-0 transition-colors" />
-              {!isCollapsed && <span className="font-bold text-xs whitespace-nowrap">Reports & Export</span>}
+              <FileText className="w-4.5 h-4.5 text-slate-400 group-hover:text-blue-300 shrink-0 transition-colors" />
+              {!isCollapsed && <span className="font-medium text-xs whitespace-nowrap">Reports & Export</span>}
             </button>
 
             {/* DATA & SYNC BUTTON */}
             <button
               onClick={() => onSelectDashboard('data-sync')}
-              className={`w-full flex items-center transition-all duration-200 text-xs font-semibold group cursor-pointer relative overflow-hidden ${
+              className={`w-full flex items-center transition-all duration-150 text-xs font-medium group cursor-pointer relative overflow-hidden ${
                 isCollapsed 
                   ? 'justify-center h-10 px-0 rounded-xl' 
                   : 'justify-between px-3 py-2.5 rounded-xl'
               } ${
                 activeDashboardId === 'data-sync'
-                  ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-extrabold shadow-lg shadow-blue-600/25 border border-blue-400/30'
+                  ? 'bg-blue-500/15 text-blue-300 font-semibold border border-blue-500/30 shadow-xs'
                   : 'text-slate-300 hover:bg-[#131b2e] hover:text-white border border-transparent'
               }`}
               title="Data & Sync Control Center"
             >
               {activeDashboardId === 'data-sync' && !isCollapsed && (
-                <div className="absolute left-0 top-1/2 -translate-y-1/2 w-1 h-6 rounded-r-full bg-cyan-400 shadow-[0_0_8px_#38bdf8]" />
+                <div className="absolute left-0 top-2 bottom-2 w-1 rounded-r-full bg-blue-500" />
               )}
 
               <div className={`flex items-center ${isCollapsed ? 'justify-center' : 'space-x-3 overflow-hidden'}`}>
-                <RefreshCw className={`w-4.5 h-4.5 text-cyan-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
-                {!isCollapsed && <span className="font-bold text-xs whitespace-nowrap">Data & Sync</span>}
+                <RefreshCw className={`w-4.5 h-4.5 text-blue-400 shrink-0 ${isSyncing ? 'animate-spin' : ''}`} />
+                {!isCollapsed && <span className="font-medium text-xs whitespace-nowrap">Data & Sync</span>}
               </div>
               {!isCollapsed && (
-                <span className="px-2 py-0.5 text-[9px] font-mono font-extrabold rounded-md bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shrink-0 ml-1.5 inline-flex items-center space-x-1">
-                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                <span className="px-2 py-0.5 text-[10px] font-medium rounded-md bg-emerald-500/15 text-emerald-300 border border-emerald-500/25 shrink-0 ml-1.5 inline-flex items-center space-x-1">
+                  <span className="w-1.5 h-1.5 rounded-full bg-emerald-400" />
                   <span>LIVE</span>
                 </span>
               )}
@@ -214,11 +214,11 @@ export const SidebarNav: React.FC<SidebarNavProps> = ({
 
       {/* Sidebar Footer Status Pill */}
       {!isCollapsed ? (
-        <div className="p-3 border-t border-[#1b2539] bg-[#0c1324] text-[10px] text-slate-400 flex items-center space-x-2">
+        <div className="p-3 border-t border-[#1b2539] bg-[#0c1324] text-xs text-slate-400 flex items-center space-x-2.5">
           <ShieldCheck className="w-4 h-4 text-emerald-400 shrink-0" />
           <div className="truncate">
-            <span className="font-bold text-slate-300 block leading-tight">System Operational</span>
-            <span className="text-[9px] text-slate-500 font-mono">Google Sheets Synced</span>
+            <span className="font-medium text-slate-200 block leading-tight text-xs">System Operational</span>
+            <span className="text-[11px] text-slate-400">All data streams synced</span>
           </div>
         </div>
       ) : (

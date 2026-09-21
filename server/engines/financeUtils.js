@@ -27,7 +27,7 @@ __export(financeUtils_exports, {
 module.exports = __toCommonJS(financeUtils_exports);
 var GST_RATE = 0.18;
 function splitGst(grossRevenue, isWon) {
-  const gross = Number.isFinite(grossRevenue) ? grossRevenue : 0;
+  const gross = Number.isFinite(grossRevenue) ? Math.max(0, grossRevenue) : 0;
   if (!isWon) {
     return { netRevenue: gross, gstAmount: 0 };
   }

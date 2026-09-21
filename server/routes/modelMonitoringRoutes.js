@@ -6,10 +6,10 @@
 
 const express = require('express');
 const router = express.Router();
-const { 
-  runModelHealthAudit, 
-  getMonitoringHistory, 
-  backfillResolvedOutcomes 
+const {
+  runModelHealthAudit,
+  getMonitoringHistory,
+  backfillResolvedOutcomes
 } = require('../services/ml/modelMonitoringService');
 
 // ── 1. GET /api/model-monitoring/latest ──────────────────────────────────
@@ -23,6 +23,7 @@ router.get('/latest', async (req, res) => {
     res.status(500).json({ error: err.message });
   }
 });
+
 
 // ── 2. GET /api/model-monitoring/history ─────────────────────────────────
 router.get('/history', async (req, res) => {

@@ -19,6 +19,32 @@ export const MONTH_INFO: MonthInfo[] = [
   { name: 'december', short: 'dec', num: 12 }
 ];
 
+export const SHORT_MONTH_NAMES = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+export const getCurrentMonthStr = (): string => {
+  const now = new Date();
+  return `${SHORT_MONTH_NAMES[now.getMonth()]} ${now.getFullYear()}`;
+};
+
+const MONTH_NAME_TO_INDEX: Record<string, number> = {
+  jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
+  jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
+};
+
+export const getMonthYearTime = (str: string): number => {
+  if (!str) return 0;
+  const parts = str.trim().split(/\s+/);
+  if (parts.length >= 2) {
+    const mStr = parts[0].toLowerCase().substring(0, 3);
+    const yNum = parseInt(parts[1], 10);
+    const mNum = MONTH_NAME_TO_INDEX[mStr] !== undefined ? MONTH_NAME_TO_INDEX[mStr] : 0;
+    if (!isNaN(yNum)) {
+      return new Date(yNum, mNum, 1).getTime();
+    }
+  }
+  return 0;
+};
+
 /**
  * Normalizes Indian/Sheet dates like 9/8/2026 1:00:00 or 13/08/2026 into standard YYYY-MM-DD format
  */

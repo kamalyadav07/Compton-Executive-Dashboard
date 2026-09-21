@@ -1,13 +1,10 @@
 import React from 'react';
-import type { DealRecord, GlobalFilterState, KPIMetrics } from '../../types/sales';
+import type { DealRecord, KPIMetrics } from '../../types/sales';
 import { KPICardsGrid } from '../../components/kpis/KPICardsGrid';
 import { ChartsDashboard } from '../../components/charts/ChartsDashboard';
 import { Leaderboard } from '../../components/leaderboard/Leaderboard';
 
 interface DealDashboardProps {
-  filters: GlobalFilterState;
-  onFilterChange: (filters: GlobalFilterState) => void;
-  onResetFilters: () => void;
   allRecords: DealRecord[];
   filteredRecords: DealRecord[];
   kpis: KPIMetrics;

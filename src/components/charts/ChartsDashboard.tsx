@@ -23,6 +23,7 @@ import * as XLSX from 'xlsx';
 import type { DealRecord, KPIMetrics } from '../../types/sales';
 import { normalizeBitrixSource, normalizeBitrixIndustry, normalizeBitrixSolutionType } from '../../engine/bitrixService';
 import { getFYBounds } from '../../engine/salesProjectionEngine';
+import { getMonthYearTime, SHORT_MONTH_NAMES } from '../../utils/dateUtils';
 
 interface ChartsDashboardProps {
   records: DealRecord[];
@@ -41,10 +42,22 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
   const [selectedRep, setSelectedRep] = useState<string | null>(null);
   const [selectedDealBracket, setSelectedDealBracket] = useState<string | null>(null);
   const [selectedTrendMonth, setSelectedTrendMonth] = useState<string | null>(null);
+  const [selectedIndustry, setSelectedIndustry] = useState<string | null>(null);
+  const [selectedLostReason, setSelectedLostReason] = useState<string | null>(null);
+  const [selectedSolution, setSelectedSolution] = useState<string | null>(null);
   const [modalSearch, setModalSearch] = useState<string>('');
   const [modalStageTab, setModalStageTab] = useState<'all' | 'won' | 'lost' | 'in_progress'>('all');
 
-  const isAnyModalOpen = Boolean(selectedDealBracket || selectedFunnelStage || selectedLeadSource || selectedRep || selectedTrendMonth);
+  const isAnyModalOpen = Boolean(
+    selectedDealBracket ||
+    selectedFunnelStage ||
+    selectedLeadSource ||
+    selectedRep ||
+    selectedTrendMonth ||
+    selectedIndustry ||
+    selectedLostReason ||
+    selectedSolution
+  );
 
   useEffect(() => {
     if (isAnyModalOpen) {
@@ -57,37 +70,15 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
     };
   }, [isAnyModalOpen]);
 
-  // Helper to parse Month-Year strings into timestamp for chronological sorting
-  const monthOrderMap: Record<string, number> = {
-    jan: 0, feb: 1, mar: 2, apr: 3, may: 4, jun: 5,
-    jul: 6, aug: 7, sep: 8, oct: 9, nov: 10, dec: 11
-  };
-
-  const getMonthYearTime = (str: string): number => {
-    if (!str) return 0;
-    const parts = str.trim().split(/\s+/);
-    if (parts.length >= 2) {
-      const mStr = parts[0].toLowerCase().substring(0, 3);
-      const yNum = parseInt(parts[1], 10);
-      const mNum = monthOrderMap[mStr] !== undefined ? monthOrderMap[mStr] : 0;
-      if (!isNaN(yNum)) {
-        return new Date(yNum, mNum, 1).getTime();
-      }
-    }
-    return 0;
-  };
-
-  const shortMonthNames = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
-
   const normalizeMonthYear = (str?: string): string => {
     if (!str) return '';
     const parts = str.trim().split(/\s+/);
     if (parts.length >= 2) {
       const mStr = parts[0].toLowerCase().substring(0, 3);
-      const mNum = monthOrderMap[mStr];
+      const mNum = SHORT_MONTH_NAMES.findIndex(m => m.toLowerCase() === mStr);
       const yNum = parseInt(parts[1], 10);
-      if (mNum !== undefined && !isNaN(yNum)) {
-        return `${shortMonthNames[mNum]} ${yNum}`;
+      if (mNum !== -1 && !isNaN(yNum)) {
+        return `${SHORT_MONTH_NAMES[mNum]} ${yNum}`;
       }
     }
     return str;
@@ -113,7 +104,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
   const now = new Date();
   const startMonthDate = new Date(fyBounds.start);
   while (startMonthDate <= now || (startMonthDate.getFullYear() === now.getFullYear() && startMonthDate.getMonth() === now.getMonth())) {
-    const mStr = `${shortMonthNames[startMonthDate.getMonth()]} ${startMonthDate.getFullYear()}`;
+    const mStr = `${SHORT_MONTH_NAMES[startMonthDate.getMonth()]} ${startMonthDate.getFullYear()}`;
     monthMap[mStr] = 0;
     startMonthDate.setMonth(startMonthDate.getMonth() + 1);
   }
@@ -1341,11 +1332,226 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
     XLSX.writeFile(wb, `${repName.replace(/[^a-zA-Z0-9]/g, '_')}_Deals.xlsx`);
   };
 
+  // ── Filter & Export for Industry Breakdown ──────────────────────────────────
+  const handleIndustryClick = (params: any) => {
+    if (params && (params.name || typeof params.dataIndex === 'number')) {
+      const idx = params.dataIndex;
+      const indName = (typeof idx === 'number' && sortedIndList[idx]) ? sortedIndList[idx][0] : params.name;
+      if (indName) {
+        setSelectedIndustry(indName);
+        setModalSearch('');
+        setModalStageTab('all');
+      }
+    }
+  };
+
+  const industryDeals = selectedIndustry
+    ? wonDeals.filter(r => {
+        const rawUf = r.rawRecord?.UF_CRM_67E4FF8E84730 || r.industry;
+        const ind = normalizeBitrixIndustry(rawUf, r.rawRecord);
+        return ind.toLowerCase() === selectedIndustry.toLowerCase() ||
+               r.industry.toLowerCase() === selectedIndustry.toLowerCase();
+      })
+    : [];
+
+  const modalIndustryFilteredDeals = industryDeals.filter(r => {
+    if (!modalSearch) return true;
+    const q = modalSearch.toLowerCase();
+    return (
+      r.id.toLowerCase().includes(q) ||
+      r.customer.toLowerCase().includes(q) ||
+      r.solution.toLowerCase().includes(q) ||
+      r.industry.toLowerCase().includes(q) ||
+      r.salesRep.toLowerCase().includes(q) ||
+      r.stage.toLowerCase().includes(q) ||
+      String(r.rawRecord?.['Deal Name'] || '').toLowerCase().includes(q)
+    );
+  });
+
+  const exportIndustryExcel = (indName: string) => {
+    const deals = modalIndustryFilteredDeals.length > 0 ? modalIndustryFilteredDeals : industryDeals;
+    const exportRows = deals.map(r => {
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = Math.round((grossRev - r.netRevenue) * 100) / 100;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': 'WON',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.TITLE || r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': 'N/A'
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    const sheetTitle = `${indName.slice(0, 20)} Won Deals`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+    XLSX.writeFile(wb, `${indName.replace(/[^a-zA-Z0-9]/g, '_')}_Won_Deals.xlsx`);
+  };
+
+  // ── Filter & Export for Reasons Deals Were Lost ──────────────────────────────
+  const handleLostReasonClick = (params: any) => {
+    if (params && (params.name || typeof params.dataIndex === 'number')) {
+      const idx = params.dataIndex;
+      const reasonCat = (typeof idx === 'number' && sortedLossReasonsRev[idx]) ? sortedLossReasonsRev[idx][0] : params.name;
+      if (reasonCat) {
+        setSelectedLostReason(reasonCat);
+        setModalSearch('');
+      }
+    }
+  };
+
+  const getLostReasonCatForRecord = (r: DealRecord): string => {
+    const raw = (r.lostReason || r.rawRecord?.COMMENTS || '').toLowerCase().trim();
+    if (raw.includes('price') || raw.includes('budget') || raw.includes('high') || raw.includes('cost') || raw.includes('expensive')) {
+      return 'Price & Commercial Challenge';
+    } else if (raw.includes('no response') || raw.includes('cold response') || raw.includes('not received') || raw.includes('unresponsive') || raw.includes('follow-up')) {
+      return 'No Customer Response';
+    } else if (raw.includes('drop') || raw.includes('not require') || raw.includes('no requirement') || raw.includes('postponed') || raw.includes('cancelled')) {
+      return 'Requirement Dropped';
+    } else if (raw.includes('hold') || raw.includes('case hold') || raw.includes('clarity')) {
+      return 'Project Put On Hold';
+    } else if (raw.includes('management') || raw.includes('agree') || raw.includes('disagree') || raw.includes('internal')) {
+      return 'Management Disagreement';
+    } else if (raw.includes('delay') || raw.includes('late') || raw.includes('slow') || raw.includes('time')) {
+      return 'Delay in Process / Quote';
+    } else if (raw.includes('somewhere else') || raw.includes('another brand') || raw.includes('competitor') || raw.includes('vendor')) {
+      return 'Competitor Selected';
+    }
+    return 'Other Reasons';
+  };
+
+  const lostReasonDeals = selectedLostReason
+    ? lostDeals.filter(r => getLostReasonCatForRecord(r) === selectedLostReason)
+    : [];
+
+  const modalLostReasonFilteredDeals = lostReasonDeals.filter(r => {
+    if (!modalSearch) return true;
+    const q = modalSearch.toLowerCase();
+    return (
+      r.id.toLowerCase().includes(q) ||
+      r.customer.toLowerCase().includes(q) ||
+      r.solution.toLowerCase().includes(q) ||
+      r.industry.toLowerCase().includes(q) ||
+      r.salesRep.toLowerCase().includes(q) ||
+      r.stage.toLowerCase().includes(q) ||
+      String(r.rawRecord?.['Deal Name'] || '').toLowerCase().includes(q) ||
+      String(r.lostReason || '').toLowerCase().includes(q)
+    );
+  });
+
+  const exportLostReasonExcel = (reasonCat: string) => {
+    const deals = modalLostReasonFilteredDeals.length > 0 ? modalLostReasonFilteredDeals : lostReasonDeals;
+    const exportRows = deals.map(r => {
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': 'LOST',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.TITLE || r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Lost Net Value (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason Category': reasonCat,
+        'Detailed Remarks / Lost Reason': r.lostReason || r.rawRecord?.COMMENTS || 'N/A'
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    const sheetTitle = `${reasonCat.slice(0, 20)} Lost Deals`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+    XLSX.writeFile(wb, `${reasonCat.replace(/[^a-zA-Z0-9]/g, '_')}_Lost_Deals.xlsx`);
+  };
+
+  // ── Filter & Export for Solution Type ──────────────────────────────────────
+  const handleSolutionClick = (params: any) => {
+    let solName: string | null = null;
+    if (params) {
+      if (params.name) {
+        solName = params.name;
+      } else if (typeof params.dataIndex === 'number' && sortedSolutionList[params.dataIndex]) {
+        solName = sortedSolutionList[params.dataIndex][0];
+      }
+    }
+    if (solName) {
+      solName = solName.split('\n')[0].replace(/…$/, '').trim();
+      const matched = sortedSolutionList.find(([name]) => name.toLowerCase().includes(solName!.toLowerCase()) || solName!.toLowerCase().includes(name.toLowerCase()));
+      const finalName = matched ? matched[0] : solName;
+      setSelectedSolution(finalName);
+      setModalSearch('');
+    }
+  };
+
+  const solutionDeals = selectedSolution
+    ? wonDeals.filter(r => {
+        const normSol = normalizeBitrixSolutionType(r.solution, r.rawRecord);
+        return normSol.toLowerCase() === selectedSolution.toLowerCase() ||
+               r.solution.toLowerCase() === selectedSolution.toLowerCase();
+      })
+    : [];
+
+  const modalSolutionFilteredDeals = solutionDeals.filter(r => {
+    if (!modalSearch) return true;
+    const q = modalSearch.toLowerCase();
+    return (
+      r.id.toLowerCase().includes(q) ||
+      r.customer.toLowerCase().includes(q) ||
+      r.solution.toLowerCase().includes(q) ||
+      r.industry.toLowerCase().includes(q) ||
+      r.salesRep.toLowerCase().includes(q) ||
+      r.stage.toLowerCase().includes(q) ||
+      String(r.rawRecord?.['Deal Name'] || '').toLowerCase().includes(q)
+    );
+  });
+
+  const exportSolutionExcel = (solName: string) => {
+    const deals = modalSolutionFilteredDeals.length > 0 ? modalSolutionFilteredDeals : solutionDeals;
+    const exportRows = deals.map(r => {
+      const grossRev = r.grossRevenue || r.netRevenue;
+      const gstVal = Math.round((grossRev - r.netRevenue) * 100) / 100;
+      return {
+        'Deal ID': r.id,
+        'Deal Stage': r.stage,
+        'Status Type': 'WON',
+        'Company / Client': r.customer,
+        'Responsible Person': r.salesRep,
+        'Deal Name / Opportunity': r.rawRecord?.TITLE || r.rawRecord?.['Deal Name'] || `${r.customer} - ${r.solution}`,
+        'Lead Source': r.leadSource,
+        'Gross Revenue (₹)': grossRev,
+        'GST 18% (₹)': gstVal,
+        'Net Revenue (₹)': r.netRevenue,
+        'Industry': r.industry,
+        'Solution Type': r.solution,
+        'Created Date': r.rawRecord?.['Created'] || r.date,
+        'Lost Reason': 'N/A'
+      };
+    });
+
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.json_to_sheet(exportRows);
+    const sheetTitle = `${solName.slice(0, 20)} Won Deals`;
+    XLSX.utils.book_append_sheet(wb, ws, sheetTitle);
+    XLSX.writeFile(wb, `${solName.replace(/[^a-zA-Z0-9]/g, '_')}_Solution_Won_Deals.xlsx`);
+  };
+
   return (
     <div className="w-full mb-8 space-y-6">
       {/* Row 1: Responsible Person & Lead Source */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="DEAL CLOSURE BY Responsible Person" icon={<User className="w-4 h-4 text-emerald-400" />}>
+        <ChartContainer title="Closed Deals by Representative" icon={<User className="w-4 h-4 text-emerald-400" />}>
           <ReactECharts
             option={repPerformanceOption}
             onEvents={{ click: handleRepClick }}
@@ -1353,7 +1559,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
           />
         </ChartContainer>
 
-        <ChartContainer title="DEAL CLOSURE BY SOURCE" icon={<Globe className="w-4 h-4 text-amber-400" />}>
+        <ChartContainer title="Closed Deals by Lead Source" icon={<Globe className="w-4 h-4 text-amber-400" />}>
           <ReactECharts
             option={leadSourceOption}
             notMerge={true}
@@ -1365,7 +1571,7 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
 
       {/* Row 2: Revenue Trend & Sales Pipeline Funnel */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="MONTHLY SALES TREND" icon={<TrendingUp className="w-4 h-4 text-blue-400" />}>
+        <ChartContainer title="Monthly Revenue Trend" icon={<TrendingUp className="w-4 h-4 text-blue-400" />}>
           <ReactECharts
             option={revenueTrendOption}
             notMerge={true}
@@ -1386,22 +1592,48 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
 
       {/* Row 4: Industry Revenue & Reasons Lost */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="DEAL CLOSURE BY INDUSTRY" icon={<Award className="w-4 h-4 text-amber-400" />}>
-          <ReactECharts option={industryOption} style={{ height: '280px' }} />
+        <ChartContainer title="Closed Deals by Industry" icon={<Award className="w-4 h-4 text-amber-400" />}>
+          <ReactECharts
+            option={industryOption}
+            onEvents={{ click: handleIndustryClick }}
+            style={{ height: '280px', cursor: 'pointer' }}
+          />
         </ChartContainer>
 
         <ChartContainer title="Reasons Deals Were Lost" icon={<AlertTriangle className="w-4 h-4 text-rose-400" />}>
-          <ReactECharts option={paretoOption} style={{ height: '280px' }} />
+          <ReactECharts
+            option={paretoOption}
+            onEvents={{ click: handleLostReasonClick }}
+            style={{ height: '280px', cursor: 'pointer' }}
+          />
         </ChartContainer>
       </div>
 
       {/* Row 5: Solution Treemap & Deal Size Bracket Breakdown */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        <ChartContainer title="DEAL CLOSURE BY SOLUTION TYPE" icon={<Layers className="w-4 h-4 text-cyan-400" />}>
-          <ReactECharts option={treemapOption} notMerge={true} style={{ height: '280px' }} />
+        <ChartContainer title="Closed Deals by Solution Type" icon={<Layers className="w-4 h-4 text-cyan-400" />}>
+          <ReactECharts
+            option={treemapOption}
+            notMerge={true}
+            onEvents={{ click: handleSolutionClick }}
+            style={{ height: '280px', cursor: 'pointer' }}
+          />
+          <div className="flex flex-wrap gap-1.5 mt-2 justify-center">
+            {sortedSolutionList.map(([solName, d]) => (
+              <button
+                key={solName}
+                onClick={() => { setSelectedSolution(solName); setModalSearch(''); }}
+                className="px-2.5 py-1 rounded-lg text-xs font-medium bg-cyan-500/10 text-cyan-300 border border-cyan-500/30 hover:bg-cyan-500/25 hover:border-cyan-400 transition-all cursor-pointer flex items-center gap-1.5 shadow-sm"
+                title={`Click to view ${solName} deals register & export Excel`}
+              >
+                <span>{solName}</span>
+                <span className="font-mono text-emerald-400 font-semibold">({formatCurrencyVal(d.revenue)})</span>
+              </button>
+            ))}
+          </div>
         </ChartContainer>
 
-        <ChartContainer title="DEAL SIZE CATEGORY BREAKDOWN" icon={<CircleDollarSign className="w-4 h-4 text-emerald-400" />}>
+        <ChartContainer title="Deal Value Distribution" icon={<CircleDollarSign className="w-4 h-4 text-emerald-400" />}>
           <ReactECharts
             option={dealSizeBracketOption}
             notMerge={true}
@@ -2302,6 +2534,419 @@ export const ChartsDashboard: React.FC<ChartsDashboardProps> = ({ records, allRe
               <button
                 onClick={() => setSelectedTrendMonth(null)}
                 className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors w-fit"
+              >
+                Close Worksheet
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Industry Won Deals Worksheet Modal */}
+      {selectedIndustry && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+            {/* Modal Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-purple-500/20 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <Award className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-extrabold text-slate-100">
+                      {selectedIndustry} — Industry Won Deals
+                    </h3>
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold bg-purple-500/20 text-purple-300 border border-purple-500/30 rounded-md">
+                      {industryDeals.length} Won Deals
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 flex flex-wrap items-center gap-3 mt-1">
+                    <span>Total Industry Revenue: <strong className="text-emerald-400 font-mono">{formatCurrencyVal(industryDeals.reduce((a, b) => a + b.netRevenue, 0))}</strong></span>
+                    <span>•</span>
+                    <span>Deals Count: <strong className="text-purple-300">{industryDeals.length} deals</strong></span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => exportIndustryExcel(selectedIndustry)}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Excel (.xlsx)</span>
+                </button>
+                <button
+                  onClick={() => setSelectedIndustry(null)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="py-3 flex items-center justify-between gap-3 border-b border-slate-800/60">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+                <input
+                  type="text"
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  placeholder="Search industry deals by ID, company, rep, solution..."
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-purple-500"
+                />
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                Showing {modalIndustryFilteredDeals.length} of {industryDeals.length} Industry Deals
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto my-3 rounded-xl border border-slate-800 bg-slate-950/90 shadow-inner">
+              <table className="w-full text-left text-xs text-slate-300 border-collapse min-w-[1100px]">
+                <thead className="bg-slate-900 sticky top-0 z-10 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5 whitespace-nowrap min-w-[90px]">Deal ID</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[120px]">Status / Stage</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[180px]">Company / Client</th>
+                    <th className="p-3.5 min-w-[300px]">Deal Name / Opportunity</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[140px]">Responsible Person</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Income / Value (₹)</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[120px]">Lead Source</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Industry</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[170px]">Solution Type</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[110px]">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/70 font-medium">
+                  {modalIndustryFilteredDeals.length > 0 ? (
+                    modalIndustryFilteredDeals.map((deal) => {
+                      const fullDealName = deal.rawRecord?.['Deal Name'] || `${deal.customer} - ${deal.solution}`;
+                      return (
+                        <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
+                          <td className="p-3.5 font-mono font-bold text-purple-400 whitespace-nowrap">{deal.id}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{deal.stage}</span>
+                          </td>
+                          <td className="p-3.5 font-bold text-slate-100">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                              <span>{deal.customer}</span>
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-slate-200 font-normal leading-relaxed whitespace-normal break-words max-w-md">{fullDealName}</td>
+                          <td className="p-3.5 font-semibold text-slate-200 whitespace-nowrap">{deal.salesRep}</td>
+                          <td className="p-3.5 font-extrabold text-emerald-400 font-mono text-xs whitespace-nowrap">₹{deal.netRevenue.toLocaleString('en-IN')}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-800 text-slate-200 border border-slate-700 whitespace-nowrap inline-block">{deal.leadSource}</span>
+                          </td>
+                          <td className="p-3.5 text-purple-300 font-bold whitespace-nowrap">{deal.industry}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 whitespace-nowrap inline-block">{deal.solution}</span>
+                          </td>
+                          <td className="p-3.5 text-slate-400 font-mono whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="w-3 h-3 text-slate-500" />
+                              <span>{deal.date}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr><td colSpan={10} className="p-8 text-center text-slate-500">No won deals found for industry "{selectedIndustry}".</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800 text-xs">
+              <div className="flex items-center space-x-4">
+                <span className="text-slate-400">Filtered Deals: <strong className="text-slate-100">{modalIndustryFilteredDeals.length}</strong></span>
+                <span className="text-slate-400">Total Value: <strong className="text-emerald-400 font-mono font-bold">₹{modalIndustryFilteredDeals.reduce((a, b) => a + b.netRevenue, 0).toLocaleString('en-IN')}</strong></span>
+              </div>
+              <button
+                onClick={() => setSelectedIndustry(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors w-fit cursor-pointer"
+              >
+                Close Worksheet
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Reasons Lost Deals Worksheet Modal */}
+      {selectedLostReason && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+            {/* Modal Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-rose-500/20 border border-rose-500/30 flex items-center justify-center text-rose-400">
+                  <AlertTriangle className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-extrabold text-slate-100">
+                      {selectedLostReason} — Lost Deals Worksheet
+                    </h3>
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-md">
+                      {lostReasonDeals.length} Lost Deals
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 flex flex-wrap items-center gap-3 mt-1">
+                    <span>Total Lost Value: <strong className="text-rose-400 font-mono">{formatCurrencyVal(lostReasonDeals.reduce((a, b) => a + b.netRevenue, 0))}</strong></span>
+                    <span>•</span>
+                    <span>Deals Count: <strong className="text-rose-300">{lostReasonDeals.length} deals</strong></span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => exportLostReasonExcel(selectedLostReason)}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Excel (.xlsx)</span>
+                </button>
+                <button
+                  onClick={() => setSelectedLostReason(null)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="py-3 flex items-center justify-between gap-3 border-b border-slate-800/60">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+                <input
+                  type="text"
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  placeholder="Search lost deals by ID, company, rep, remarks..."
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-rose-500"
+                />
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                Showing {modalLostReasonFilteredDeals.length} of {lostReasonDeals.length} Lost Deals
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto my-3 rounded-xl border border-slate-800 bg-slate-950/90 shadow-inner">
+              <table className="w-full text-left text-xs text-slate-300 border-collapse min-w-[1100px]">
+                <thead className="bg-slate-900 sticky top-0 z-10 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5 whitespace-nowrap min-w-[90px]">Deal ID</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[120px]">Status / Stage</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[180px]">Company / Client</th>
+                    <th className="p-3.5 min-w-[260px]">Deal Name / Opportunity</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[140px]">Responsible Person</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Lost Value (₹)</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[120px]">Lead Source</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Industry</th>
+                    <th className="p-3.5 min-w-[200px]">Detailed Remarks / Lost Reason</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[110px]">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/70 font-medium">
+                  {modalLostReasonFilteredDeals.length > 0 ? (
+                    modalLostReasonFilteredDeals.map((deal) => {
+                      const fullDealName = deal.rawRecord?.['Deal Name'] || `${deal.customer} - ${deal.solution}`;
+                      const remarks = deal.lostReason || deal.rawRecord?.COMMENTS || 'N/A';
+                      return (
+                        <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
+                          <td className="p-3.5 font-mono font-bold text-rose-400 whitespace-nowrap">{deal.id}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border bg-rose-500/20 text-rose-400 border-rose-500/30">{deal.stage}</span>
+                          </td>
+                          <td className="p-3.5 font-bold text-slate-100">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                              <span>{deal.customer}</span>
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-slate-200 font-normal leading-relaxed whitespace-normal break-words max-w-xs">{fullDealName}</td>
+                          <td className="p-3.5 font-semibold text-slate-200 whitespace-nowrap">{deal.salesRep}</td>
+                          <td className="p-3.5 font-extrabold text-rose-400 font-mono text-xs whitespace-nowrap">₹{deal.netRevenue.toLocaleString('en-IN')}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-800 text-slate-200 border border-slate-700 whitespace-nowrap inline-block">{deal.leadSource}</span>
+                          </td>
+                          <td className="p-3.5 text-slate-300 whitespace-nowrap">{deal.industry}</td>
+                          <td className="p-3.5 text-rose-300/90 text-xs font-normal whitespace-normal break-words max-w-sm leading-relaxed">{remarks}</td>
+                          <td className="p-3.5 text-slate-400 font-mono whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="w-3 h-3 text-slate-500" />
+                              <span>{deal.date}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr><td colSpan={10} className="p-8 text-center text-slate-500">No lost deals found for category "{selectedLostReason}".</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800 text-xs">
+              <div className="flex items-center space-x-4">
+                <span className="text-slate-400">Filtered Deals: <strong className="text-slate-100">{modalLostReasonFilteredDeals.length}</strong></span>
+                <span className="text-slate-400">Total Lost Value: <strong className="text-rose-400 font-mono font-bold">₹{modalLostReasonFilteredDeals.reduce((a, b) => a + b.netRevenue, 0).toLocaleString('en-IN')}</strong></span>
+              </div>
+              <button
+                onClick={() => setSelectedLostReason(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors w-fit cursor-pointer"
+              >
+                Close Worksheet
+              </button>
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
+      {/* Solution Type Won Deals Worksheet Modal */}
+      {selectedSolution && createPortal(
+        <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-950/90 backdrop-blur-lg p-3 md:p-6 overflow-hidden">
+          <div className="glass-panel p-5 md:p-6 rounded-2xl max-w-7xl w-full max-h-[92vh] flex flex-col border border-slate-700/80 shadow-2xl relative overflow-hidden bg-slate-900/95 my-auto">
+            {/* Modal Header */}
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 pb-4 border-b border-slate-800">
+              <div className="flex items-center space-x-4">
+                <div className="w-12 h-12 rounded-2xl bg-cyan-500/20 border border-cyan-500/30 flex items-center justify-center text-cyan-400">
+                  <Layers className="w-6 h-6" />
+                </div>
+                <div>
+                  <div className="flex items-center space-x-2">
+                    <h3 className="text-lg font-extrabold text-slate-100">
+                      {selectedSolution} — Solution Type Won Deals
+                    </h3>
+                    <span className="px-2.5 py-0.5 text-[10px] font-bold bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-md">
+                      {solutionDeals.length} Won Deals
+                    </span>
+                  </div>
+                  <p className="text-xs text-slate-400 flex flex-wrap items-center gap-3 mt-1">
+                    <span>Total Solution Revenue: <strong className="text-emerald-400 font-mono">{formatCurrencyVal(solutionDeals.reduce((a, b) => a + b.netRevenue, 0))}</strong></span>
+                    <span>•</span>
+                    <span>Deals Count: <strong className="text-cyan-300">{solutionDeals.length} deals</strong></span>
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center space-x-3">
+                <button
+                  onClick={() => exportSolutionExcel(selectedSolution)}
+                  className="flex items-center space-x-2 px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-500 text-white text-xs font-bold transition-all shadow-md shadow-emerald-600/20 active:scale-95 whitespace-nowrap cursor-pointer"
+                >
+                  <Download className="w-4 h-4" />
+                  <span>Download Excel (.xlsx)</span>
+                </button>
+                <button
+                  onClick={() => setSelectedSolution(null)}
+                  className="p-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-400 hover:text-slate-200 border border-slate-700 transition-colors cursor-pointer"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            {/* Search Bar */}
+            <div className="py-3 flex items-center justify-between gap-3 border-b border-slate-800/60">
+              <div className="relative flex-1 max-w-md">
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-500" />
+                <input
+                  type="text"
+                  value={modalSearch}
+                  onChange={(e) => setModalSearch(e.target.value)}
+                  placeholder="Search solution deals by ID, company, rep, industry..."
+                  className="w-full pl-9 pr-4 py-2 rounded-xl bg-slate-900 border border-slate-700 text-slate-100 placeholder-slate-500 text-xs focus:outline-none focus:border-cyan-500"
+                />
+              </div>
+              <div className="text-xs text-slate-400 font-mono">
+                Showing {modalSolutionFilteredDeals.length} of {solutionDeals.length} Solution Deals
+              </div>
+            </div>
+
+            {/* Table */}
+            <div className="flex-1 overflow-y-auto overflow-x-auto my-3 rounded-xl border border-slate-800 bg-slate-950/90 shadow-inner">
+              <table className="w-full text-left text-xs text-slate-300 border-collapse min-w-[1100px]">
+                <thead className="bg-slate-900 sticky top-0 z-10 text-slate-400 uppercase text-[10px] font-bold tracking-wider border-b border-slate-800">
+                  <tr>
+                    <th className="p-3.5 whitespace-nowrap min-w-[90px]">Deal ID</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[120px]">Status / Stage</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[180px]">Company / Client</th>
+                    <th className="p-3.5 min-w-[300px]">Deal Name / Opportunity</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[140px]">Responsible Person</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Income / Value (₹)</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[120px]">Lead Source</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[130px]">Industry</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[170px]">Solution Type</th>
+                    <th className="p-3.5 whitespace-nowrap min-w-[110px]">Date</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-slate-800/70 font-medium">
+                  {modalSolutionFilteredDeals.length > 0 ? (
+                    modalSolutionFilteredDeals.map((deal) => {
+                      const fullDealName = deal.rawRecord?.['Deal Name'] || `${deal.customer} - ${deal.solution}`;
+                      return (
+                        <tr key={deal.id} className="hover:bg-slate-900/90 transition-colors">
+                          <td className="p-3.5 font-mono font-bold text-cyan-400 whitespace-nowrap">{deal.id}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-bold border bg-emerald-500/20 text-emerald-400 border-emerald-500/30">{deal.stage}</span>
+                          </td>
+                          <td className="p-3.5 font-bold text-slate-100">
+                            <div className="flex items-center gap-2">
+                              <Building2 className="w-3.5 h-3.5 text-slate-500 flex-shrink-0" />
+                              <span>{deal.customer}</span>
+                            </div>
+                          </td>
+                          <td className="p-3.5 text-slate-200 font-normal leading-relaxed whitespace-normal break-words max-w-md">{fullDealName}</td>
+                          <td className="p-3.5 font-semibold text-slate-200 whitespace-nowrap">{deal.salesRep}</td>
+                          <td className="p-3.5 font-extrabold text-emerald-400 font-mono text-xs whitespace-nowrap">₹{deal.netRevenue.toLocaleString('en-IN')}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-slate-800 text-slate-200 border border-slate-700 whitespace-nowrap inline-block">{deal.leadSource}</span>
+                          </td>
+                          <td className="p-3.5 text-slate-300 whitespace-nowrap">{deal.industry}</td>
+                          <td className="p-3.5 whitespace-nowrap">
+                            <span className="px-2.5 py-1 rounded-lg text-[10px] font-semibold bg-cyan-500/15 text-cyan-300 border border-cyan-500/30 whitespace-nowrap inline-block">{deal.solution}</span>
+                          </td>
+                          <td className="p-3.5 text-slate-400 font-mono whitespace-nowrap">
+                            <div className="flex items-center gap-1.5">
+                              <Calendar className="w-3 h-3 text-slate-500" />
+                              <span>{deal.date}</span>
+                            </div>
+                          </td>
+                        </tr>
+                      );
+                    })
+                  ) : (
+                    <tr><td colSpan={10} className="p-8 text-center text-slate-500">No won deals found for solution type "{selectedSolution}".</td></tr>
+                  )}
+                </tbody>
+              </table>
+            </div>
+
+            {/* Footer */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pt-3 border-t border-slate-800 text-xs">
+              <div className="flex items-center space-x-4">
+                <span className="text-slate-400">Filtered Deals: <strong className="text-slate-100">{modalSolutionFilteredDeals.length}</strong></span>
+                <span className="text-slate-400">Total Value: <strong className="text-emerald-400 font-mono font-bold">₹{modalSolutionFilteredDeals.reduce((a, b) => a + b.netRevenue, 0).toLocaleString('en-IN')}</strong></span>
+              </div>
+              <button
+                onClick={() => setSelectedSolution(null)}
+                className="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-bold transition-colors w-fit cursor-pointer"
               >
                 Close Worksheet
               </button>

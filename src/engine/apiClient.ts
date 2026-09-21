@@ -14,18 +14,19 @@
  */
 
 import { getStoredBitrixCache, saveBitrixCache, type BitrixSyncResult } from './bitrixService';
+import { getApiBaseUrl, getStaticAssetUrl } from '../config/apiConfig';
 
-const API_BASE = import.meta.env.VITE_API_BASE_URL || '';
+const getBaseUrl = () => getApiBaseUrl();
 
 /**
  * Fetch the latest cached deal data from the server.
  * Includes fallbacks to browser localStorage cache and direct Bitrix Webhook if server is unreachable.
  */
 export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
-  // Attempt 1: Try the backend Express server API (only works in dev or
-  // when deployed alongside the Node.js server)
+  const apiBase = getBaseUrl();
+  // Attempt 1: Try the backend Express server API
   try {
-    const res = await fetch(`${API_BASE}/api/deals`, {
+    const res = await fetch(`${apiBase}/api/deals`, {
       headers: { 'Accept': 'application/json' }
     });
 
@@ -43,7 +44,7 @@ export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
       for (let i = 0; i < 15 && retryRes.status === 503; i++) {
         console.log(`[apiClient] Server is syncing Bitrix data (attempt ${i + 1}/15)...`);
         await new Promise(r => setTimeout(r, 1000));
-        retryRes = await fetch(`${API_BASE}/api/deals`, {
+        retryRes = await fetch(`${apiBase}/api/deals`, {
           headers: { 'Accept': 'application/json' }
         });
       }
@@ -83,8 +84,10 @@ export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
 
   // Attempt 2: Try fetching bundled static cached_bitrix_deals.json from public CDN assets
   try {
-    const staticRes = await fetch('/cached_bitrix_deals.json');
-    if (staticRes.ok) {
+    const staticUrl = getStaticAssetUrl('cached_bitrix_deals.json');
+    const staticRes = await fetch(staticUrl);
+    const contentType = staticRes.headers.get('content-type') || '';
+    if (staticRes.ok && (!contentType || contentType.includes('application/json') || contentType.includes('text/plain'))) {
       const staticData = await staticRes.json();
       if (staticData && Array.isArray(staticData.won) && (staticData.won.length > 0 || staticData.progress?.length > 0)) {
         console.log('[apiClient] Loaded deals from static CDN cache.');
@@ -129,7 +132,7 @@ export async function fetchDealsFromServer(): Promise<BitrixSyncResult> {
  */
 export async function triggerServerSync(): Promise<BitrixSyncResult> {
   try {
-    const res = await fetch(`${API_BASE}/api/deals/sync`, { method: 'POST' });
+    const res = await fetch(`${getBaseUrl()}/api/deals/sync`, { method: 'POST' });
 
     if (!res.ok) {
       const errorBody = await res.json().catch(() => ({}));
@@ -188,7 +191,7 @@ function buildQueryParams(filters: Partial<any> = {}): string {
 export async function fetchServerDashboardSummary(filters: any = {}): Promise<any | null> {
   try {
     const qs = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE}/api/dashboard/summary?${qs}`);
+    const res = await fetch(`${getBaseUrl()}/api/dashboard/summary?${qs}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -200,7 +203,7 @@ export async function fetchServerDashboardSummary(filters: any = {}): Promise<an
 export async function fetchServerRevenueAnalytics(filters: any = {}): Promise<any | null> {
   try {
     const qs = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE}/api/dashboard/revenue?${qs}`);
+    const res = await fetch(`${getBaseUrl()}/api/dashboard/revenue?${qs}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -212,7 +215,7 @@ export async function fetchServerRevenueAnalytics(filters: any = {}): Promise<an
 export async function fetchServerPipelineAnalytics(filters: any = {}): Promise<any | null> {
   try {
     const qs = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE}/api/dashboard/pipeline?${qs}`);
+    const res = await fetch(`${getBaseUrl()}/api/dashboard/pipeline?${qs}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -224,7 +227,7 @@ export async function fetchServerPipelineAnalytics(filters: any = {}): Promise<a
 export async function fetchServerWinRateAnalytics(filters: any = {}): Promise<any | null> {
   try {
     const qs = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE}/api/dashboard/win-rate?${qs}`);
+    const res = await fetch(`${getBaseUrl()}/api/dashboard/win-rate?${qs}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -236,7 +239,7 @@ export async function fetchServerWinRateAnalytics(filters: any = {}): Promise<an
 export async function fetchServerSalesRepAnalytics(filters: any = {}): Promise<any | null> {
   try {
     const qs = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE}/api/dashboard/sales-reps?${qs}`);
+    const res = await fetch(`${getBaseUrl()}/api/dashboard/sales-reps?${qs}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {
@@ -248,7 +251,7 @@ export async function fetchServerSalesRepAnalytics(filters: any = {}): Promise<a
 export async function fetchServerProjectAnalytics(filters: any = {}): Promise<any | null> {
   try {
     const qs = buildQueryParams(filters);
-    const res = await fetch(`${API_BASE}/api/dashboard/projects?${qs}`);
+    const res = await fetch(`${getBaseUrl()}/api/dashboard/projects?${qs}`);
     if (!res.ok) return null;
     return await res.json();
   } catch (err) {

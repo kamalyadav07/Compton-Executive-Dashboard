@@ -7996,6 +7996,17 @@
     ]
   },
   {
+    "dealId": "BITRIX-4730",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 98,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
     "dealId": "BITRIX-156",
     "snapshotDate": "2026-09-08",
     "winProbabilityPct": 74,
@@ -8008,476 +8019,6 @@
       "customerWentQuiet",
       "scopeOrPriceChangedRecently",
       "urgencyLanguageDetected"
-    ]
-  },
-  {
-    "dealId": "BITRIX-1694",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 76,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 90,
-    "closesWithin7DaysPct": 35,
-    "closesWithin15DaysPct": 35,
-    "expectedCloseDate": "2026-09-12",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-1720",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 76,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 30,
-    "closesWithin7DaysPct": 35,
-    "closesWithin15DaysPct": 35,
-    "expectedCloseDate": "2026-09-16",
-    "qualitativeRiskFlags": [
-      "competitorMentioned",
-      "customerWentQuiet",
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-1750",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 63,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 0,
-    "closesWithin7DaysPct": 35,
-    "closesWithin15DaysPct": 35,
-    "expectedCloseDate": "2026-09-17",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-4084",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 81,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 40,
-    "closesWithin7DaysPct": 15,
-    "closesWithin15DaysPct": 24,
-    "expectedCloseDate": "2026-10-14",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3360",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 53,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 10,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 13,
-    "expectedCloseDate": "2026-12-30",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet",
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3470",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 68,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 30,
-    "closesWithin7DaysPct": 27,
-    "closesWithin15DaysPct": 36,
-    "expectedCloseDate": "2026-11-15",
-    "qualitativeRiskFlags": [
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-4678",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 76,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 80,
-    "closesWithin7DaysPct": 80,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-14",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4680",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 79,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 100,
-    "closesWithin7DaysPct": 80,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-14",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4690",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 72,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 50,
-    "closesWithin7DaysPct": 80,
-    "closesWithin15DaysPct": 84,
-    "expectedCloseDate": "2026-09-15",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4692",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 73,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 60,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 84,
-    "expectedCloseDate": "2026-09-16",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4694",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 27,
-    "baseWinProbabilityPct": 1,
-    "analogousWinRate": 40,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 84,
-    "expectedCloseDate": "2026-09-16",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4696",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 75,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 70,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 84,
-    "expectedCloseDate": "2026-09-16",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4700",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 36,
-    "baseWinProbabilityPct": 1,
-    "analogousWinRate": 100,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 84,
-    "expectedCloseDate": "2026-09-16",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4702",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 34,
-    "baseWinProbabilityPct": 1,
-    "analogousWinRate": 90,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 84,
-    "expectedCloseDate": "2026-09-16",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4708",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 73,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 60,
-    "closesWithin7DaysPct": 25,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-21",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4722",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 78,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 90,
-    "closesWithin7DaysPct": 24,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-22",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4724",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 75,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 70,
-    "closesWithin7DaysPct": 24,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-22",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4726",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 22,
-    "baseWinProbabilityPct": 1,
-    "analogousWinRate": 10,
-    "closesWithin7DaysPct": 24,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-22",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4728",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 21,
-    "baseWinProbabilityPct": 1,
-    "analogousWinRate": 0,
-    "closesWithin7DaysPct": 24,
-    "closesWithin15DaysPct": 85,
-    "expectedCloseDate": "2026-09-22",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-2926",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 71,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 50,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2026-12-18",
-    "qualitativeRiskFlags": [
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-2928",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 61,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 50,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2026-12-18",
-    "qualitativeRiskFlags": [
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3554",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 69,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 40,
-    "closesWithin7DaysPct": 15,
-    "closesWithin15DaysPct": 38,
-    "expectedCloseDate": "2026-10-25",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3580",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 84,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 50,
-    "closesWithin7DaysPct": 8,
-    "closesWithin15DaysPct": 31,
-    "expectedCloseDate": "2026-10-27",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-2624",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 53,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 0,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2026-11-21",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-1856",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 94,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 90,
-    "closesWithin7DaysPct": 35,
-    "closesWithin15DaysPct": 35,
-    "expectedCloseDate": "2026-09-25",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-1974",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 86,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 60,
-    "closesWithin7DaysPct": 35,
-    "closesWithin15DaysPct": 35,
-    "expectedCloseDate": "2026-10-10",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3044",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 78,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 30,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 14,
-    "expectedCloseDate": "2026-12-27",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet",
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3140",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 76,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 80,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2027-01-04",
-    "qualitativeRiskFlags": [
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3150",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 75,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 20,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2027-01-04",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet",
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3152",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 69,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 30,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2027-01-04",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-3192",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 78,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 30,
-    "closesWithin7DaysPct": 0,
-    "closesWithin15DaysPct": 0,
-    "expectedCloseDate": "2027-01-06",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet",
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-4386",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 73,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 60,
-    "closesWithin7DaysPct": 12,
-    "closesWithin15DaysPct": 26,
-    "expectedCloseDate": "2026-10-12",
-    "qualitativeRiskFlags": []
-  },
-  {
-    "dealId": "BITRIX-4468",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 77,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 90,
-    "closesWithin7DaysPct": 17,
-    "closesWithin15DaysPct": 26,
-    "expectedCloseDate": "2026-10-11",
-    "qualitativeRiskFlags": [
-      "scopeOrPriceChangedRecently"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3844",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 86,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 60,
-    "closesWithin7DaysPct": 17,
-    "closesWithin15DaysPct": 22,
-    "expectedCloseDate": "2026-10-14",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3846",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 75,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 80,
-    "closesWithin7DaysPct": 17,
-    "closesWithin15DaysPct": 22,
-    "expectedCloseDate": "2026-10-14",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3850",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 73,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 70,
-    "closesWithin7DaysPct": 17,
-    "closesWithin15DaysPct": 22,
-    "expectedCloseDate": "2026-10-14",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3910",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 86,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 60,
-    "closesWithin7DaysPct": 15,
-    "closesWithin15DaysPct": 30,
-    "expectedCloseDate": "2026-10-11",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
-    ]
-  },
-  {
-    "dealId": "BITRIX-3688",
-    "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 70,
-    "baseWinProbabilityPct": 99,
-    "analogousWinRate": 50,
-    "closesWithin7DaysPct": 13,
-    "closesWithin15DaysPct": 20,
-    "expectedCloseDate": "2026-10-09",
-    "qualitativeRiskFlags": [
-      "customerWentQuiet"
     ]
   },
   {
@@ -8586,9 +8127,9 @@
   {
     "dealId": "BITRIX-4668",
     "snapshotDate": "2026-09-08",
-    "winProbabilityPct": 72,
+    "winProbabilityPct": 69,
     "baseWinProbabilityPct": 99,
-    "analogousWinRate": 50,
+    "analogousWinRate": 30,
     "closesWithin7DaysPct": 82,
     "closesWithin15DaysPct": 86,
     "expectedCloseDate": "2026-09-09",
@@ -8603,6 +8144,273 @@
     "closesWithin7DaysPct": 82,
     "closesWithin15DaysPct": 86,
     "expectedCloseDate": "2026-09-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 35,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-09-12",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 35,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "customerWentQuiet",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 35,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-09-17",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-21",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-18",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-18",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4678",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 80,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-14",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4680",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 80,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-14",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 72,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 80,
+    "closesWithin15DaysPct": 84,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 84,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4694",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 27,
+    "baseWinProbabilityPct": 1,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 84,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 75,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 84,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 1,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 84,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 1,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 84,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4722",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 75,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 27,
+    "baseWinProbabilityPct": 1,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4728",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 67,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4734",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 64,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4736",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 66,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 15,
+    "baseWinProbabilityPct": 1,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4740",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 1,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 85,
+    "expectedCloseDate": "2026-09-22",
     "qualitativeRiskFlags": []
   },
   {
@@ -8628,6 +8436,136 @@
     "closesWithin15DaysPct": 34,
     "expectedCloseDate": "2026-10-10",
     "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 81,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-14",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3844",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 86,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-14",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 75,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-14",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-14",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 86,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 30,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 94,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 35,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 86,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 35,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 69,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 38,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 84,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 31,
+    "expectedCloseDate": "2026-10-27",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 70,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 20,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
   },
   {
     "dealId": "BITRIX-3724",
@@ -8698,6 +8636,123 @@
     ]
   },
   {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 12,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-12",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 77,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3360",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-12-30",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 68,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 27,
+    "closesWithin15DaysPct": 36,
+    "expectedCloseDate": "2026-11-15",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 78,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 14,
+    "expectedCloseDate": "2026-12-27",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3140",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2027-01-04",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 75,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2027-01-04",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 69,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2027-01-04",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-08",
+    "winProbabilityPct": 78,
+    "baseWinProbabilityPct": 99,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2027-01-06",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
     "dealId": "BITRIX-4308",
     "snapshotDate": "2026-09-08",
     "winProbabilityPct": 89,
@@ -8732,6 +8787,4702 @@
     "expectedCloseDate": "2026-10-11",
     "qualitativeRiskFlags": [
       "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-156",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 45,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-09",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 52,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-23",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 69,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-09",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 31,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-24",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3934",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 6,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3958",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 2,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 18,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-10",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4680",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 69,
+    "baseWinProbabilityPct": 75,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-09-30",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 52,
+    "baseWinProbabilityPct": 55,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-01",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 58,
+    "baseWinProbabilityPct": 64,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4694",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 38,
+    "baseWinProbabilityPct": 26,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 74,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 18,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-14",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4722",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 69,
+    "baseWinProbabilityPct": 76,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 72,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 38,
+    "baseWinProbabilityPct": 26,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4740",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 39,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4742",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4746",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 24,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4750",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 4,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4752",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 4,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 47,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 64,
+    "baseWinProbabilityPct": 69,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 19,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-16",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 19,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-16",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-22",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 15,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-22",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 39,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-23",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 16,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-22",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3360",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 42,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-26",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 46,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 16,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-04",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3724",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-31",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3762",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-13",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3776",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 5,
+    "baseWinProbabilityPct": 7,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-17",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3780",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 74,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3786",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4308",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-01",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4310",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 61,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 16,
+    "closesWithin15DaysPct": 27,
+    "expectedCloseDate": "2026-10-14",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4316",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4516",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 50,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4524",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 57,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 23,
+    "closesWithin15DaysPct": 36,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4546",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 87,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 4,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4580",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 70,
+    "baseWinProbabilityPct": 88,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 88,
+    "closesWithin15DaysPct": 90,
+    "expectedCloseDate": "2026-09-13",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4596",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 57,
+    "baseWinProbabilityPct": 59,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 87,
+    "closesWithin15DaysPct": 90,
+    "expectedCloseDate": "2026-09-13",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4612",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 40,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4614",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 77,
+    "baseWinProbabilityPct": 78,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 86,
+    "closesWithin15DaysPct": 89,
+    "expectedCloseDate": "2026-09-17",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4644",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4652",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 81,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-10",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4668",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 86,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4670",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 83,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 86,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 83,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-24",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 69,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-14",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 57,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-13",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-10",
+    "winProbabilityPct": 52,
+    "baseWinProbabilityPct": 42,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 12,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-15",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-156",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4784",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 19,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-27",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 19,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-27",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3934",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 6,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-20",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3958",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 2,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 83,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-04",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-25",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 15,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-03",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-04",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 17,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-03",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3360",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 41,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-06",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 46,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-02",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 16,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-14",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-04",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 31,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-05",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 18,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-21",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3724",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-11",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3762",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-24",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3776",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 5,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-28",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3780",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 74,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-01",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3786",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-01",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 27,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 52,
+    "baseWinProbabilityPct": 41,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 50,
+    "baseWinProbabilityPct": 53,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-01",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 41,
+    "baseWinProbabilityPct": 31,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4694",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 26,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 32,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 74,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 72,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 59,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-07",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 72,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 12,
+    "closesWithin15DaysPct": 16,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 37,
+    "baseWinProbabilityPct": 24,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 12,
+    "closesWithin15DaysPct": 16,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 28,
+    "baseWinProbabilityPct": 26,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 12,
+    "closesWithin15DaysPct": 16,
+    "expectedCloseDate": "2026-09-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4742",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 58,
+    "baseWinProbabilityPct": 64,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 19,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4750",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 3,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 19,
+    "expectedCloseDate": "2026-09-16",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4772",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 82,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-18",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4774",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 57,
+    "baseWinProbabilityPct": 58,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 18,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4776",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 18,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4780",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 25,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4782",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 64,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4308",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-12",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4310",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4316",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 42,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-10-22",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-30",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-30",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 65,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-20",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4516",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 12,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4524",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 18,
+    "closesWithin15DaysPct": 27,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4546",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 87,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4580",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 35,
+    "expectedCloseDate": "2026-10-15",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4614",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 78,
+    "baseWinProbabilityPct": 79,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 87,
+    "closesWithin15DaysPct": 90,
+    "expectedCloseDate": "2026-09-18",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4644",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 63,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-15",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4652",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 81,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-15",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4668",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 44,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4670",
+    "snapshotDate": "2026-09-15",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 82,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-156",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-17",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 13,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-10",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-10",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 30,
+    "baseWinProbabilityPct": 16,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-01",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-10",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-11-02",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 19,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-11-02",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-17",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-17",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4784",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 50,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4792",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 9,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4800",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4812",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 94,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4814",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 18,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-27",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-11",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-17",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 31,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-12",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-05",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-05",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 65,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-27",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4516",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4524",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 6,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4546",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 87,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4580",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 22,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4614",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 79,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4644",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4652",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 81,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4668",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 46,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 86,
+    "closesWithin15DaysPct": 89,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4670",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 22,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 46,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4308",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4310",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4316",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 45,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-28",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 51,
+    "baseWinProbabilityPct": 56,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-01",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 42,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 87,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 41,
+    "baseWinProbabilityPct": 34,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 87,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 74,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 87,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 61,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-07",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 72,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 38,
+    "baseWinProbabilityPct": 26,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4742",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 14,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4750",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 3,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 14,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4772",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 82,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 16,
+    "expectedCloseDate": "2026-09-18",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4774",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 58,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 18,
+    "expectedCloseDate": "2026-09-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4776",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 18,
+    "expectedCloseDate": "2026-09-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4780",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 25,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 15,
+    "baseWinProbabilityPct": 7,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-20",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3724",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-18",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3762",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-01",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3780",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 74,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-07",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3786",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-07",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3934",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 6,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-27",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3958",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 2,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-11",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-02",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 63,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 6,
+    "expectedCloseDate": "2026-10-18",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-18",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 16,
+    "closesWithin15DaysPct": 27,
+    "expectedCloseDate": "2026-10-22",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-156",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-18",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-07",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-07",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 65,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-29",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 51,
+    "baseWinProbabilityPct": 56,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-01",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 42,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 41,
+    "baseWinProbabilityPct": 34,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 74,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 61,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-06",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 72,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 13,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4742",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4750",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 3,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4772",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 82,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4774",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 58,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4776",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 16,
+    "expectedCloseDate": "2026-10-12",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4780",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 27,
+    "baseWinProbabilityPct": 10,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4784",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 50,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4792",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 9,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4800",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4812",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 94,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4814",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4816",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 25,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4818",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 44,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4820",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4822",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 67,
+    "baseWinProbabilityPct": 77,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 18,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-11-30",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3934",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 6,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-29",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3958",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 2,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 15,
+    "baseWinProbabilityPct": 7,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-24",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3724",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-20",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3762",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-03",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3780",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 74,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3786",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-09",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-18",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-18",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-11",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 19,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-05",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 19,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-05",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 13,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-12",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-12",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 30,
+    "baseWinProbabilityPct": 16,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-03",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-12",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4516",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4524",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4546",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 87,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-10-28",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4580",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4614",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 79,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4644",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4652",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 81,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4668",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 46,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 86,
+    "closesWithin15DaysPct": 89,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4670",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 22,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4308",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-22",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4310",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4316",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 45,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-31",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-13",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-04",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-27",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-18",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 31,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 63,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 6,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-19",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-19",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-156",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-19",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 18,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-02",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-15",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-19",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 31,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-16",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-10",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-10",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 65,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-01",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-13",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-19",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-19",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 13,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-15",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 30,
+    "baseWinProbabilityPct": 16,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-06",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-14",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4784",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 50,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 20,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4792",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 9,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4800",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4812",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 94,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4814",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4816",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 25,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4818",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 44,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4820",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4822",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 67,
+    "baseWinProbabilityPct": 77,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 25,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3934",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 6,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-01",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3958",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 2,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-23",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-15",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-06",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4308",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 79,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-23",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4310",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4316",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 60,
+    "baseWinProbabilityPct": 45,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-11-02",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 63,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 6,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 6,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 15,
+    "baseWinProbabilityPct": 7,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-25",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3724",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-22",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3762",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-12-05",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3780",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 74,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-12",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3786",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-12",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-07",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 19,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-07",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4516",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 6,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4524",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4546",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 87,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-30",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4580",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 4,
+    "closesWithin15DaysPct": 7,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4614",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 79,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 8,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4644",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4652",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 81,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-22",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4668",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 46,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 87,
+    "closesWithin15DaysPct": 90,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4670",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 22,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 51,
+    "baseWinProbabilityPct": 56,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-01",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 42,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 41,
+    "baseWinProbabilityPct": 34,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 74,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-20",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 61,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-07",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 72,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 33,
+    "baseWinProbabilityPct": 13,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4742",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4750",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 3,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 7,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4772",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 82,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 14,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4774",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 58,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-12",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4776",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 15,
+    "expectedCloseDate": "2026-10-12",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4780",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 27,
+    "baseWinProbabilityPct": 10,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 20,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-20",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-10-29",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4828",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 98,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-28",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4830",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 98,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-28",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-156",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 42,
+    "baseWinProbabilityPct": 46,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-12-20",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently",
+      "urgencyLanguageDetected"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3554",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 44,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3580",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-2624",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 18,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-04",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1856",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-11-11",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-1974",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 41,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-11-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3934",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 6,
+    "baseWinProbabilityPct": 11,
+    "analogousWinRate": 10,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3958",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 32,
+    "baseWinProbabilityPct": 2,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 3,
+    "closesWithin15DaysPct": 3,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4386",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 47,
+    "baseWinProbabilityPct": 63,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4468",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 63,
+    "baseWinProbabilityPct": 44,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 15,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-27",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2926",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 16,
+    "baseWinProbabilityPct": 20,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-24",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-2928",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 9,
+    "baseWinProbabilityPct": 6,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-24",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4690",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 41,
+    "baseWinProbabilityPct": 56,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-01",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4692",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 42,
+    "baseWinProbabilityPct": 33,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4696",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 30,
+    "baseWinProbabilityPct": 34,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 88,
+    "expectedCloseDate": "2026-10-02",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4700",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 88,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4702",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 71,
+    "baseWinProbabilityPct": 88,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4708",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 61,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-07",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4724",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 51,
+    "baseWinProbabilityPct": 72,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4726",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 23,
+    "baseWinProbabilityPct": 13,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4738",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 29,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-08",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4742",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4750",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 3,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 11,
+    "expectedCloseDate": "2026-10-09",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4772",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 8,
+    "closesWithin15DaysPct": 13,
+    "expectedCloseDate": "2026-10-11",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4774",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 48,
+    "baseWinProbabilityPct": 60,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 14,
+    "expectedCloseDate": "2026-10-12",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4776",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 26,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 14,
+    "expectedCloseDate": "2026-10-12",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4780",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 19,
+    "baseWinProbabilityPct": 10,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 18,
+    "expectedCloseDate": "2026-09-30",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4784",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 18,
+    "expectedCloseDate": "2026-09-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4792",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 17,
+    "baseWinProbabilityPct": 9,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4800",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 22,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4812",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 74,
+    "baseWinProbabilityPct": 87,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4814",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 66,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 17,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4816",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 20,
+    "baseWinProbabilityPct": 8,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-30",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4818",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4820",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 73,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4822",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 57,
+    "baseWinProbabilityPct": 77,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 19,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-09-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4824",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 68,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-28",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4826",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 69,
+    "baseWinProbabilityPct": 78,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-28",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4836",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 56,
+    "baseWinProbabilityPct": 78,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 24,
+    "closesWithin15DaysPct": 32,
+    "expectedCloseDate": "2026-09-28",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4516",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 40,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-23",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4524",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 47,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 11,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4546",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 59,
+    "baseWinProbabilityPct": 98,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 13,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-22",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4580",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 61,
+    "baseWinProbabilityPct": 89,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 18,
+    "closesWithin15DaysPct": 27,
+    "expectedCloseDate": "2026-10-26",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4614",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 76,
+    "baseWinProbabilityPct": 79,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 6,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4644",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 65,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 87,
+    "closesWithin15DaysPct": 90,
+    "expectedCloseDate": "2026-09-24",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4652",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 55,
+    "baseWinProbabilityPct": 81,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 9,
+    "closesWithin15DaysPct": 9,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4668",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 36,
+    "baseWinProbabilityPct": 47,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 87,
+    "closesWithin15DaysPct": 90,
+    "expectedCloseDate": "2026-09-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4670",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 62,
+    "baseWinProbabilityPct": 84,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 22,
+    "closesWithin15DaysPct": 23,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "customerWentQuiet"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1694",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 90,
+    "closesWithin7DaysPct": 0,
+    "closesWithin15DaysPct": 0,
+    "expectedCloseDate": "2026-12-17",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1720",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 35,
+    "baseWinProbabilityPct": 48,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-11-13",
+    "qualitativeRiskFlags": [
+      "competitorMentioned",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-1750",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 13,
+    "baseWinProbabilityPct": 28,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 2,
+    "closesWithin15DaysPct": 2,
+    "expectedCloseDate": "2026-11-13",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3846",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 24,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 80,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3850",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 23,
+    "baseWinProbabilityPct": 5,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3910",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 51,
+    "baseWinProbabilityPct": 70,
+    "analogousWinRate": 60,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3724",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 21,
+    "baseWinProbabilityPct": 12,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3762",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 22,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 0,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3780",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 54,
+    "baseWinProbabilityPct": 74,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3786",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 30,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3470",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 45,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-01",
+    "qualitativeRiskFlags": [
+      "dealStalled",
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-4308",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 49,
+    "baseWinProbabilityPct": 86,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4310",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 53,
+    "baseWinProbabilityPct": 62,
+    "analogousWinRate": 100,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 24,
+    "expectedCloseDate": "2026-10-25",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4316",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 31,
+    "baseWinProbabilityPct": 45,
+    "analogousWinRate": 70,
+    "closesWithin7DaysPct": 16,
+    "closesWithin15DaysPct": 26,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-4084",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 9,
+    "baseWinProbabilityPct": 7,
+    "analogousWinRate": 40,
+    "closesWithin7DaysPct": 10,
+    "closesWithin15DaysPct": 10,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": []
+  },
+  {
+    "dealId": "BITRIX-3688",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 34,
+    "baseWinProbabilityPct": 15,
+    "analogousWinRate": 50,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-16",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3044",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 8,
+    "baseWinProbabilityPct": 12,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3150",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 26,
+    "baseWinProbabilityPct": 49,
+    "analogousWinRate": 30,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3152",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 30,
+    "baseWinProbabilityPct": 16,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 1,
+    "closesWithin15DaysPct": 1,
+    "expectedCloseDate": "2026-11-08",
+    "qualitativeRiskFlags": [
+      "dealStalled"
+    ]
+  },
+  {
+    "dealId": "BITRIX-3192",
+    "snapshotDate": "2026-09-21",
+    "winProbabilityPct": 25,
+    "baseWinProbabilityPct": 26,
+    "analogousWinRate": 20,
+    "closesWithin7DaysPct": 5,
+    "closesWithin15DaysPct": 5,
+    "expectedCloseDate": "2026-10-21",
+    "qualitativeRiskFlags": [
+      "scopeOrPriceChangedRecently"
     ]
   }
 ]

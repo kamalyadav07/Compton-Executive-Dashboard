@@ -19,6 +19,10 @@ dist-ssr
 !.env.example
 !server/.env.example
 
+# Scratch & temporary scripts
+scratch/
+
+
 # Runtime server data caches & business prediction snapshots
 server/cached_bitrix_deals.json
 server/chatQueryLogs.json
